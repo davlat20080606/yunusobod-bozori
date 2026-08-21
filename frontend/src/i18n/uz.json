@@ -1,0 +1,107 @@
+{
+  "brand": {
+    "name": "Yunusobod Dehqon Bozori",
+    "tagline": "Toshkentning eng saralangan mahsulotlari rastalardan to'g'ridan-to'g'ri",
+    "open_hours": "Har kuni 06:00 - 20:00"
+  },
+  "nav": {
+    "bazaar": "Bozor Rastasi",
+    "stores": "Do'konlar",
+    "cart": "Savat",
+    "my_orders": "Buyurtmalarim",
+    "seller_mode": "Sotuvchi Kabineti",
+    "tg_bot": "Telegram Bot"
+  },
+  "hero": {
+    "title": "Yunusobod Bozoridan Yangi Mahsulotlar",
+    "subtitle": "Xohlagan do'kon yoki rastani tanlang, saralangan meva, sabzavot va go'shtni uyingizgacha buyurtma qiling!",
+    "badge": "⚡️ 45 daqiqada tezyurar yetkazish"
+  },
+  "stores": {
+    "title": "Bozor Rastasi & Do'konlar",
+    "subtitle": "O'zingizga ma'qul bo'lgan sotuvchini tanlang",
+    "all": "Barcha do'konlar",
+    "stall": "Rasta",
+    "owner": "Sotuvchi",
+    "enter_store": "Do'konga kirish",
+    "open": "Ochiq",
+    "closed": "Yopiq",
+    "products_count": "xil mahsulot"
+  },
+  "products": {
+    "featured": "Kun Takliflari & Saralanganlar",
+    "all_products": "Mahsulotlar",
+    "search_placeholder": "Bozordan mahsulot yoki do'kon qidirish...",
+    "add_to_cart": "Savatga",
+    "added": "Qo'shildi",
+    "per_unit": "uchun narx",
+    "weight_selector": "Miqdor / Vazn",
+    "out_of_stock": "Vaqtincha tugagan",
+    "badge_fresh": "Yangi uzilgan",
+    "badge_fresh_hot": "Issiq tandirdan",
+    "badge_top_seller": "Xaridorgir",
+    "badge_top_rated": "A'lo sifat",
+    "badge_sweet": "Asaldek shirin",
+    "badge_premium": "Shohona",
+    "badge_organic": "Tabiiy fermer"
+  },
+  "cart": {
+    "title": "Savatdagi mahsulotlar",
+    "empty_title": "Savatingiz hozircha bo'sh",
+    "empty_desc": "Bozor rastalaridan saralangan mahsulotlarni tanlang!",
+    "total": "Jami mahsulotlar",
+    "delivery_fee": "Yetkazib berish (Toshkent)",
+    "grand_total": "To'lov summasi",
+    "checkout_btn": "Buyurtmani rasmiylashtirish",
+    "notes_placeholder": "Sotuvchiga yoki kuryerga istaklaringiz (masalan: pomidor qattiqroq bo'lsin)..."
+  },
+  "checkout": {
+    "title": "Buyurtmani rasmiylashtirish",
+    "name": "Ismingiz",
+    "name_placeholder": "Azizbek Rahimov",
+    "phone": "Telefon raqamingiz",
+    "phone_placeholder": "+998 90 123-45-67",
+    "district": "Tuman",
+    "address": "Yetkazish manzili (ko'cha, uy, xonadon)",
+    "address_placeholder": "Yunusobod 12-mavze, 4-uy, 15-xonadon",
+    "landmark": "Mo'ljal",
+    "landmark_placeholder": "Mega Planet orqasida, Korzinka yonida",
+    "time_slot": "Yetkazish vaqti",
+    "time_express": "⚡️ Express (45-60 daqiqa)",
+    "time_evening": "🌅 Bugun kechki payt (18:00 - 20:00)",
+    "time_morning": "☀️ Ertaga ertalab (09:00 - 11:00)",
+    "payment": "To'lov usuli",
+    "pay_cash": "Naqd pul yoki karta (Qabul qilinganda)",
+    "pay_click": "Click orqali to'lov",
+    "pay_payme": "Payme orqali to'lov",
+    "submit": "Buyurtmani tasdiqlash",
+    "processing": "Buyurtma yuborilmoqda..."
+  },
+  "seller": {
+    "title": "Sotuvchi Kabineti (Narxlarni boshqarish)",
+    "desc": "O'z do'koningizdagi narxlarni darhol o'zgartiring va zakazlarni kuzating",
+    "select_store": "Do'koningizni tanlang",
+    "enter_pin": "PIN-kodni kiriting",
+    "login_btn": "Boshqaruvga kirish",
+    "current_price": "Hozirgi narx",
+    "new_price": "Yangi narx (UZS)",
+    "update_price_btn": "Narxni yangilash",
+    "price_updated_success": "Narx muvaffaqiyatli yangilandi!",
+    "status_in_stock": "Sotuvda bor",
+    "status_out_of_stock": "Tugadi",
+    "store_status": "Do'kon holati",
+    "my_products": "Do'konimdagi mahsulotlar",
+    "incoming_orders": "Kelib tushgan buyurtmalar"
+  },
+  "tracker": {
+    "title": "Buyurtma holati",
+    "order_num": "Buyurtma",
+    "status_pending": "Buyurtma qabul qilindi",
+    "status_accepted": "Sotuvchi tasdiqladi",
+    "status_picking": "Bozorda saralanmoqda",
+    "status_on_the_way": "Kuryer yo'lda",
+    "status_delivered": "Muvaffaqiyatli yetkazildi",
+    "items_list": "Tarkibi",
+    "picker_checklist": "Sotuvchi/Kuryer tekshiruv ro'yxati"
+  }
+}

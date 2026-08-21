@@ -1,0 +1,107 @@
+{
+  "brand": {
+    "name": "Yunusabad Farmers' Market",
+    "tagline": "Handpicked fresh farm produce directly from bazaar stalls",
+    "open_hours": "Daily 06:00 - 20:00"
+  },
+  "nav": {
+    "bazaar": "Bazaar Stalls",
+    "stores": "Stores",
+    "cart": "Cart",
+    "my_orders": "My Orders",
+    "seller_mode": "Seller Portal",
+    "tg_bot": "Telegram Bot"
+  },
+  "hero": {
+    "title": "Fresh Farm Produce from Yunusabad Bazaar",
+    "subtitle": "Select any stall or shop, order fresh fruits, vegetables, tender meats, and tandoor bread directly to your door!",
+    "badge": "⚡️ Fast 45-min delivery across Tashkent"
+  },
+  "stores": {
+    "title": "Bazaar Stalls & Shops",
+    "subtitle": "Choose your trusted bazaar seller or stall",
+    "all": "All Stores",
+    "stall": "Stall",
+    "owner": "Seller",
+    "enter_store": "Enter Store",
+    "open": "Open",
+    "closed": "Closed",
+    "products_count": "products"
+  },
+  "products": {
+    "featured": "Daily Specials & Top Picks",
+    "all_products": "All Products",
+    "search_placeholder": "Search products or stalls at Yunusabad market...",
+    "add_to_cart": "Add to Cart",
+    "added": "Added",
+    "per_unit": "per unit",
+    "weight_selector": "Quantity / Weight",
+    "out_of_stock": "Temporarily Out of Stock",
+    "badge_fresh": "Fresh Harvest",
+    "badge_fresh_hot": "Hot Tandoor",
+    "badge_top_seller": "Best Seller",
+    "badge_top_rated": "Top Quality",
+    "badge_sweet": "Sweet Honey",
+    "badge_premium": "Premium",
+    "badge_organic": "Organic Farm"
+  },
+  "cart": {
+    "title": "Shopping Cart",
+    "empty_title": "Your cart is empty",
+    "empty_desc": "Explore authentic stalls and add fresh bazaar goods!",
+    "total": "Items Total",
+    "delivery_fee": "Delivery (Tashkent)",
+    "grand_total": "Grand Total",
+    "checkout_btn": "Proceed to Checkout",
+    "notes_placeholder": "Special notes for bazaar picker (e.g. firm ripe tomatoes)..."
+  },
+  "checkout": {
+    "title": "Delivery Checkout",
+    "name": "Full Name",
+    "name_placeholder": "Azizbek Rahimov",
+    "phone": "Phone Number",
+    "phone_placeholder": "+998 90 123-45-67",
+    "district": "District",
+    "address": "Delivery Address (Street, Building, Apt)",
+    "address_placeholder": "Yunusabad 12th block, bld 4, apt 15",
+    "landmark": "Landmark",
+    "landmark_placeholder": "Behind Mega Planet mall, near Korzinka",
+    "time_slot": "Delivery Time",
+    "time_express": "⚡️ Express (45-60 min)",
+    "time_evening": "🌅 This Evening (18:00 - 20:00)",
+    "time_morning": "☀️ Tomorrow Morning (09:00 - 11:00)",
+    "payment": "Payment Method",
+    "pay_cash": "Cash or Card on Delivery",
+    "pay_click": "Pay via Click",
+    "pay_payme": "Pay via Payme",
+    "submit": "Confirm Order",
+    "processing": "Processing Order..."
+  },
+  "seller": {
+    "title": "Seller Portal (Price Control)",
+    "desc": "Update your product prices in 1-click and manage incoming orders",
+    "select_store": "Select your store",
+    "enter_pin": "Enter access PIN",
+    "login_btn": "Log In to Stall",
+    "current_price": "Current Price",
+    "new_price": "New Price (UZS)",
+    "update_price_btn": "Update Price",
+    "price_updated_success": "Price updated successfully!",
+    "status_in_stock": "In Stock",
+    "status_out_of_stock": "Out of Stock",
+    "store_status": "Stall Status",
+    "my_products": "Products in My Stall",
+    "incoming_orders": "Incoming Orders"
+  },
+  "tracker": {
+    "title": "Live Order Tracker",
+    "order_num": "Order",
+    "status_pending": "Order Placed",
+    "status_accepted": "Confirmed by Seller",
+    "status_picking": "Being Picked at Bazaar",
+    "status_on_the_way": "Courier On the Way",
+    "status_delivered": "Successfully Delivered",
+    "items_list": "Order Items",
+    "picker_checklist": "Bazaar Picker Checklist"
+  }
+}

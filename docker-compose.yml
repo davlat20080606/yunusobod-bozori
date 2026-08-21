@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: yunusobod_bozori_prod
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-8676166803:AAGZDqo-IbXsttnLsrEPPq4s2EuWFcn8TVM}
+      - WEBAPP_URL=${WEBAPP_URL:-https://yunusobod-bozori.onrender.com}
+      - APP_ENV=production
+    volumes:
+      - ./data:/app/backend/data
