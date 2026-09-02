@@ -1,63 +1,111 @@
 import React from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { Store, ShoppingBag, Package, UserCheck, Bot } from 'lucide-react';
+import { 
+  Home, 
+  LayoutGrid, 
+  Heart, 
+  ShoppingBag, 
+  Store,
+  Package
+} from 'lucide-react';
 import { triggerHaptic } from '../services/telegram';
 
-export default function MobileBottomNav({ activeTab, setActiveTab, cartItemsCount, onOpenCart }) {
-  const { t } = useLanguage();
+export default function MobileBottomNav({ 
+  activeTab, 
+  setActiveTab, 
+  cartItemsCount, 
+  savedItemsCount = 0,
+  onOpenCart,
+  onBackToStores,
+  onGoHome
+}) {
+  const { t, language } = useLanguage();
 
-  const handleTab = (tab) => {
-    triggerHaptic('light');
-    setActiveTab(tab);
+  const handleNavClick = (tab) => {
+    triggerHaptic('selection');
+    if (tab === 'market') {
+      if (onGoHome) {
+        onGoHome();
+      } else if (onBackToStores) {
+        onBackToStores();
+      }
+      setActiveTab('market');
+    } else {
+      setActiveTab(tab);
+    }
   };
 
   return (
-    <nav className="mobile-bottom-nav">
-      <div className="mobile-nav-items">
-        <button 
-          className={`mobile-nav-btn ${activeTab === 'market' ? 'active' : ''}`}
-          onClick={() => handleTab('market')}
+    <nav className="med-bottom-nav">
+      <div className="med-bottom-nav-inner">
+        
+        {/* 1. Asosiy / Home */}
+        <button
+          type="button"
+          className={`med-nav-item ${activeTab === 'market' ? 'active' : ''}`}
+          onClick={() => handleNavClick('market')}
         >
-          <Store size={20} />
-          <span>{t('nav.bazaar')}</span>
+          <div className="med-nav-icon-box">
+            <Home size={21} />
+          </div>
+          <span className="med-nav-text">{t('nav.home')}</span>
         </button>
 
-        <button 
-          className={`mobile-nav-btn ${activeTab === 'orders' ? 'active' : ''}`}
-          onClick={() => handleTab('orders')}
+        {/* 2. Katalog / Categories */}
+        <button
+          type="button"
+          className={`med-nav-item ${activeTab === 'catalog' ? 'active' : ''}`}
+          onClick={() => handleNavClick('catalog')}
         >
-          <Package size={20} />
-          <span>{t('nav.my_orders')}</span>
+          <div className="med-nav-icon-box">
+            <LayoutGrid size={21} />
+          </div>
+          <span className="med-nav-text">{t('nav.catalog')}</span>
         </button>
 
-        <button 
-          className={`mobile-nav-btn ${activeTab === 'seller' ? 'active' : ''}`}
-          onClick={() => handleTab('seller')}
+        {/* 3. Buyurtmalar / Orders */}
+        <button
+          type="button"
+          className={`med-nav-item ${activeTab === 'orders' ? 'active' : ''}`}
+          onClick={() => handleNavClick('orders')}
         >
-          <UserCheck size={20} />
-          <span>{t('nav.seller_mode')}</span>
+          <div className="med-nav-icon-box relative">
+            <Package size={21} />
+          </div>
+          <span className="med-nav-text">
+            {language === 'ru' ? 'Заказы' : (language === 'en' ? 'Orders' : 'Buyurtmalar')}
+          </span>
         </button>
 
-        <button 
-          className="mobile-nav-btn"
-          onClick={() => {
-            triggerHaptic('medium');
-            onOpenCart();
-          }}
+        {/* 4. Saralangan / Saved */}
+        <button
+          type="button"
+          className={`med-nav-item ${activeTab === 'saved' ? 'active' : ''}`}
+          onClick={() => handleNavClick('saved')}
         >
-          <div style={{ position: 'relative' }}>
-            <ShoppingBag size={20} />
-            {cartItemsCount > 0 && (
-              <span 
-                className="cart-badge animate-scale" 
-                style={{ position: 'absolute', top: '-6px', right: '-10px', fontSize: '0.65rem', padding: '1px 5px' }}
-              >
-                {cartItemsCount}
-              </span>
+          <div className="med-nav-icon-box relative">
+            <Heart size={21} className={savedItemsCount > 0 ? "fill-rose-500 text-rose-500" : ""} />
+            {savedItemsCount > 0 && (
+              <span className="med-nav-badge bg-rose-500">{savedItemsCount}</span>
             )}
           </div>
-          <span>{t('nav.cart')}</span>
+          <span className="med-nav-text">{t('nav.saved')}</span>
         </button>
+
+        {/* 5. Sotuvchi kabineti / Seller Panel */}
+        <button
+          type="button"
+          className={`med-nav-item ${activeTab === 'seller' ? 'active' : ''}`}
+          onClick={() => handleNavClick('seller')}
+        >
+          <div className="med-nav-icon-box">
+            <Store size={21} />
+          </div>
+          <span className="med-nav-text">
+            {language === 'ru' ? 'Продавец' : (language === 'en' ? 'Seller' : 'Sotuvchi')}
+          </span>
+        </button>
+
       </div>
     </nav>
   );

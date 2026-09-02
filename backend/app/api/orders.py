@@ -85,13 +85,20 @@ async def create_order(data: OrderCreateSchema, db: AsyncSession = Depends(get_d
 
 @router.get("/{order_number_or_id}", response_model=OrderSchema)
 async def get_order(order_number_or_id: str, db: AsyncSession = Depends(get_db)):
-    if order_number_or_id.isdigit():
-        query = select(OrderModel).where(OrderModel.id == int(order_number_or_id)).options(selectinload(OrderModel.items))
+    clean_num = order_number_or_id.replace("#", "").strip()
+    if clean_num.isdigit():
+        query = select(OrderModel).where(OrderModel.id == int(clean_num)).options(selectinload(OrderModel.items))
     else:
-        query = select(OrderModel).where(OrderModel.order_number == order_number_or_id).options(selectinload(OrderModel.items))
+        query = select(OrderModel).where(OrderModel.order_number == clean_num).options(selectinload(OrderModel.items))
 
     result = await db.execute(query)
     order = result.scalars().first()
+    if not order:
+        # Fallback to case-insensitive partial match
+        query = select(OrderModel).where(OrderModel.order_number.ilike(f"%{clean_num}%")).options(selectinload(OrderModel.items))
+        result = await db.execute(query)
+        order = result.scalars().first()
+
     if not order:
         raise HTTPException(status_code=404, detail="Buyurtma topilmadi / Заказ не найден")
     return order

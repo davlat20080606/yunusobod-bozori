@@ -1,42 +1,47 @@
-// Telegram WebApp helper utilities
+// Telegram WebApp SDK Helper & Cross-Device Adapter
 
 export const tg = window.Telegram?.WebApp;
 
-export const initTelegramApp = () => {
-  if (tg) {
-    try {
-      tg.ready();
-      tg.expand();
+export function initTelegramApp() {
+  if (!tg) return;
+
+  try {
+    tg.ready();
+    tg.expand();
+    if (tg.enableClosingConfirmation) {
       tg.enableClosingConfirmation();
-      // Apply telegram header color
-      if (tg.setHeaderColor) {
-        tg.setHeaderColor('#064E3B'); // Emerald green
-      }
-      if (tg.setBackgroundColor) {
-        tg.setBackgroundColor('#F8FAFC');
-      }
-    } catch (e) {
-      console.log('Telegram WebApp init notice:', e);
     }
-  }
-};
-
-export const triggerHaptic = (style = 'medium') => {
-  if (tg?.HapticFeedback) {
-    try {
-      if (style === 'light' || style === 'medium' || style === 'heavy' || style === 'rigid' || style === 'soft') {
-        tg.HapticFeedback.impactOccurred(style);
-      } else if (style === 'success' || style === 'warning' || style === 'error') {
-        tg.HapticFeedback.notificationOccurred(style);
-      } else if (style === 'selection') {
-        tg.HapticFeedback.selectionChanged();
-      }
-    } catch (e) {
-      // Haptics ignore
+    // Set native header & background colors
+    if (tg.setHeaderColor) {
+      tg.setHeaderColor('#064e3b');
     }
+    if (tg.setBackgroundColor) {
+      tg.setBackgroundColor('#f8fafc');
+    }
+  } catch (e) {
+    console.warn('Telegram WebApp init notice:', e);
   }
-};
+}
 
-export const getTelegramUser = () => {
+export function triggerHaptic(type = 'light') {
+  if (!tg?.HapticFeedback) return;
+  try {
+    if (type === 'light' || type === 'medium' || type === 'heavy') {
+      tg.HapticFeedback.impactOccurred(type);
+    } else if (type === 'success' || type === 'warning' || type === 'error') {
+      tg.HapticFeedback.notificationOccurred(type);
+    } else if (type === 'selection') {
+      tg.HapticFeedback.selectionChanged();
+    }
+  } catch {}
+}
+
+export function closeTelegramApp() {
+  if (tg) {
+    tg.close();
+  }
+}
+
+export function getTelegramUser() {
   return tg?.initDataUnsafe?.user || null;
-};
+}

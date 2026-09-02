@@ -3,9 +3,11 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { X, CheckCircle, Clock, MapPin, CreditCard, Banknote, ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { triggerHaptic, getTelegramUser } from '../services/telegram';
+import { api } from '../services/api';
+import MapPicker from './MapPicker';
 
-export default function CheckoutModal({ isOpen, onClose, cart, notes, grandTotal, onSubmitOrder }) {
-  const { t } = useLanguage();
+export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', grandTotal, onSubmitOrder, onOrderSuccess, pickerNotes = '' }) {
+  const { t, language } = useLanguage();
   const tgUser = getTelegramUser();
 
   const [customerName, setCustomerName] = useState(
@@ -17,8 +19,20 @@ export default function CheckoutModal({ isOpen, onClose, cart, notes, grandTotal
   const [landmark, setLandmark] = useState('');
   const [timeSlot, setTimeSlot] = useState('Express (45-60 min)');
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showMap, setShowMap] = useState(false);
+
+  const itemsTotal = cart.reduce((sum, item) => sum + ((item.product?.price || 0) * (item.quantity || 1)), 0);
+  const finalGrandTotal = (grandTotal !== undefined && grandTotal !== null) ? grandTotal : (itemsTotal + 15000);
+
+  const handleCopyCard = () => {
+    navigator.clipboard.writeText('4466136951540450');
+    setCopied(true);
+    triggerHaptic('success');
+    setTimeout(() => setCopied(false), 2500);
+  };
 
   if (!isOpen) return null;
 
@@ -43,7 +57,7 @@ export default function CheckoutModal({ isOpen, onClose, cart, notes, grandTotal
       landmark: landmark,
       delivery_time_slot: timeSlot,
       payment_method: paymentMethod,
-      notes: notes,
+      notes: notes || pickerNotes,
       items: cart.map(i => ({
         product_id: i.product.id,
         store_id: i.product.store_id,
@@ -52,14 +66,25 @@ export default function CheckoutModal({ isOpen, onClose, cart, notes, grandTotal
     };
 
     try {
-      const order = await onSubmitOrder(orderPayload);
+      let order;
+      if (onSubmitOrder) {
+        order = await onSubmitOrder(orderPayload);
+      } else {
+        order = await api.createOrder(orderPayload);
+      }
+
       triggerHaptic('success');
       confetti({
         particleCount: 80,
         spread: 60,
         origin: { y: 0.6 }
       });
-      onClose();
+      
+      if (onOrderSuccess) {
+        onOrderSuccess(order?.order_number || order?.id || 'YB-1001');
+      } else {
+        onClose();
+      }
     } catch (err) {
       setError(err.message || 'Xatolik yuz berdi');
       triggerHaptic('error');
@@ -124,18 +149,40 @@ export default function CheckoutModal({ isOpen, onClose, cart, notes, grandTotal
                 value={district}
                 onChange={(e) => setDistrict(e.target.value)}
               >
-                <option value="Yunusobod">Yunusobod tumani</option>
-                <option value="Mirzo Ulug'bek">Mirzo Ulug'bek tumani</option>
-                <option value="Shayxontohur">Shayxontohur tumani</option>
-                <option value="Olmazor">Olmazor tumani</option>
-                <option value="Chilonzor">Chilonzor tumani</option>
-                <option value="Yakkasaroy">Yakkasaroy tumani</option>
-                <option value="Mirobod">Mirobod tumani</option>
+                {[
+                  { id: 'Yunusobod', uz: 'Yunusobod tumani', ru: 'Юнусабадский район', en: 'Yunusobod District' },
+                  { id: "Mirzo Ulug'bek", uz: "Mirzo Ulug'bek tumani", ru: 'Мирзо-Улугбекский район', en: "Mirzo Ulug'bek District" },
+                  { id: 'Shayxontohur', uz: 'Shayxontohur tumani', ru: 'Шайхантахурский район', en: 'Shaykhantakhur District' },
+                  { id: 'Olmazor', uz: 'Olmazor tumani', ru: 'Алмазарский район', en: 'Olmazor District' },
+                  { id: 'Chilonzor', uz: 'Chilonzor tumani', ru: 'Чиланзарский район', en: 'Chilanzar District' },
+                  { id: 'Yakkasaroy', uz: 'Yakkasaroy tumani', ru: 'Яккасарайский район', en: 'Yakkasaray District' },
+                  { id: 'Mirobod', uz: 'Mirobod tumani', ru: 'Мирабадский район', en: 'Mirabad District' },
+                ].map(d => (
+                  <option key={d.id} value={d.id}>
+                    {language === 'ru' ? d.ru : (language === 'en' ? d.en : d.uz)}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="form-group">
-              <label className="form-label">{t('checkout.address')} *</label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <label className="form-label" style={{ margin: 0 }}>{t('checkout.address')} *</label>
+                <button
+                  type="button"
+                  onClick={() => setShowMap(true)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    background: 'linear-gradient(135deg, #059669, #10b981)',
+                    color: 'white', border: 'none', borderRadius: 8,
+                    padding: '5px 10px', fontSize: '0.75rem', fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <MapPin size={13} />
+                  {language === 'ru' ? '🗺️ Карта' : (language === 'en' ? '🗺️ Map' : '🗺️ Xarita')}
+                </button>
+              </div>
               <input 
                 type="text" 
                 className="form-input" 
@@ -146,16 +193,18 @@ export default function CheckoutModal({ isOpen, onClose, cart, notes, grandTotal
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">{t('checkout.landmark')}</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder={t('checkout.landmark_placeholder')}
-                value={landmark}
-                onChange={(e) => setLandmark(e.target.value)}
+            {/* Map Picker Modal */}
+            {showMap && (
+              <MapPicker
+                language={language}
+                onAddressSelect={(addr) => {
+                  setAddress(addr);
+                  setShowMap(false);
+                }}
+                onClose={() => setShowMap(false)}
               />
-            </div>
+            )}
+
 
             {/* Delivery Time Slot */}
             <div className="form-group">
@@ -198,7 +247,11 @@ export default function CheckoutModal({ isOpen, onClose, cart, notes, grandTotal
               <label className="form-label">{t('checkout.payment')}</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                 {[
-                  { id: 'cash', label: '💵 Naqd / Karta', icon: Banknote },
+                  { 
+                    id: 'cash', 
+                    label: language === 'ru' ? '💵 Наличные' : (language === 'en' ? '💵 Cash' : '💵 Naqd pul'),
+                    icon: Banknote 
+                  },
                   { id: 'click', label: '🔵 Click', icon: CreditCard },
                   { id: 'payme', label: '🟢 Payme', icon: CreditCard },
                 ].map(pay => (
@@ -221,13 +274,94 @@ export default function CheckoutModal({ isOpen, onClose, cart, notes, grandTotal
                   </button>
                 ))}
               </div>
+
+              {/* App redirect for Click / Payme */}
+              {paymentMethod !== 'cash' && (
+                <div style={{
+                  background: paymentMethod === 'click' 
+                    ? 'linear-gradient(135deg, #eff6ff, #dbeafe)' 
+                    : 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+                  border: `1.5px solid ${paymentMethod === 'click' ? '#3b82f6' : '#22c55e'}`,
+                  borderRadius: '14px',
+                  padding: '16px',
+                  marginTop: '14px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ 
+                    fontSize: '2rem', marginBottom: '8px'
+                  }}>
+                    {paymentMethod === 'click' ? '🔵' : '🟢'}
+                  </div>
+                  <p style={{ 
+                    fontWeight: 700, 
+                    color: paymentMethod === 'click' ? '#1d4ed8' : '#15803d',
+                    fontSize: '0.95rem',
+                    marginBottom: '4px'
+                  }}>
+                    {paymentMethod === 'click'
+                      ? (language === 'ru' ? 'Оплата через Click' : (language === 'en' ? 'Pay via Click' : 'Click orqali to\'lash'))
+                      : (language === 'ru' ? 'Оплата через Payme' : (language === 'en' ? 'Pay via Payme' : 'Payme orqali to\'lash'))
+                    }
+                  </p>
+                  <p style={{ 
+                    fontSize: '0.78rem', 
+                    color: '#64748b', 
+                    marginBottom: '14px',
+                    lineHeight: 1.4
+                  }}>
+                    {language === 'ru' 
+                      ? 'После оформления заказа нажмите кнопку ниже, чтобы перейти в приложение и оплатить.'
+                      : (language === 'en'
+                        ? 'After placing the order, tap the button below to open the app and pay.'
+                        : 'Buyurtmani rasmiylashtirgach, quyidagi tugmani bosib ilovaga o\'ting va to\'lang.'
+                      )
+                    }
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = paymentMethod === 'click' 
+                        ? 'https://my.click.uz' 
+                        : 'https://payme.uz';
+                      if (window.Telegram?.WebApp?.openLink) {
+                        window.Telegram.WebApp.openLink(url);
+                      } else {
+                        window.open(url, '_blank');
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: paymentMethod === 'click' ? '#2563eb' : '#16a34a',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    {paymentMethod === 'click' ? '🔵' : '🟢'}
+                    {paymentMethod === 'click'
+                      ? (language === 'ru' ? 'Открыть Click' : (language === 'en' ? 'Open Click' : 'Click\'ni ochish'))
+                      : (language === 'ru' ? 'Открыть Payme' : (language === 'en' ? 'Open Payme' : 'Payme\'ni ochish'))
+                    }
+                    <span style={{ fontSize: '1rem' }}>→</span>
+                  </button>
+                </div>
+              )}
+
             </div>
           </div>
 
           <div className="modal-footer">
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '1.1rem', fontWeight: 800, color: '#064e3b' }}>
               <span>{t('cart.grand_total')}</span>
-              <span>{grandTotal.toLocaleString()} UZS</span>
+              <span>{(finalGrandTotal || 0).toLocaleString()} UZS</span>
             </div>
 
             <button 

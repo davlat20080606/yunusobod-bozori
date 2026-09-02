@@ -1,9 +1,30 @@
 import React from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { ShoppingBag, Store, Package, UserCheck, Bot, Sparkles } from 'lucide-react';
+import { 
+  ShoppingBag, 
+  Store, 
+  Package, 
+  Lock, 
+  Heart, 
+  LayoutGrid, 
+  Search, 
+  User, 
+  X,
+  Sparkles
+} from 'lucide-react';
 import { triggerHaptic } from '../services/telegram';
 
-export default function Navbar({ activeTab, setActiveTab, cartItemsCount, onOpenCart, selectedStore, onBackToStores }) {
+export default function Navbar({ 
+  activeTab, 
+  setActiveTab, 
+  cartItemsCount, 
+  savedItemsCount = 0,
+  onOpenCart, 
+  onBackToStores,
+  searchQuery,
+  setSearchQuery,
+  onOpenCatalogDrawer
+}) {
   const { lang, setLang, t } = useLanguage();
 
   const handleTabChange = (tab) => {
@@ -17,94 +38,136 @@ export default function Navbar({ activeTab, setActiveTab, cartItemsCount, onOpen
   };
 
   return (
-    <header className="navbar-header">
+    <header className="med-header sticky top-0 z-40 bg-white border-b border-slate-200/80 shadow-xs">
       <div className="bozor-container">
-        <div className="navbar-inner">
-          {/* Brand Logo */}
+        <div className="med-header-inner">
+          
+          {/* 1. Brand Logo */}
           <div 
-            className="brand-logo" 
+            className="med-brand-wrap cursor-pointer select-none" 
             onClick={() => {
               onBackToStores();
               handleTabChange('market');
             }}
           >
-            <img 
-              src="/logo.jpg" 
-              alt="Yunusobod Bozori" 
-              style={{ width: '44px', height: '44px', borderRadius: '12px', objectFit: 'cover', boxShadow: '0 4px 10px rgba(6, 78, 59, 0.25)' }} 
-            />
-            <div className="brand-info">
-              <h1 className="font-heading">Yunusobod Bozori</h1>
-              <span>{t('brand.open_hours')}</span>
+            <div className="med-brand-icon">
+              <Store size={20} className="text-white" />
+            </div>
+            <div className="med-brand-titles">
+              <h1 className="med-brand-name">{t('brand.name')}</h1>
+              <span className="med-brand-badge">{t('brand.open_hours')}</span>
             </div>
           </div>
 
-          {/* Desktop Navigation Links */}
-          <nav className="desktop-nav-links" style={{ display: 'flex', gap: '8px' }}>
-            <button 
-              className={`nav-btn ${activeTab === 'market' ? 'nav-btn-primary' : ''}`}
-              onClick={() => handleTabChange('market')}
-            >
-              <Store size={18} />
-              <span>{t('nav.bazaar')}</span>
-            </button>
+          {/* 2. Katalog Button */}
+          <button 
+            type="button"
+            className={`med-catalog-btn ${activeTab === 'catalog' ? 'active' : ''}`}
+            onClick={() => {
+              triggerHaptic('light');
+              if (onOpenCatalogDrawer) onOpenCatalogDrawer();
+              else handleTabChange('market');
+            }}
+          >
+            <LayoutGrid size={18} />
+            <span className="med-catalog-label">{t('nav.catalog')}</span>
+          </button>
 
-            <button 
-              className={`nav-btn ${activeTab === 'orders' ? 'nav-btn-primary' : ''}`}
-              onClick={() => handleTabChange('orders')}
-            >
-              <Package size={18} />
-              <span>{t('nav.my_orders')}</span>
-            </button>
-
-            <button 
-              className={`nav-btn ${activeTab === 'seller' ? 'nav-btn-primary' : ''}`}
-              onClick={() => handleTabChange('seller')}
-              style={{ borderColor: '#f59e0b', color: activeTab === 'seller' ? '#fff' : '#b45309' }}
-            >
-              <UserCheck size={18} />
-              <span>{t('nav.seller_mode')}</span>
-            </button>
-          </nav>
-
-          {/* Right Actions: Lang Switcher & Cart */}
-          <div className="nav-actions">
-            <div className="lang-switcher">
-              <button 
-                className={`lang-btn ${lang === 'uz' ? 'active' : ''}`}
-                onClick={() => handleLangChange('uz')}
-              >
-                UZ
-              </button>
-              <button 
-                className={`lang-btn ${lang === 'ru' ? 'active' : ''}`}
-                onClick={() => handleLangChange('ru')}
-              >
-                RU
-              </button>
-              <button 
-                className={`lang-btn ${lang === 'en' ? 'active' : ''}`}
-                onClick={() => handleLangChange('en')}
-              >
-                EN
-              </button>
+          {/* 3. Search Bar */}
+          <div className="med-search-wrap">
+            <div className="med-search-box">
+              <Search size={17} className="med-search-icon" />
+              <input 
+                type="search"
+                className="med-search-input"
+                placeholder={t('products.search_placeholder')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button 
+                  type="button" 
+                  className="med-search-clear"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
+          </div>
 
+          {/* 4. Desktop Navigation & Action Icons */}
+          <div className="med-header-actions">
+            
+            {/* Wishlist / Saved Items */}
             <button 
-              className="nav-btn nav-btn-primary" 
+              type="button"
+              className={`med-action-btn ${activeTab === 'saved' ? 'active' : ''}`}
+              onClick={() => handleTabChange('saved')}
+            >
+              <div className="relative">
+                <Heart size={18} className={savedItemsCount > 0 ? "fill-rose-500 text-rose-500" : ""} />
+                {savedItemsCount > 0 && (
+                  <span className="med-badge-count bg-rose-500">{savedItemsCount}</span>
+                )}
+              </div>
+              <span className="med-action-label">{t('nav.saved')}</span>
+            </button>
+
+            {/* Cart Button */}
+            <button 
+              type="button"
+              className="med-action-btn med-cart-btn"
               onClick={() => {
                 triggerHaptic('medium');
                 onOpenCart();
               }}
-              style={{ position: 'relative' }}
             >
-              <ShoppingBag size={20} />
-              <span className="desktop-nav-links">{t('nav.cart')}</span>
-              {cartItemsCount > 0 && (
-                <span className="cart-badge animate-scale">{cartItemsCount}</span>
-              )}
+              <div className="relative">
+                <ShoppingBag size={18} />
+                {cartItemsCount > 0 && (
+                  <span className="med-badge-count bg-emerald-600">{cartItemsCount}</span>
+                )}
+              </div>
+              <span className="med-action-label">{t('nav.cart')}</span>
             </button>
+
+            {/* My Orders / Orders Tracker */}
+            <button 
+              type="button"
+              className={`med-action-btn ${activeTab === 'orders' ? 'active' : ''}`}
+              onClick={() => handleTabChange('orders')}
+            >
+              <Package size={18} />
+              <span className="med-action-label">{t('nav.my_orders')}</span>
+            </button>
+
+            {/* Seller Login / Portal */}
+            <button 
+              type="button"
+              className={`med-action-btn med-seller-btn ${activeTab === 'seller' ? 'active' : ''}`}
+              onClick={() => handleTabChange('seller')}
+            >
+              <Lock size={16} />
+              <span className="med-action-label">{t('nav.seller_mode')}</span>
+            </button>
+
+            {/* Language Switcher */}
+            <div className="med-lang-pills">
+              {['uz', 'ru', 'en'].map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  className={`med-lang-pill ${lang === l ? 'active' : ''}`}
+                  onClick={() => handleLangChange(l)}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
           </div>
+
         </div>
       </div>
     </header>

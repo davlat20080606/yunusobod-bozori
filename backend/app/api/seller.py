@@ -5,12 +5,118 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.database import get_db
 from app.models.schemas import (
-    StoreModel, ProductModel, OrderModel, OrderItemModel,
+    StoreModel, ProductModel, OrderModel, OrderItemModel, CategoryModel,
     ProductSchema, StoreSchema, UpdatePriceSchema, ToggleAvailabilitySchema,
-    SellerLoginSchema, OrderSchema
+    SellerLoginSchema, StoreRegisterSchema, StoreUpdateSchema, ProductCreateSchema, OrderSchema
 )
 
 router = APIRouter(prefix="/api/seller", tags=["seller"])
+
+@router.patch("/stores/{store_id}")
+async def update_store_profile(store_id: int, data: StoreUpdateSchema, db: AsyncSession = Depends(get_db)):
+    store = await db.get(StoreModel, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+
+    if data.name_uz is not None:
+        store.name_uz = data.name_uz
+    if data.name_ru is not None:
+        store.name_ru = data.name_ru
+    if data.owner_name is not None:
+        store.owner_name = data.owner_name
+    if data.owner_phone is not None:
+        store.owner_phone = data.owner_phone
+    if data.stall_number is not None:
+        store.stall_number = data.stall_number
+    if data.pin is not None:
+        store.seller_pin = data.pin
+    if data.description_uz is not None:
+        store.description_uz = data.description_uz
+    if data.description_ru is not None:
+        store.description_ru = data.description_ru
+
+    await db.commit()
+    await db.refresh(store)
+
+    return {
+        "success": True,
+        "message": "Ma'lumotlar muvaffaqiyatli saqlandi! / Данные успешно обновлены!",
+        "store": StoreSchema.from_orm(store)
+    }
+
+@router.post("/stores/{store_id}/products")
+async def create_store_product(store_id: int, data: ProductCreateSchema, db: AsyncSession = Depends(get_db)):
+    # Verify store exists
+    store = await db.get(StoreModel, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+
+    # Find category
+    category_res = await db.execute(select(CategoryModel).where(CategoryModel.slug == data.category_slug))
+    category = category_res.scalars().first()
+    category_id = category.id if category else 1
+
+    default_image = "https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&auto=format&fit=crop&q=80"
+    default_video = "https://assets.mixkit.co/videos/preview/mixkit-slicing-a-ripe-red-tomato-41712-large.mp4"
+
+    new_product = ProductModel(
+        store_id=store_id,
+        category_slug=data.category_slug,
+        name_uz=data.name_uz,
+        name_ru=data.name_ru or data.name_uz,
+        name_en=data.name_uz,
+        description_uz=data.description_uz or "Yangi saralangan mahsulot.",
+        description_ru=data.description_ru or "Свежий отборный продукт напрямую с прилавка.",
+        description_en="Fresh market produce directly from the stall.",
+        price=data.price,
+        unit=data.unit,
+        min_weight=data.min_weight,
+        step_weight=data.step_weight,
+        image_url=data.image_url or default_image,
+        video_url=data.video_url or default_video,
+        is_available=True,
+        is_featured=True,
+        badge=data.badge or "fresh",
+        stock_quantity=data.stock_quantity
+    )
+    db.add(new_product)
+    await db.commit()
+    await db.refresh(new_product)
+
+    return {
+        "success": True,
+        "message": "Mahsulot muvaffaqiyatli qo'shildi! / Товар успешно добавлен!",
+        "product": ProductSchema.from_orm(new_product)
+    }
+
+import os
+import shutil
+import uuid
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File
+
+UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+@router.post("/upload-media")
+async def upload_seller_media(file: UploadFile = File(...)):
+    try:
+        file_ext = Path(file.filename).suffix.lower() or ".jpg"
+        unique_name = f"{uuid.uuid4().hex}{file_ext}"
+        target_path = UPLOAD_DIR / unique_name
+
+        with open(target_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Public URL served by backend
+        media_url = f"/uploads/{unique_name}"
+        return {
+            "success": True,
+            "url": media_url,
+            "filename": unique_name
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"File upload failed: {e}")
 
 @router.post("/login")
 async def seller_login(data: SellerLoginSchema, db: AsyncSession = Depends(get_db)):

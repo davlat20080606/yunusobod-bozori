@@ -1,110 +1,130 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
+import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, AlertTriangle } from 'lucide-react';
 import { triggerHaptic } from '../services/telegram';
+import { formatUnit } from './ProductCard';
 
-export default function CartDrawer({ isOpen, onClose, cart, onUpdateQty, onRemoveItem, onProceedCheckout, notes, setNotes }) {
-  const { getLocalized, t } = useLanguage();
+export default function CartDrawer({ 
+  isOpen, 
+  onClose, 
+  cart, 
+  onUpdateQuantity, 
+  onRemoveItem, 
+  onCheckout, 
+  pickerNotes, 
+  setPickerNotes 
+}) {
+  const { getLocalized, t, language } = useLanguage();
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   if (!isOpen) return null;
 
+  const currencyLabel = language === 'ru' ? 'сум' : (language === 'en' ? 'UZS' : 'so\'m');
   const itemsTotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
   const deliveryFee = cart.length > 0 ? 15000 : 0;
   const grandTotal = itemsTotal + deliveryFee;
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
-      <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="drawer-panel animate-fade" onClick={(e) => e.stopPropagation()}>
+        
         {/* Header */}
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ShoppingBag size={20} color="#064e3b" />
-            <h3>{t('cart.title')} ({cart.length})</h3>
+            <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#065f46' }}>
+              <ShoppingBag size={18} />
+            </div>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
+              {t('cart.title')} ({cart.length})
+            </h3>
           </div>
-          <button className="close-btn" onClick={onClose}>
+          <button 
+            type="button" 
+            className="close-btn" 
+            onClick={onClose}
+          >
             <X size={18} />
           </button>
         </div>
 
-        {/* Items List */}
+        {/* Body Items List */}
         <div className="modal-body">
           {cart.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
               <div style={{ fontSize: '48px', marginBottom: '12px' }}>🛒</div>
-              <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>{t('cart.empty_title')}</h4>
-              <p style={{ fontSize: '0.85rem', marginTop: '6px' }}>{t('cart.empty_desc')}</p>
+              <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>{t('cart.empty_title')}</h4>
+              <p style={{ fontSize: '0.85rem', marginTop: '6px', color: '#64748b' }}>{t('cart.empty_desc')}</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {cart.map(({ product, quantity }) => {
                 const itemTotal = (product.price * quantity).toLocaleString();
                 const step = product.step_weight || 0.5;
                 const min = product.min_weight || 0.5;
+                const displayUnit = formatUnit(product.unit, language);
 
                 return (
-                  <div 
-                    key={product.id}
-                    style={{
-                      display: 'flex',
-                      gap: '12px',
-                      padding: '12px',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'var(--bg-subtle)',
-                      border: '1px solid var(--border-color)',
-                      alignItems: 'center'
-                    }}
-                  >
+                  <div key={product.id} className="cart-item-card">
+                    {/* Fixed size Thumbnail Image */}
                     <img 
-                      src={product.image_url} 
+                      src={product.image_url || "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=120&auto=format&fit=crop&q=80"} 
                       alt={getLocalized(product, 'name')}
-                      style={{ width: '56px', height: '56px', borderRadius: '10px', objectFit: 'cover' }}
+                      className="cart-item-thumb"
                     />
                     
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h5 style={{ fontSize: '0.9rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {/* Details */}
+                    <div className="cart-item-details">
+                      <h5 className="cart-item-title">
                         {getLocalized(product, 'name')}
                       </h5>
-                      <div style={{ fontSize: '0.78rem', color: '#064e3b', fontWeight: 700, marginTop: '2px' }}>
-                        {product.price.toLocaleString()} UZS / {product.unit}
+                      <div className="cart-item-unit-price">
+                        {product.price.toLocaleString()} {currencyLabel} / {displayUnit}
                       </div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
-                        = {itemTotal} UZS
+                      <div className="cart-item-subtotal">
+                        = {itemTotal} {currencyLabel}
                       </div>
                     </div>
 
-                    {/* Qty controller in cart */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                    {/* Quantity Controller & Delete */}
+                    <div className="cart-item-ctrls">
                       <button 
+                        type="button"
                         onClick={() => {
                           triggerHaptic('light');
-                          onRemoveItem(product.id);
+                          setItemToDelete(product);
                         }}
-                        style={{ border: 'none', background: 'transparent', color: '#94a3b8', cursor: 'pointer' }}
+                        className="cart-delete-btn"
+                        title={language === 'ru' ? 'Удалить' : (language === 'en' ? 'Delete' : 'O\'chirish')}
                       >
                         <Trash2 size={15} />
                       </button>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#ffffff', borderRadius: '6px', padding: '2px', border: '1px solid #cbd5e1' }}>
+                      <div className="cart-stepper-box">
                         <button 
-                          style={{ border: 'none', background: 'transparent', width: '22px', height: '22px', cursor: 'pointer', fontWeight: 700 }}
+                          type="button"
+                          className="cart-stepper-btn"
                           onClick={() => {
                             triggerHaptic('light');
-                            if (quantity > min) onUpdateQty(product.id, +(quantity - step).toFixed(2));
-                            else onRemoveItem(product.id);
+                            if (quantity <= min) {
+                              setItemToDelete(product);
+                            } else {
+                              onUpdateQuantity(product.id, -1);
+                            }
                           }}
                         >
                           <Minus size={12} />
                         </button>
                         
-                        <span style={{ fontSize: '0.78rem', fontWeight: 700, minWidth: '40px', textAlign: 'center' }}>
-                          {quantity} {product.unit}
+                        <span className="cart-stepper-val">
+                          {quantity} {displayUnit}
                         </span>
 
                         <button 
-                          style={{ border: 'none', background: 'transparent', width: '22px', height: '22px', cursor: 'pointer', fontWeight: 700 }}
+                          type="button"
+                          className="cart-stepper-btn"
                           onClick={() => {
                             triggerHaptic('light');
-                            onUpdateQty(product.id, +(quantity + step).toFixed(2));
+                            onUpdateQuantity(product.id, 1);
                           }}
                         >
                           <Plus size={12} />
@@ -116,15 +136,17 @@ export default function CartDrawer({ isOpen, onClose, cart, onUpdateQty, onRemov
               })}
 
               {/* Notes to picker */}
-              <div style={{ marginTop: '10px' }}>
-                <label className="form-label">{t('cart.notes_placeholder')}</label>
+              <div style={{ marginTop: '12px' }}>
+                <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+                  {t('cart.notes_placeholder')}
+                </label>
                 <textarea 
                   className="form-input"
                   rows="2"
                   placeholder={t('cart.notes_placeholder')}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  style={{ resize: 'none' }}
+                  value={pickerNotes}
+                  onChange={(e) => setPickerNotes(e.target.value)}
+                  style={{ resize: 'none', height: 'auto', padding: '8px 12px', fontSize: '0.82rem' }}
                 />
               </div>
             </div>
@@ -134,34 +156,126 @@ export default function CartDrawer({ isOpen, onClose, cart, onUpdateQty, onRemov
         {/* Footer Summary */}
         {cart.length > 0 && (
           <div className="modal-footer">
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '6px', color: '#64748b' }}>
+            <div className="cart-summary-line">
               <span>{t('cart.total')}</span>
-              <span style={{ fontWeight: 700, color: '#0f172a' }}>{itemsTotal.toLocaleString()} UZS</span>
+              <span className="cart-summary-val">{itemsTotal.toLocaleString()} {currencyLabel}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '12px', color: '#64748b' }}>
+            <div className="cart-summary-line">
               <span>{t('cart.delivery_fee')}</span>
-              <span style={{ fontWeight: 700, color: '#059669' }}>{deliveryFee.toLocaleString()} UZS</span>
+              <span className="cart-summary-val highlight">{deliveryFee.toLocaleString()} {currencyLabel}</span>
             </div>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.15rem', fontWeight: 800, marginBottom: '16px', color: '#064e3b', borderTop: '1px solid #cbd5e1', paddingTop: '8px' }}>
+            <div className="cart-summary-total-line">
               <span>{t('cart.grand_total')}</span>
-              <span>{grandTotal.toLocaleString()} UZS</span>
+              <span>{grandTotal.toLocaleString()} {currencyLabel}</span>
             </div>
 
             <button 
+              type="button"
               className="add-cart-btn"
               onClick={() => {
                 triggerHaptic('medium');
-                onProceedCheckout();
+                onCheckout();
               }}
-              style={{ height: '48px', fontSize: '0.95rem' }}
             >
               <span>{t('cart.checkout_btn')}</span>
               <ArrowRight size={18} />
             </button>
           </div>
         )}
+
       </div>
+
+      {/* Delete Item Confirmation Dialog */}
+      {itemToDelete && (
+        <div 
+          className="modal-center-backdrop" 
+          style={{ zIndex: 1200, background: 'rgba(15, 23, 42, 0.7)' }} 
+          onClick={() => setItemToDelete(null)}
+        >
+          <div 
+            className="modal-center-card animate-scale" 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              maxWidth: '380px', 
+              width: '90%', 
+              padding: '24px', 
+              textAlign: 'center', 
+              borderRadius: '22px',
+              background: '#ffffff',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)'
+            }}
+          >
+            <div 
+              style={{ 
+                width: '52px', 
+                height: '52px', 
+                borderRadius: '50%', 
+                background: '#fee2e2', 
+                color: '#ef4444', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                margin: '0 auto 14px' 
+              }}
+            >
+              <Trash2 size={24} />
+            </div>
+
+            <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
+              {language === 'ru' ? 'Удалить из корзины?' : (language === 'en' ? 'Remove from cart?' : 'Savatdan o\'chirasizmi?')}
+            </h4>
+
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '22px', lineHeight: 1.45 }}>
+              <strong style={{ color: '#0f172a' }}>«{getLocalized(itemToDelete, 'name')}»</strong> {language === 'ru' ? 'будет удален из вашего заказа.' : (language === 'en' ? 'will be removed from your order.' : 'buyurtmangizdan olib tashlanadi.')}
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setItemToDelete(null)}
+                style={{
+                  height: '44px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#334155',
+                  fontWeight: 700,
+                  fontSize: '0.86rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {language === 'ru' ? 'Отмена' : (language === 'en' ? 'Cancel' : 'Bekor qilish')}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('medium');
+                  onRemoveItem(itemToDelete.id);
+                  setItemToDelete(null);
+                }}
+                style={{
+                  height: '44px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '0.86rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {language === 'ru' ? 'Да, удалить' : (language === 'en' ? 'Yes, delete' : 'Ha, o\'chirish')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

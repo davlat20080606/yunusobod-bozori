@@ -50,15 +50,30 @@ export function LanguageProvider({ children }) {
   };
 
   // Helper for DB localized fields
+  const cleanTitleEmojis = (text) => {
+    if (typeof text !== 'string') return text;
+    // Strip leading emojis and symbols (👑, 🍲, 🍢, 🥗, ☕, 🥖, 🧀, etc.)
+    return text.replace(/^[\p{Extended_Pictographic}\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s]+/u, '').trim();
+  };
+
   const getLocalized = (item, fieldPrefix = 'name') => {
     if (!item) return '';
     const localizedKey = `${fieldPrefix}_${lang}`;
-    if (item[localizedKey]) return item[localizedKey];
-    return item[`${fieldPrefix}_uz`] || item[`${fieldPrefix}_ru`] || item[`${fieldPrefix}_en`] || item[fieldPrefix] || '';
+    let rawText = '';
+    if (item[localizedKey]) {
+      rawText = item[localizedKey];
+    } else {
+      rawText = item[`${fieldPrefix}_uz`] || item[`${fieldPrefix}_ru`] || item[`${fieldPrefix}_en`] || item[fieldPrefix] || '';
+    }
+
+    if (fieldPrefix === 'name' || fieldPrefix === 'title') {
+      return cleanTitleEmojis(rawText);
+    }
+    return rawText;
   };
 
   return (
-    <LanguageContext.Provider value={{ lang, setLang, t, getLocalized }}>
+    <LanguageContext.Provider value={{ lang, language: lang, setLang, t, getLocalized }}>
       {children}
     </LanguageContext.Provider>
   );

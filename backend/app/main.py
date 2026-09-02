@@ -76,12 +76,17 @@ async def lifespan(app: FastAPI):
     if bot:
         await bot.session.close()
 
+from fastapi.middleware.gzip import GZipMiddleware
+
 app = FastAPI(
     title=settings.APP_NAME,
     lifespan=lifespan,
     docs_url="/api/docs",
     redoc_url="/api/redoc"
 )
+
+# Enable ultra-fast GZip compression for mobile networks (3G/4G/5G)
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # CORS configuration
 app.add_middleware(
@@ -115,6 +120,11 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception:
         ws_manager.disconnect(websocket)
 
+# Serve Uploaded Media (Photos & Videos)
+UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+
 # Serve React Frontend Static Files (Production Build)
 FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
 if FRONTEND_DIST.exists():
@@ -124,7 +134,7 @@ if FRONTEND_DIST.exists():
     # Catch-all SPA route for any page refresh or deep link
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
-        if full_path.startswith("api/") or full_path.startswith("ws/"):
+        if full_path.startswith("api/") or full_path.startswith("ws/") or full_path.startswith("uploads/"):
             return {"error": "Not Found"}
         file_path = FRONTEND_DIST / full_path
         if file_path.exists() and file_path.is_file():

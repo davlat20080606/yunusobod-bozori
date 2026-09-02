@@ -265,6 +265,33 @@ class SellerLoginSchema(BaseModel):
     pin: str
 
 
+class ProductCreateSchema(BaseModel):
+    name_uz: str
+    name_ru: str
+    category_slug: str
+    price: float
+    unit: str = "kg"
+    min_weight: float = 0.5
+    step_weight: float = 0.5
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
+    description_uz: Optional[str] = None
+    description_ru: Optional[str] = None
+    badge: Optional[str] = "fresh"
+    stock_quantity: float = 50.0
+
+
+class StoreUpdateSchema(BaseModel):
+    name_uz: Optional[str] = None
+    name_ru: Optional[str] = None
+    owner_name: Optional[str] = None
+    owner_phone: Optional[str] = None
+    stall_number: Optional[str] = None
+    pin: Optional[str] = None
+    description_uz: Optional[str] = None
+    description_ru: Optional[str] = None
+
+
 class StoreRegisterSchema(BaseModel):
     name_uz: str
     name_ru: str
@@ -275,4 +302,6 @@ class StoreRegisterSchema(BaseModel):
     pin: str
     description_uz: Optional[str] = None
     description_ru: Optional[str] = None
+
+
 

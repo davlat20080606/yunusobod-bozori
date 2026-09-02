@@ -5,6 +5,14 @@ from app.database import Base, engine, async_session_factory
 
 CATEGORIES = [
     {
+        "slug": "combos",
+        "name_uz": "👑 Katta Oila & Osh To'plamlari",
+        "name_ru": "👑 Семейные Наборы & Плов-Сеты",
+        "name_en": "👑 Mega Family & Plov Boxes",
+        "icon": "👑",
+        "stall_area": "VIP Saralangan To'plamlar"
+    },
+    {
         "slug": "vegetables",
         "name_uz": "Sabzavotlar & Ko'katlar",
         "name_ru": "Овощи и зелень",
@@ -166,6 +174,108 @@ STORES = [
 ]
 
 PRODUCTS = [
+    # Special Category: Mega Combos & Family Sets (High Ticket $40-$60 profit per order)
+    {
+        "store_slug": "karen-aka-gosht",
+        "category_slug": "combos",
+        "name_uz": "Oila Uchun Haftalik Katta To'plam (Go'sht, Qazi, Sabzavot & Non)",
+        "name_ru": "Большой Семейный Набор на неделю (Мясо 5 кг, Казы, Овощи и Патиры)",
+        "name_en": "Mega Family Weekly Meat & Produce Box",
+        "description_uz": "3 kg Saralangan mol lahm + 2 kg Qo'y qovurg'a + 1 Uy qazisi + 5 kg Sabzi, Piyoz, Kartoshka + 4 Samarqand patiri. Butun oila uchun 1 haftalik tayyor to'plam!",
+        "description_ru": "3 кг мякоти телятины + 2 кг сочной баранины + 1 домашний казы + 5 кг отборных овощей + 4 самаркандских патира. Полный недельный запас для всей семьи!",
+        "description_en": "3kg prime beef + 2kg lamb + 1 homemade qazi + 5kg fresh vegetables + 4 Samarkand flatbreads.",
+        "price": 680000.0,
+        "old_price": 740000.0,
+        "unit": "to'plam (сет)",
+        "min_weight": 1.0,
+        "step_weight": 1.0,
+        "image_url": "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=600&auto=format&fit=crop&q=80",
+        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-meat-skewers-sizzling-over-a-grill-42996-large.mp4",
+        "is_featured": True,
+        "badge": "premium",
+        "stock_quantity": 25.0
+    },
+    {
+        "store_slug": "karen-aka-gosht",
+        "category_slug": "combos",
+        "name_uz": "Haqiqiy Choyxona Oshi Seti (10-15 kishilik Maxsus To'plam)",
+        "name_ru": "Набор для Настоящего Чайханского Плова (на 10-15 человек)",
+        "name_en": "Authentic Choyxona Plov Master Set (10-15 servings)",
+        "description_uz": "2 kg Saralangan qo'zi go'shti + 1 Uy qazisi + 2 kg Lazer guruch + 2.5 kg Sariq/qizil sabzi + Ziravorlar, no'xat, mayiz, sarimsoq + 4 Issiq patir.",
+        "description_ru": "2 кг отборной баранины + 1 казы + 2 кг риса Лазер + 2.5 кг моркови + горная зира, нухат, изюм, чеснок + 4 патира. Всё для королевского плова!",
+        "description_en": "Complete premium ingredients for traditional 15-person plov feast.",
+        "price": 450000.0,
+        "old_price": 495000.0,
+        "unit": "to'plam (сет)",
+        "min_weight": 1.0,
+        "step_weight": 1.0,
+        "image_url": "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-meat-skewers-sizzling-over-a-grill-42996-large.mp4",
+        "is_featured": True,
+        "badge": "tea_house",
+        "stock_quantity": 30.0
+    },
+    {
+        "store_slug": "karen-aka-gosht",
+        "category_slug": "combos",
+        "name_uz": "Dam Olish & Shashlikbop Go'shtlar To'plami (4 kg Go'sht + Sabzavotlar)",
+        "name_ru": "Набор для Дачи и Шашлыка (4 кг маринованного мяса + Овощи)",
+        "name_en": "Weekend BBQ & Shashlik Feast Combo",
+        "description_uz": "2 kg Qiyma kabob go'shti + 2 kg Qovurg'a qo'y go'shti (marinadlangan) + 2 kg Yusupov pomidori va rayhon + 4 Tandir noni.",
+        "description_ru": "2 кг нежного маринованного мяса для шашлыка + 2 кг бараньих ребрышек + 2 кг юсуповских помидоров с райхоном + 4 лепешки.",
+        "description_en": "Ready-to-grill marinated meat skewers cut, fresh tomatoes and hot bread.",
+        "price": 520000.0,
+        "old_price": 570000.0,
+        "unit": "to'plam (сет)",
+        "min_weight": 1.0,
+        "step_weight": 1.0,
+        "image_url": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80",
+        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-meat-skewers-sizzling-over-a-grill-42996-large.mp4",
+        "is_featured": True,
+        "badge": "top_rated",
+        "stock_quantity": 20.0
+    },
+    {
+        "store_slug": "karen-aka-gosht",
+        "category_slug": "combos",
+        "name_uz": "Shohona Palov & Qazi VIP To'plami (5-7 kishilik)",
+        "name_ru": "Шахский Плов & Казы VIP Сет (на 5-7 человек)",
+        "name_en": "Royal Plov & Qazi VIP Set",
+        "description_uz": "1.5 kg Saralangan qo'zi go'shti + 1 Butun uy qazisi + 1.5 kg Devzira guruch + Saralangan sariq sabzi, no'xat va tog' zirasi + 2 Tandir patir.",
+        "description_ru": "1.5 кг отборной молодой баранины + 1 цельный домашний казы + 1.5 кг риса Девзира + отборная морковь, нухат и горная зира + 2 патира.",
+        "description_en": "1.5kg prime lamb + 1 whole homemade qazi + 1.5kg Devzira rice + carrots, spices + 2 tandoor breads.",
+        "price": 360000.0,
+        "old_price": 410000.0,
+        "unit": "to'plam (сет)",
+        "min_weight": 1.0,
+        "step_weight": 1.0,
+        "image_url": "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+        "video_url": None,
+        "is_featured": True,
+        "badge": "premium",
+        "stock_quantity": 20.0
+    },
+    {
+        "store_slug": "dilshod-ota-sabzavot",
+        "category_slug": "combos",
+        "name_uz": "Vitaminga Boy Bozor Savati (10 kg Meva & Sabzavotlar)",
+        "name_ru": "Семейная Витаминная Корзина с Базара (10 кг Фрукты и Овощи)",
+        "name_en": "Fresh Farm Vitamin Basket (10kg Assorted Produce)",
+        "description_uz": "2 kg Yusupov pomidori + 2 kg Bodring + 2 kg Qora uzum + 2 kg Shaftoli + 2 bog'lam yangi rayhon va ko'katlar. 100% yangi uzilgan!",
+        "description_ru": "2 кг юсуповских помидоров + 2 кг огурцов + 2 кг черного винограда + 2 кг персиков + свежая зелень и райхон. 100% свежесть!",
+        "description_en": "2kg heirloom tomatoes + 2kg cucumbers + 2kg black grapes + 2kg sweet peaches + fresh mountain herbs.",
+        "price": 240000.0,
+        "old_price": 280000.0,
+        "unit": "to'plam (сет)",
+        "min_weight": 1.0,
+        "step_weight": 1.0,
+        "image_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&auto=format&fit=crop&q=80",
+        "video_url": None,
+        "is_featured": True,
+        "badge": "organic",
+        "stock_quantity": 25.0
+    },
+
     # Store: Dilshod Ota (Vegetables)
     {
         "store_slug": "dilshod-ota-sabzavot",
@@ -263,7 +373,7 @@ PRODUCTS = [
         "unit": "kg",
         "min_weight": 0.5,
         "step_weight": 0.5,
-        "image_url": "https://images.unsplash.com/photo-1603048588665-791ca8aea617?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=600&auto=format&fit=crop&q=80",
         "video_url": "https://assets.mixkit.co/videos/preview/mixkit-meat-skewers-sizzling-over-a-grill-42996-large.mp4",
         "is_featured": True,
         "badge": "top_rated",
@@ -345,49 +455,7 @@ PRODUCTS = [
         "unit": "dona",
         "min_weight": 1.0,
         "step_weight": 1.0,
-        "image_url": "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-hot-pastry-being-broken-in-half-showing-filling-43006-large.mp4",
-        "is_featured": True,
-        "badge": "fresh_hot",
-        "stock_quantity": 100.0
-    },
-    {
-        "store_slug": "zuhra-opa-tandir",
-        "category_slug": "bakery",
-        "name_uz": "Toshkent Obi Non (Issiq)",
-        "name_ru": "Ташкентский оби-нон (Горячий)",
-        "name_en": "Classic Tashkent Obi Non",
-        "description_uz": "An'anaviy tandir obi noni, har doim issiq va xushbo'y.",
-        "description_ru": "Классическая воздушная ташкентская лепешка, всегда горячая.",
-        "description_en": "Traditional airy Tashkent tandoor loaf, served warm.",
-        "price": 5000.0,
-        "old_price": None,
-        "unit": "dona",
-        "min_weight": 1.0,
-        "step_weight": 1.0,
-        "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-baker-taking-bread-out-of-a-hot-oven-43002-large.mp4",
-        "is_featured": False,
-        "badge": "fresh_hot",
-        "stock_quantity": 120.0
-    },
-
-    # Store: Botir Aka (Fruits)
-    {
-        "store_slug": "botir-aka-mevalar",
-        "category_slug": "fruits",
-        "name_uz": "Mirzacho'l Qovuni 'Ko'kcha' (Asaldek)",
-        "name_ru": "Дыня Мирзачульская 'Кокча' (Сладкая как мед)",
-        "name_en": "Mirzachul Honey Melon 'Kokcha'",
-        "description_uz": "Shirasi quyuq, shirin va xushbo'y mashhur Mirzacho'l qovuni.",
-        "description_ru": "Знаменитая сахарная дыня из Мирзачуля с непревзойденным ароматом.",
-        "description_en": "Famous sweet, aromatic Mirzachul melon with tender honey-like pulp.",
-        "price": 35000.0,
-        "old_price": 40000.0,
-        "unit": "dona",
-        "min_weight": 1.0,
-        "step_weight": 1.0,
-        "image_url": "https://images.unsplash.com/photo-1571575179703-499aa43814f5?w=600&auto=format&fit=crop&q=80",
+           "image_url": "https://images.unsplash.com/photo-1595855759920-86582396756a?w=600&auto=format&fit=crop&q=80",
         "video_url": "https://assets.mixkit.co/videos/preview/mixkit-knife-cutting-open-a-juicy-sweet-melon-41724-large.mp4",
         "is_featured": True,
         "badge": "sweet",
@@ -407,7 +475,7 @@ PRODUCTS = [
         "unit": "kg",
         "min_weight": 0.5,
         "step_weight": 0.5,
-        "image_url": "https://images.unsplash.com/photo-1595786810283-652307ef11fb?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&auto=format&fit=crop&q=80",
         "video_url": "https://assets.mixkit.co/videos/preview/mixkit-biting-into-a-fresh-juicy-peach-41720-large.mp4",
         "is_featured": True,
         "badge": "fresh",
@@ -432,6 +500,90 @@ PRODUCTS = [
         "is_featured": False,
         "badge": "fresh",
         "stock_quantity": 50.0
+    },
+    {
+        "store_slug": "botir-aka-mevalar",
+        "category_slug": "fruits",
+        "name_uz": "Quva Qizil Shirin Anori",
+        "name_ru": "Сладкий гранат из Кувы (Рубиновый)",
+        "name_en": "Quva Sweet Red Pomegranate",
+        "description_uz": "Yirik, qip-qizil donali shirador Quva anori.",
+        "description_ru": "Сочный рубиновый гранат с насыщенным сладким вкусом.",
+        "description_en": "Juicy ruby red pomegranate bursting with sweet nectar.",
+        "price": 32000.0,
+        "old_price": 38000.0,
+        "unit": "kg",
+        "min_weight": 0.5,
+        "step_weight": 0.5,
+        "image_url": "https://images.unsplash.com/photo-1541344999736-83eca872f240?w=600&auto=format&fit=crop&q=80",
+        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-cutting-open-a-ripe-red-pomegranate-41728-large.mp4",
+        "is_featured": True,
+        "badge": "fresh",
+        "stock_quantity": 40.0
+    },
+    {
+        "store_slug": "botir-aka-mevalar",
+        "category_slug": "fruits",
+        "name_uz": "Namangan Qizil 'Besh Yulduz' Olmasi",
+        "name_ru": "Яблоки 'Пять звезд' (Хрустящие)",
+        "name_en": "Crisp Mountain Red Apples",
+        "description_uz": "Qarsildoq, shirin va xushbo'y tog' olmasi.",
+        "description_ru": "Сладкие ароматные хрустящие яблоки из горных садов.",
+        "description_en": "Sweet and crisp mountain red apples full of natural aroma.",
+        "price": 18000.0,
+        "old_price": None,
+        "unit": "kg",
+        "min_weight": 0.5,
+        "step_weight": 0.5,
+        "image_url": "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=600&auto=format&fit=crop&q=80",
+        "video_url": None,
+        "is_featured": False,
+        "badge": "organic",
+        "stock_quantity": 60.0
+    },
+
+    # Store: Zuxra Opa (Bakery Extra)
+    {
+        "store_slug": "zuxra-opa-non",
+        "category_slug": "bakery",
+        "name_uz": "Jizzali Qatlama Non",
+        "name_ru": "Слоеный патыр с шкварками (Джиззали)",
+        "name_en": "Layered Crispy Flatbread with Cracklings",
+        "description_uz": "Tandirdan uzilgan qat-qat yog'li va xushta'm non.",
+        "description_ru": "Слоеный горячий патыр с хрустящей корочкой и ароматной начинкой.",
+        "description_en": "Traditional crispy layered tandoor bread with rich savory flavor.",
+        "price": 15000.0,
+        "old_price": None,
+        "unit": "dona",
+        "min_weight": 1.0,
+        "step_weight": 1.0,
+        "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=80",
+        "video_url": None,
+        "is_featured": False,
+        "badge": "fresh_hot",
+        "stock_quantity": 30.0
+    },
+
+    # Store: Karen (Meat Extra)
+    {
+        "store_slug": "karen-aka-gosht",
+        "category_slug": "meat",
+        "name_uz": "Qo'y Qovurg'asi (Shashlikbop)",
+        "name_ru": "Бараньи ребрышки для шашлыка и плова",
+        "name_en": "Fresh Lamb Ribs (Prime Cut)",
+        "description_uz": "Shirin va sersuv qo'y qovurg'alari shashlik va qovurma uchun.",
+        "description_ru": "Нежные бараньи ребрышки идеальной жирности для сочного шашлыка.",
+        "description_en": "Tender grass-fed lamb ribs perfect for grilling and roasting.",
+        "price": 110000.0,
+        "old_price": 125000.0,
+        "unit": "kg",
+        "min_weight": 0.5,
+        "step_weight": 0.5,
+        "image_url": "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+        "video_url": None,
+        "is_featured": True,
+        "badge": "premium",
+        "stock_quantity": 35.0
     },
 
     # Store: Akmal (Dry Fruits)
@@ -472,6 +624,46 @@ PRODUCTS = [
         "image_url": "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?w=600&auto=format&fit=crop&q=80",
         "video_url": "https://assets.mixkit.co/videos/preview/mixkit-cracking-open-a-walnut-shell-41732-large.mp4",
         "is_featured": False,
+        "badge": "organic",
+        "stock_quantity": 40.0
+    },
+    {
+        "store_slug": "akmal-quruq-meva",
+        "category_slug": "dry_fruits",
+        "name_uz": "Qovurilgan Sho'r Bodom (Po'stloqli)",
+        "name_ru": "Жареный соленый миндаль в скорлупе",
+        "name_en": "Roasted Salted In-Shell Almonds",
+        "description_uz": "Qarsildoq, mazali qovurilgan tog' bodomi.",
+        "description_ru": "Отборный хрустящий жареный миндаль с морской солью.",
+        "description_en": "Crispy roasted mountain almonds seasoned with pure sea salt.",
+        "price": 95000.0,
+        "old_price": None,
+        "unit": "kg",
+        "min_weight": 0.25,
+        "step_weight": 0.25,
+        "image_url": "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?w=600&auto=format&fit=crop&q=80",
+        "video_url": None,
+        "is_featured": False,
+        "badge": "premium",
+        "stock_quantity": 30.0
+    },
+    {
+        "store_slug": "akmal-quruq-meva",
+        "category_slug": "dry_fruits",
+        "name_uz": "Oftobda Quritilgan Asal O'rik (Turshak)",
+        "name_ru": "Натуральная курага 'Сахарная' (Солнечная сушка)",
+        "name_en": "Sun-Dried Honey Apricots",
+        "description_uz": "Quyoshda tabiiy usulda quritilgan shirin va yumshoq o'rik.",
+        "description_ru": "Мягкая натуральная янтарная курага без сахара и консервантов.",
+        "description_en": "Soft, naturally sun-dried golden apricots bursting with sweetness.",
+        "price": 70000.0,
+        "old_price": 80000.0,
+        "unit": "kg",
+        "min_weight": 0.25,
+        "step_weight": 0.25,
+        "image_url": "https://images.unsplash.com/photo-1596560548464-f010549b84d7?w=600&auto=format&fit=crop&q=80",
+        "video_url": None,
+        "is_featured": True,
         "badge": "organic",
         "stock_quantity": 40.0
     },
@@ -516,6 +708,46 @@ PRODUCTS = [
         "is_featured": False,
         "badge": "fresh",
         "stock_quantity": 30.0
+    },
+    {
+        "store_slug": "nodira-opa-sut",
+        "category_slug": "dairy",
+        "name_uz": "Qishloq Tabiiy Qatig'i (Kosa Qatiq)",
+        "name_ru": "Домашний натуральный катык (Густой)",
+        "name_en": "Natural Farm Qatiq (Probiotic Yogurt)",
+        "description_uz": "Toza sigir sutidan ivitilgan qalin va mazali qatiq.",
+        "description_ru": "Густой живой катык из отборного цельного фермерского молока.",
+        "description_en": "Traditional thick probiotic fermented farm yogurt.",
+        "price": 12000.0,
+        "old_price": None,
+        "unit": "dona",
+        "min_weight": 1.0,
+        "step_weight": 1.0,
+        "image_url": "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=600&auto=format&fit=crop&q=80",
+        "video_url": None,
+        "is_featured": False,
+        "badge": "organic",
+        "stock_quantity": 30.0
+    },
+    {
+        "store_slug": "nodira-opa-sut",
+        "category_slug": "dairy",
+        "name_uz": "Qo'lda Tayyorlangan Sariq Yog' (Masko)",
+        "name_ru": "Натуральное топленое масло 'Маско' (Сливочное)",
+        "name_en": "Pure Artisanal Ghee / Clarified Butter",
+        "description_uz": "Xushbo'y, toza va tabiiy qishloq sariyog'i.",
+        "description_ru": "Ароматное золотистое топленое домашнее сливочное масло высшего сорта.",
+        "description_en": "Pure golden clarified butter rendered slowly for rich nutty aroma.",
+        "price": 90000.0,
+        "old_price": None,
+        "unit": "kg",
+        "min_weight": 0.25,
+        "step_weight": 0.25,
+        "image_url": "https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?w=600&auto=format&fit=crop&q=80",
+        "video_url": None,
+        "is_featured": True,
+        "badge": "premium",
+        "stock_quantity": 20.0
     }
 ]
 
@@ -524,40 +756,68 @@ async def init_db_and_seed():
         await conn.run_sync(Base.metadata.create_all)
 
     async with async_session_factory() as session:
-        # Check if already seeded with video_url
-        res = await session.execute(select(ProductModel))
-        existing_products = res.scalars().all()
-        
-        # If products already exist, update video_urls
-        if existing_products:
-            prod_dict = {p["name_uz"]: p for p in PRODUCTS}
-            for ep in existing_products:
-                if ep.name_uz in prod_dict:
-                    ep.video_url = prod_dict[ep.name_uz].get("video_url")
-                    ep.image_url = prod_dict[ep.name_uz].get("image_url")
-            await session.commit()
-            return
-
-        # 1. Seed Categories
+        # 1. Sync Categories
+        cat_res = await session.execute(select(CategoryModel))
+        existing_cats = {c.slug: c for c in cat_res.scalars().all()}
         for cat_data in CATEGORIES:
-            cat = CategoryModel(**cat_data)
-            session.add(cat)
+            if cat_data["slug"] not in existing_cats:
+                cat = CategoryModel(**cat_data)
+                session.add(cat)
         await session.commit()
 
-        # 2. Seed Stores
-        store_map = {}
+        # 2. Sync Stores
+        store_res = await session.execute(select(StoreModel))
+        existing_stores = {s.slug: s for s in store_res.scalars().all()}
+        store_map = {s.slug: s.id for s in existing_stores.values()}
+
         for store_data in STORES:
-            store = StoreModel(**store_data)
-            session.add(store)
-            await session.flush()
-            store_map[store.slug] = store.id
+            if store_data["slug"] not in existing_stores:
+                store = StoreModel(**store_data)
+                session.add(store)
+                await session.flush()
+                store_map[store.slug] = store.id
+            else:
+                store_map[store_data["slug"]] = existing_stores[store_data["slug"]].id
         await session.commit()
 
-        # 3. Seed Products
+        # Clean up legacy duplicate emoji records
+        from sqlalchemy import delete
+        await session.execute(
+            delete(ProductModel).where(
+                (ProductModel.name_uz.like("👑%")) | 
+                (ProductModel.name_uz.like("🍲%")) | 
+                (ProductModel.name_uz.like("🍢%")) | 
+                (ProductModel.name_uz.like("🥗%"))
+            )
+        )
+        await session.commit()
+
+        # 3. Sync Products
+        prod_res = await session.execute(select(ProductModel))
+        existing_prods = {p.name_uz: p for p in prod_res.scalars().all()}
+
         for prod_data in PRODUCTS:
             p_data = dict(prod_data)
             store_slug = p_data.pop("store_slug")
-            p_data["store_id"] = store_map[store_slug]
-            prod = ProductModel(**p_data)
-            session.add(prod)
+            store_id = store_map.get(store_slug, 1)
+            p_data["store_id"] = store_id
+
+            if p_data["name_uz"] not in existing_prods:
+                prod = ProductModel(**p_data)
+                session.add(prod)
+            else:
+                ep = existing_prods[p_data["name_uz"]]
+                ep.name_ru = p_data["name_ru"]
+                ep.name_en = p_data["name_en"]
+                ep.price = p_data["price"]
+                ep.old_price = p_data.get("old_price")
+                ep.badge = p_data.get("badge")
+                if ep.video_url and "mixkit.co" in ep.video_url:
+                    ep.video_url = None
+                elif p_data.get("video_url") and "mixkit.co" not in p_data["video_url"]:
+                    ep.video_url = p_data["video_url"]
+                if p_data.get("image_url"):
+                    ep.image_url = p_data["image_url"]
+
         await session.commit()
+

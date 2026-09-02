@@ -49,7 +49,9 @@ export const api = {
   },
 
   async getOrder(orderNumber) {
-    const res = await fetch(`${API_BASE}/orders/${orderNumber}`);
+    if (!orderNumber) throw new Error('Order number required');
+    const cleanNum = String(orderNumber).replace(/^#/, '').trim();
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(cleanNum)}`);
     if (!res.ok) throw new Error('Order not found');
     return res.json();
   },
@@ -73,6 +75,45 @@ export const api = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || 'Login failed');
+    }
+    return res.json();
+  },
+
+  async uploadMedia(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE}/seller/upload-media`, {
+      method: 'POST',
+      body: formData
+    });
+    if (!res.ok) {
+      throw new Error('Media upload failed');
+    }
+    return res.json();
+  },
+
+  async createProduct(storeId, productData) {
+    const res = await fetch(`${API_BASE}/seller/stores/${storeId}/products`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(productData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create product');
+    }
+    return res.json();
+  },
+
+  async updateStoreProfile(storeId, storeData) {
+    const res = await fetch(`${API_BASE}/seller/stores/${storeId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(storeData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update store profile');
     }
     return res.json();
   },
