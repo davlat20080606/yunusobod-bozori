@@ -13,7 +13,7 @@ export default function StoreSelector({ stores, onSelectStore }) {
           <h2 className="med-section-title">
             🏪 {t('stores.title')}
           </h2>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <p style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500, marginTop: '2px' }}>
             {t('stores.subtitle')}
           </p>
         </div>

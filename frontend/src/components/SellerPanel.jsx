@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import { api } from '../services/api';
 import { Store, DollarSign, CheckCircle2, ToggleLeft, ToggleRight, RefreshCw, Package, Check, Save, PlusCircle, X, Image, Video, Sparkles, Upload, Lock, ShieldCheck, Camera, LogOut, Settings, Edit3 } from 'lucide-react';
 import { triggerHaptic } from '../services/telegram';
 import { formatUnit } from './ProductCard';
+import { ClickLogo, PaymeLogo } from './PaymentLogos';
 
 const PHOTO_PRESETS = [
   { name: '🥩 Go\'sht / Мясо', image: 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=600&auto=format&fit=crop&q=80', video: 'https://assets.mixkit.co/videos/preview/mixkit-meat-skewers-sizzling-over-a-grill-42996-large.mp4' },
@@ -33,6 +35,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
 
   // Monetization Modals
   const [showSubModal, setShowSubModal] = useState(false);
+  const [selectedSubPlanIndex, setSelectedSubPlanIndex] = useState(0);
   const [showCommModal, setShowCommModal] = useState(false);
 
   // Store Edit Settings Modal
@@ -578,12 +581,12 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
       </div>
 
       {/* ─── SUBSCRIPTION MODAL ─── */}
-      {showSubModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      {showSubModal && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: '#ffffff', zIndex: 99999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '16px', overflowY: 'auto' }}
           onClick={() => setShowSubModal(false)}>
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: '#ffffff', borderRadius: '24px 24px 0 0', padding: '28px 20px 36px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto' }}
+            style={{ background: '#ffffff', width: '100%', maxWidth: '480px', paddingTop: '20px' }}
           >
             {/* Handle */}
             <div style={{ width: '40px', height: '4px', background: '#e2e8f0', borderRadius: '4px', margin: '0 auto 20px' }} />
@@ -602,10 +605,10 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
 
             {/* Plans */}
             {[
-              { period: language === 'ru' ? '1 месяц' : '1 oy', price: '50 000', badge: null, color: '#3b82f6' },
-              { period: language === 'ru' ? '3 месяца' : '3 oy', price: '140 000', badge: language === 'ru' ? '-7%' : '-7%', color: '#059669' },
-              { period: language === 'ru' ? '6 месяцев' : '6 oy', price: '270 000', badge: language === 'ru' ? '-10%' : '-10%', color: '#7c3aed' },
-              { period: language === 'ru' ? '12 месяцев' : '12 oy', price: '500 000', badge: language === 'ru' ? '-17% 🔥' : '-17% 🔥', color: '#dc2626' },
+              { period: language === 'ru' ? '1 месяц' : (language === 'en' ? '1 month' : '1 oy'), price: '50 000', badge: null, color: '#3b82f6' },
+              { period: language === 'ru' ? '3 месяца' : (language === 'en' ? '3 months' : '3 oy'), price: '140 000', badge: '-7%', color: '#059669' },
+              { period: language === 'ru' ? '6 месяцев' : (language === 'en' ? '6 months' : '6 oy'), price: '270 000', badge: '-10%', color: '#7c3aed' },
+              { period: language === 'ru' ? '12 месяцев' : (language === 'en' ? '12 months' : '12 oy'), price: '500 000', badge: '-17% 🔥', color: '#dc2626' },
             ].map((plan, i) => (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -615,7 +618,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                 <div>
                   <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#1e293b' }}>{plan.period}</div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
-                    {language === 'ru' ? 'за размещение расты' : 'rasta joylashuvi'}
+                    {language === 'ru' ? 'за размещение расты' : (language === 'en' ? 'for stall placement' : 'rasta joylashuvi')}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -632,36 +635,79 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
             {/* What's included */}
             <div style={{ background: '#f0fdf4', borderRadius: '14px', padding: '16px', marginTop: '8px', marginBottom: '20px' }}>
               <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#15803d', marginBottom: '10px' }}>
-                ✅ {language === 'ru' ? 'Что входит в план:' : 'Plan ichida nima bor:'}
+                ✅ {language === 'ru' ? 'Что входит в план:' : (language === 'en' ? 'What\'s included:' : 'Plan ichida nima bor:')}
               </div>
               {[
-                language === 'ru' ? '🏪 Размещение расты в каталоге' : '🏪 Katalogda rasta joylashuvi',
-                language === 'ru' ? '📸 До 30 фото/видео товаров' : '📸 30 tagacha foto/video mahsulot',
-                language === 'ru' ? '🛒 Приём заказов через Telegram' : '🛒 Telegram orqali buyurtma qabul qilish',
-                language === 'ru' ? '📊 Статистика продаж в личном кабинете' : '📊 Shaxsiy kabinetda savdo statistikasi',
-                language === 'ru' ? '📞 Приоритетная поддержка' : '📞 Ustuvor yordam',
+                language === 'ru' ? '🏪 Размещение расты в каталоге' : (language === 'en' ? '🏪 Stall in marketplace catalog' : '🏪 Katalogda rasta joylashuvi'),
+                language === 'ru' ? '📸 До 30 фото/видео товаров' : (language === 'en' ? '📸 Up to 30 product photos/videos' : '📸 30 tagacha foto/video mahsulot'),
+                language === 'ru' ? '🛒 Приём заказов через Telegram' : (language === 'en' ? '🛒 Receive orders in Telegram' : '🛒 Telegram orqali buyurtma qabul qilish'),
+                language === 'ru' ? '📊 Статистика продаж в личном кабинете' : (language === 'en' ? '📊 Sales statistics in dashboard' : '📊 Shaxsiy kabinetda savdo statistikasi'),
+                language === 'ru' ? '📞 Приоритетная поддержка' : (language === 'en' ? '📞 Priority support' : '📞 Ustuvor yordam'),
               ].map((item, i) => (
                 <div key={i} style={{ fontSize: '0.82rem', color: '#1e293b', marginBottom: '6px' }}>{item}</div>
               ))}
             </div>
 
+            {/* Payment section */}
+            <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#1e293b', marginBottom: '10px' }}>
+              💳 {language === 'ru' ? 'Выберите способ оплаты:' : (language === 'en' ? 'Choose payment method:' : 'To\'lov usulini tanlang:')}
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const url = 'https://my.click.uz';
+                  if (window.Telegram?.WebApp?.openLink) window.Telegram.WebApp.openLink(url);
+                  else window.open(url, '_blank');
+                }}
+                style={{
+                  flex: 1, height: '48px', padding: '10px 14px',
+                  background: '#0073FF',
+                  border: 'none', borderRadius: '12px',
+                  cursor: 'pointer', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0, 115, 255, 0.25)'
+                }}
+              >
+                <ClickLogo height={24} color="white" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const url = 'https://payme.uz';
+                  if (window.Telegram?.WebApp?.openLink) window.Telegram.WebApp.openLink(url);
+                  else window.open(url, '_blank');
+                }}
+                style={{
+                  flex: 1, height: '48px', padding: '10px 14px',
+                  background: '#ffffff',
+                  border: '1.5px solid #00CCCC', borderRadius: '12px',
+                  cursor: 'pointer', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0, 204, 204, 0.15)'
+                }}
+              >
+                <PaymeLogo height={22} variant="color" />
+              </button>
+            </div>
+
             <button
               onClick={() => setShowSubModal(false)}
               style={{
-                width: '100%', padding: '14px', background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                color: '#fff', border: 'none', borderRadius: '14px',
-                fontSize: '0.95rem', fontWeight: 800, cursor: 'pointer'
+                width: '100%', padding: '12px', background: '#f1f5f9',
+                color: '#475569', border: 'none', borderRadius: '12px',
+                fontSize: '0.88rem', fontWeight: 700, cursor: 'pointer', marginBottom: '40px'
               }}
             >
-              {language === 'ru' ? 'Понятно, спасибо!' : 'Tushunarli, rahmat!'}
+              {language === 'ru' ? 'Закрыть' : (language === 'en' ? 'Close' : 'Yopish')}
             </button>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ─── COMMISSION MODAL ─── */}
-      {showCommModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      {showCommModal && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: '#ffffff', zIndex: 99999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '16px', overflowY: 'auto' }}
           onClick={() => setShowCommModal(false)}>
           <div
             onClick={e => e.stopPropagation()}
@@ -737,7 +783,8 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
               {language === 'ru' ? 'Понятно!' : 'Tushunarli!'}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
 
@@ -1001,7 +1048,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
       )}
 
       {/* Edit Store Profile Modal (Change Name, Phone, Stall, PIN) */}
-      {showEditStoreModal && (
+      {showEditStoreModal && createPortal(
         <div className="modal-center-backdrop" onClick={() => setShowEditStoreModal(false)}>
           <div className="modal-center-card animate-scale" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -1091,11 +1138,12 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Add New Product Modal with Direct Gallery Upload */}
-      {showAddProductModal && (
+      {showAddProductModal && createPortal(
         <div className="modal-center-backdrop" onClick={() => setShowAddProductModal(false)}>
           <div className="modal-center-card animate-scale" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -1261,11 +1309,12 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Register New Store Modal */}
-      {showRegModal && (
+      {showRegModal && createPortal(
         <div className="modal-center-backdrop" onClick={() => setShowRegModal(false)}>
           <div className="modal-center-card animate-scale" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -1374,7 +1423,8 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

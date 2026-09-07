@@ -1,12 +1,40 @@
 import React, { useState } from 'react';
 import { Store, Delete, ShieldCheck, AlertCircle } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const CORRECT_PIN = '2008';
 
 export default function SellerPinGate({ onUnlock, onCancel }) {
+  const { language } = useLanguage();
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
   const [shake, setShake] = useState(false);
+
+  // All texts in 3 languages
+  const T = {
+    title: {
+      uz: "Sotuvchi Kabineti",
+      ru: "Кабинет продавца",
+      en: "Seller Dashboard"
+    },
+    subtitle: {
+      uz: "Kirish uchun PIN-kodni kiriting",
+      ru: "Введите PIN-код для входа",
+      en: "Enter your PIN to continue"
+    },
+    wrong_pin: {
+      uz: "Noto'g'ri PIN-kod",
+      ru: "Неверный PIN-код",
+      en: "Incorrect PIN code"
+    },
+    back: {
+      uz: "Orqaga",
+      ru: "Назад",
+      en: "Back"
+    }
+  };
+
+  const t = (key) => T[key]?.[language] || T[key]?.uz || '';
 
   const handleDigit = (digit) => {
     if (pin.length >= 4) return;
@@ -59,13 +87,13 @@ export default function SellerPinGate({ onUnlock, onCancel }) {
         color: 'white', fontSize: 22, fontWeight: 700,
         marginBottom: 6, textAlign: 'center'
       }}>
-        Кабинет продавца
+        {t('title')}
       </h2>
       <p style={{
         color: '#94a3b8', fontSize: 14, marginBottom: 32,
         textAlign: 'center'
       }}>
-        Введите PIN-код для входа
+        {t('subtitle')}
       </p>
 
       {/* PIN Dots */}
@@ -94,7 +122,7 @@ export default function SellerPinGate({ onUnlock, onCancel }) {
       }}>
         <AlertCircle size={15} color="#ef4444" />
         <span style={{ color: '#ef4444', fontSize: 13, fontWeight: 600 }}>
-          Неверный PIN-код
+          {t('wrong_pin')}
         </span>
       </div>
 
@@ -159,7 +187,7 @@ export default function SellerPinGate({ onUnlock, onCancel }) {
           borderRadius: 10
         }}
       >
-        Назад
+        {t('back')}
       </button>
 
       <style>{`

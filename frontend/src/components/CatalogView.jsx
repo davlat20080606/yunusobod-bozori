@@ -5,14 +5,14 @@ import { ChevronRight, ArrowLeft } from 'lucide-react';
 import { triggerHaptic } from '../services/telegram';
 
 const CATEGORY_META = {
-  all: { icon: '🛒', uz: 'Barchasi', ru: 'Все товары', en: 'All' },
-  bakery: { icon: '🥖', uz: 'Non & Tandir', ru: 'Выпечка', en: 'Bakery' },
-  fruits: { icon: '🍇', uz: 'Mevalar', ru: 'Фрукты', en: 'Fruits' },
-  meat: { icon: '🥩', uz: 'Go\'sht', ru: 'Мясо', en: 'Fresh Meat' },
-  vegetables: { icon: '🍅', uz: 'Sabzavotlar', ru: 'Овощи', en: 'Vegetables' },
-  dairy: { icon: '🧀', uz: 'Sut mahsulotlari', ru: 'Молочка', en: 'Dairy' },
-  dry_fruits: { icon: '🥜', uz: 'Quruq mevalar', ru: 'Сухофрукты', en: 'Dried Fruits' },
-  combos: { icon: '👑', uz: 'To\'plamlar', ru: 'Сеты & Наборы', en: 'Sets' }
+  all: { icon: '🛒', bg: '#ecfdf5', uz: 'Barchasi', ru: 'Все', en: 'All' },
+  bakery: { icon: '🥖', bg: '#fef3c7', uz: 'Non & Tandir', ru: 'Выпечка', en: 'Bakery' },
+  fruits: { icon: '🍇', bg: '#fce7f3', uz: 'Mevalar', ru: 'Фрукты', en: 'Fruits' },
+  meat: { icon: '🥩', bg: '#fee2e2', uz: 'Go\'sht', ru: 'Мясо', en: 'Fresh Meat' },
+  vegetables: { icon: '🍅', bg: '#dcfce7', uz: 'Sabzavotlar', ru: 'Овощи', en: 'Vegetables' },
+  dairy: { icon: '🧀', bg: '#fef9c3', uz: 'Sut mahsulotlari', ru: 'Молочка', en: 'Dairy' },
+  dry_fruits: { icon: '🥜', bg: '#ffedd5', uz: 'Quruq mevalar', ru: 'Сухофрукты', en: 'Dried Fruits' },
+  combos: { icon: '👑', bg: '#f3e8ff', uz: 'To\'plamlar', ru: 'Сеты', en: 'Sets' }
 };
 
 export default function CatalogView({
@@ -91,6 +91,7 @@ export default function CatalogView({
           <button
             type="button"
             className={`med-cat-squircle-item ${activeCategory === '' ? 'active' : ''}`}
+            style={{ background: 'transparent', border: 'none', padding: 0 }}
             onClick={() => {
               triggerHaptic('light');
               onSelectCategory('');
@@ -115,12 +116,13 @@ export default function CatalogView({
                 key={cat.id || cat.slug}
                 type="button"
                 className={`med-cat-squircle-item ${isSelected ? 'active' : ''}`}
+                style={{ background: 'transparent', border: 'none', padding: 0 }}
                 onClick={() => {
                   triggerHaptic('light');
                   onSelectCategory(cat.slug);
                 }}
               >
-                <div className="med-cat-squircle-box" style={{ background: isSelected ? '#ecfdf5' : '#f8fafc' }}>
+                <div className="med-cat-squircle-box" style={{ background: meta.bg || '#f1f5f9' }}>
                   <span className="med-cat-squircle-icon">{meta.icon}</span>
                 </div>
                 <span className="med-cat-squircle-label">
@@ -133,8 +135,8 @@ export default function CatalogView({
       </div>
 
       {/* 3. Section Title */}
-      <div className="mb-4">
-        <h1 className="text-lg md:text-xl font-extrabold text-slate-900">
+      <div style={{ marginBottom: '16px' }}>
+        <h1 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
           {getCategoryTitle()}
         </h1>
       </div>

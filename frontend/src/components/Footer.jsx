@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Phone, Clock, MapPin, Send, ShieldCheck, ShoppingBag, Sparkles } from 'lucide-react';
+import { ClickLogo, PaymeLogo, UzcardBadge, HumoBadge } from './PaymentLogos';
 
 export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateSeller, onNavigateOrders }) {
   const { t, language } = useLanguage();
@@ -110,11 +111,16 @@ export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateS
           {/* Column 4: Payment Methods */}
           <div className="med-footer-col">
             <h4 className="med-footer-heading">{t('footer.payments')}</h4>
-            <div className="med-footer-pay-list">
-              <span className="med-pay-pill">💳 Visa Card</span>
-              <span className="med-pay-pill">🔹 Click</span>
-              <span className="med-pay-pill">🔸 Payme</span>
-              <span className="med-pay-pill">
+            <div className="med-footer-pay-list" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+              <div style={{ background: '#ffffff', borderRadius: '8px', padding: '4px 8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center' }}>
+                <ClickLogo height={16} color="blue" />
+              </div>
+              <div style={{ background: '#ffffff', borderRadius: '8px', padding: '4px 8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center' }}>
+                <PaymeLogo height={16} />
+              </div>
+              <UzcardBadge height={14} />
+              <HumoBadge height={14} />
+              <span className="med-pay-pill" style={{ margin: 0 }}>
                 💵 {language === 'ru' ? 'Наличные' : (language === 'en' ? 'Cash' : 'Naqd pul')}
               </span>
             </div>

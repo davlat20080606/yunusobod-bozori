@@ -5,6 +5,7 @@ import confetti from 'canvas-confetti';
 import { triggerHaptic, getTelegramUser } from '../services/telegram';
 import { api } from '../services/api';
 import MapPicker from './MapPicker';
+import { ClickLogo, PaymeLogo } from './PaymentLogos';
 
 export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', grandTotal, onSubmitOrder, onOrderSuccess, pickerNotes = '' }) {
   const { t, language } = useLanguage();
@@ -252,8 +253,8 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                     label: language === 'ru' ? '💵 Наличные' : (language === 'en' ? '💵 Cash' : '💵 Naqd pul'),
                     icon: Banknote 
                   },
-                  { id: 'click', label: '🔵 Click', icon: CreditCard },
-                  { id: 'payme', label: '🟢 Payme', icon: CreditCard },
+                  { id: 'click', label: 'Click', icon: CreditCard },
+                  { id: 'payme', label: 'Payme', icon: CreditCard },
                 ].map(pay => (
                   <button
                     key={pay.id}
@@ -261,16 +262,27 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                     onClick={() => setPaymentMethod(pay.id)}
                     style={{
                       padding: '10px 6px',
-                      borderRadius: '8px',
-                      border: `1.5px solid ${paymentMethod === pay.id ? '#064e3b' : '#e2e8f0'}`,
-                      background: paymentMethod === pay.id ? '#d1fae5' : '#ffffff',
+                      borderRadius: '10px',
+                      border: `1.5px solid ${paymentMethod === pay.id ? '#16a34a' : '#e2e8f0'}`,
+                      background: paymentMethod === pay.id ? '#f0fdf4' : '#ffffff',
                       fontSize: '0.82rem',
                       fontWeight: 700,
                       cursor: 'pointer',
-                      textAlign: 'center'
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: '44px',
+                      boxShadow: paymentMethod === pay.id ? '0 2px 6px rgba(22, 163, 74, 0.15)' : 'none',
+                      transition: 'all 0.15s ease'
                     }}
                   >
-                    {pay.label}
+                    {pay.id === 'click' ? (
+                      <ClickLogo height={16} color="blue" />
+                    ) : pay.id === 'payme' ? (
+                      <PaymeLogo height={16} variant="color" />
+                    ) : (
+                      pay.label
+                    )}
                   </button>
                 ))}
               </div>
@@ -280,21 +292,27 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                 <div style={{
                   background: paymentMethod === 'click' 
                     ? 'linear-gradient(135deg, #eff6ff, #dbeafe)' 
-                    : 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-                  border: `1.5px solid ${paymentMethod === 'click' ? '#3b82f6' : '#22c55e'}`,
+                    : 'linear-gradient(135deg, #f0fdf9, #ccfbf1)',
+                  border: `1.5px solid ${paymentMethod === 'click' ? '#93c5fd' : '#99f6e4'}`,
                   borderRadius: '14px',
                   padding: '16px',
                   marginTop: '14px',
                   textAlign: 'center'
                 }}>
                   <div style={{ 
-                    fontSize: '2rem', marginBottom: '8px'
+                    marginBottom: '10px',
+                    display: 'flex',
+                    justifyContent: 'center'
                   }}>
-                    {paymentMethod === 'click' ? '🔵' : '🟢'}
+                    {paymentMethod === 'click' ? (
+                      <ClickLogo height={28} color="blue" />
+                    ) : (
+                      <PaymeLogo height={26} variant="color" />
+                    )}
                   </div>
                   <p style={{ 
-                    fontWeight: 700, 
-                    color: paymentMethod === 'click' ? '#1d4ed8' : '#15803d',
+                    fontWeight: 800, 
+                    color: paymentMethod === 'click' ? '#1d4ed8' : '#0f766e',
                     fontSize: '0.95rem',
                     marginBottom: '4px'
                   }}>
@@ -334,22 +352,28 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                       padding: '12px',
                       borderRadius: '10px',
                       border: 'none',
-                      background: paymentMethod === 'click' ? '#2563eb' : '#16a34a',
+                      background: paymentMethod === 'click' 
+                        ? 'linear-gradient(135deg, #0088FF, #005CE6)' 
+                        : 'linear-gradient(135deg, #00C4D0, #009DA8)',
                       color: '#ffffff',
-                      fontWeight: 700,
+                      fontWeight: 800,
                       fontSize: '0.9rem',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '8px'
+                      gap: '8px',
+                      boxShadow: paymentMethod === 'click' 
+                        ? '0 3px 10px rgba(0, 119, 255, 0.3)' 
+                        : '0 3px 10px rgba(0, 196, 208, 0.3)'
                     }}
                   >
-                    {paymentMethod === 'click' ? '🔵' : '🟢'}
-                    {paymentMethod === 'click'
-                      ? (language === 'ru' ? 'Открыть Click' : (language === 'en' ? 'Open Click' : 'Click\'ni ochish'))
-                      : (language === 'ru' ? 'Открыть Payme' : (language === 'en' ? 'Open Payme' : 'Payme\'ni ochish'))
-                    }
+                    <span>
+                      {paymentMethod === 'click'
+                        ? (language === 'ru' ? 'Перейти в Click' : (language === 'en' ? 'Open Click' : 'Click ilovasiga o\'tish'))
+                        : (language === 'ru' ? 'Перейти в Payme' : (language === 'en' ? 'Open Payme' : 'Payme ilovasiga o\'tish'))
+                      }
+                    </span>
                     <span style={{ fontSize: '1rem' }}>→</span>
                   </button>
                 </div>

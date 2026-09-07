@@ -419,6 +419,7 @@ export default function App() {
                   onSelectStore={(store) => {
                     setSelectedStore(store);
                     setActiveTab('market');
+                    window.scrollTo(0, 0);
                   }}
                 />
               )}
@@ -430,8 +431,11 @@ export default function App() {
                     /* STORE DETAIL VIEW (e.g. Karen Aka Meat Stall) */
                     <StoreDetailView 
                       store={selectedStore}
-                      products={products.filter((p) => p.store_id === selectedStore.id)}
-                      onBack={() => setSelectedStore(null)}
+                      products={selectedStore.products?.length > 0 ? selectedStore.products : products.filter((p) => p.store_id === selectedStore.id)}
+                      onBack={() => {
+                        setSelectedStore(null);
+                        window.scrollTo(0, 0);
+                      }}
                       onAddToCart={handleAddToCart}
                       onOpenMediaModal={setSelectedProduct}
                     />
@@ -472,7 +476,10 @@ export default function App() {
                       <StoreSelector 
                         stores={stores}
                         selectedStore={selectedStore}
-                        onSelectStore={(store) => setSelectedStore(store)}
+                        onSelectStore={(store) => {
+                          setSelectedStore(store);
+                          window.scrollTo(0, 0);
+                        }}
                       />
 
                     </div>
