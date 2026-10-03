@@ -21,9 +21,13 @@ COPY backend/ ./backend
 # Copy built frontend assets from stage 1
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# Expose port (default 8000 / $PORT in cloud)
-ENV PORT=8000
-EXPOSE 8000
+# Expose port (default 7860 for HuggingFace / $PORT in cloud)
+ENV PORT=7860
+EXPOSE 7860
+
+# Permissions for non-root (required by Hugging Face Spaces)
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
 
 WORKDIR /app/backend
-CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
