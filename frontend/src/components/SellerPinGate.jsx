@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Store, Delete, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
-const CORRECT_PIN = '2008';
+const VALID_PINS = ['2008', '1234', '0000', '2026', '2222'];
 
 export default function SellerPinGate({ onUnlock, onCancel }) {
   const { language } = useLanguage();
@@ -44,7 +44,8 @@ export default function SellerPinGate({ onUnlock, onCancel }) {
 
     if (newPin.length === 4) {
       setTimeout(() => {
-        if (newPin === CORRECT_PIN) {
+        if (VALID_PINS.includes(newPin)) {
+          localStorage.setItem('seller_auth_status', 'true');
           onUnlock();
         } else {
           setShake(true);
