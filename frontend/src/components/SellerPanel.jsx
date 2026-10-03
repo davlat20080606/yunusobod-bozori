@@ -1048,13 +1048,15 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
       )}
 
       {/* Edit Store Profile Modal (Change Name, Phone, Stall, PIN) */}
+      {/* Edit Store Profile Modal (Change Name, Phone, Stall, PIN) */}
       {showEditStoreModal && createPortal(
-        <div className="modal-center-backdrop" onClick={() => setShowEditStoreModal(false)}>
-          <div className="modal-center-card animate-scale" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+        <div style={{ position: 'fixed', inset: 0, background: '#ffffff', zIndex: 99999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '16px', overflowY: 'auto' }} onClick={() => setShowEditStoreModal(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#ffffff', width: '100%', maxWidth: '480px', paddingTop: '10px' }}>
+            <div style={{ width: '40px', height: '4px', background: '#e2e8f0', borderRadius: '4px', margin: '0 auto 20px' }} />
+            <div className="modal-header" style={{ padding: '0 0 16px 0', background: 'transparent', borderBottom: 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Edit3 size={20} color="#064e3b" />
-                <h3>Do'kon / Sotuvchi ma'lumotlarini tahrirlash</h3>
+                <h3>{language === 'ru' ? 'Редактировать магазин / продавца' : (language === 'en' ? 'Edit Store / Seller' : 'Do\'kon / Sotuvchi ma\'lumotlarini tahrirlash')}</h3>
               </div>
               <button className="close-btn" onClick={() => setShowEditStoreModal(false)}>
                 <X size={18} />
@@ -1064,11 +1066,11 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
             <form onSubmit={handleEditStoreSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Sotuvchi ismi (Имя продавца) *</label>
+                  <label className="form-label">{language === 'ru' ? 'Имя продавца *' : (language === 'en' ? 'Seller Name *' : 'Sotuvchi ismi *')}</label>
                   <input 
                     type="text" 
                     className="form-input"
-                    placeholder="Masalan: Karen / Jasur"
+                    placeholder={language === 'ru' ? 'Например: Карен / Жасур' : (language === 'en' ? 'E.g. Karen / Jasur' : 'Masalan: Karen / Jasur')}
                     value={editStoreForm.owner_name}
                     onChange={(e) => setEditStoreForm({ ...editStoreForm, owner_name: e.target.value })}
                     required
@@ -1076,7 +1078,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Telefon raqam (Номер телефона) *</label>
+                  <label className="form-label">{language === 'ru' ? 'Номер телефона *' : (language === 'en' ? 'Phone Number *' : 'Telefon raqam *')}</label>
                   <input 
                     type="tel" 
                     className="form-input"
@@ -1088,11 +1090,11 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Do'kon / Rasta nomi (Название прилавка) *</label>
+                  <label className="form-label">{language === 'ru' ? 'Название прилавка *' : (language === 'en' ? 'Stall Name *' : 'Do\'kon / Rasta nomi *')}</label>
                   <input 
                     type="text" 
                     className="form-input"
-                    placeholder="Masalan: Karen Aka — Saralangan Go'sht"
+                    placeholder={language === 'ru' ? 'Например: Карен Ака — Отборное мясо' : (language === 'en' ? 'E.g. Karen Aka — Premium Meat' : 'Masalan: Karen Aka — Saralangan Go\'sht')}
                     value={editStoreForm.name_uz}
                     onChange={(e) => setEditStoreForm({ ...editStoreForm, name_uz: e.target.value })}
                     required
@@ -1101,11 +1103,11 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label className="form-label">Rasta & Joy (Место) *</label>
+                    <label className="form-label">{language === 'ru' ? 'Ряд & Место *' : (language === 'en' ? 'Stall & Place *' : 'Rasta & Joy *')}</label>
                     <input 
                       type="text" 
                       className="form-input"
-                      placeholder="Rasta 14, Joy №2"
+                      placeholder={language === 'ru' ? 'Ряд 14, Место №2' : (language === 'en' ? 'Stall 14, Place №2' : 'Rasta 14, Joy №2')}
                       value={editStoreForm.stall_number}
                       onChange={(e) => setEditStoreForm({ ...editStoreForm, stall_number: e.target.value })}
                       required
@@ -1113,7 +1115,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Yangi PIN-kod (необязательно)</label>
+                    <label className="form-label">{language === 'ru' ? 'Новый PIN-код (необязательно)' : (language === 'en' ? 'New PIN-code (optional)' : 'Yangi PIN-kod (ixtiyoriy)')}</label>
                     <input 
                       type="password"
                       maxLength="4" 
@@ -1133,7 +1135,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                   disabled={editStoreLoading}
                   style={{ height: '46px' }}
                 >
-                  {editStoreLoading ? 'Saqlanmoqda...' : '💾 O\'zgarishlarni saqlash (Сохранить)'}
+                  {editStoreLoading ? (language === 'ru' ? 'Сохранение...' : (language === 'en' ? 'Saving...' : 'Saqlanmoqda...')) : (language === 'ru' ? '💾 Сохранить изменения' : (language === 'en' ? '💾 Save changes' : '💾 O\'zgarishlarni saqlash'))}
                 </button>
               </div>
             </form>
@@ -1143,13 +1145,15 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
       )}
 
       {/* Add New Product Modal with Direct Gallery Upload */}
+      {/* Add New Product Modal with Direct Gallery Upload */}
       {showAddProductModal && createPortal(
-        <div className="modal-center-backdrop" onClick={() => setShowAddProductModal(false)}>
-          <div className="modal-center-card animate-scale" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+        <div style={{ position: 'fixed', inset: 0, background: '#ffffff', zIndex: 99999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '16px', overflowY: 'auto' }} onClick={() => setShowAddProductModal(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#ffffff', width: '100%', maxWidth: '480px', paddingTop: '10px' }}>
+            <div style={{ width: '40px', height: '4px', background: '#e2e8f0', borderRadius: '4px', margin: '0 auto 20px' }} />
+            <div className="modal-header" style={{ padding: '0 0 16px 0', background: 'transparent', borderBottom: 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <PlusCircle size={20} color="#064e3b" />
-                <h3>Yangi mahsulot qo'shish / Добавить товар</h3>
+                <h3>{language === 'ru' ? 'Добавить товар' : (language === 'en' ? 'Add product' : 'Yangi mahsulot qo\'shish')}</h3>
               </div>
               <button className="close-btn" onClick={() => setShowAddProductModal(false)}>
                 <X size={18} />
@@ -1159,11 +1163,11 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
             <form onSubmit={handleAddProductSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Mahsulot nomi (O'zbekcha / Русский) *</label>
+                  <label className="form-label">{language === 'ru' ? 'Название товара *' : (language === 'en' ? 'Product Name *' : 'Mahsulot nomi *')}</label>
                   <input 
                     type="text" 
                     className="form-input"
-                    placeholder="Masalan: Yosh Qo'y Go'shti / Молодая баранина"
+                    placeholder={language === 'ru' ? 'Например: Молодая баранина' : (language === 'en' ? 'E.g. Young Mutton' : 'Masalan: Yosh Qo\'y Go\'shti')}
                     value={productForm.name_uz}
                     onChange={(e) => setProductForm({ ...productForm, name_uz: e.target.value, name_ru: e.target.value })}
                     required
@@ -1172,7 +1176,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label className="form-label">Narxi (UZS) *</label>
+                    <label className="form-label">{language === 'ru' ? 'Цена (UZS) *' : (language === 'en' ? 'Price (UZS) *' : 'Narxi (UZS) *')}</label>
                     <input 
                       type="number" 
                       className="form-input"
@@ -1184,23 +1188,23 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">O'lchov birligi *</label>
+                    <label className="form-label">{language === 'ru' ? 'Ед. измерения *' : (language === 'en' ? 'Unit *' : 'O\'lchov birligi *')}</label>
                     <select 
                       className="form-select"
                       value={productForm.unit}
                       onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })}
                     >
-                      <option value="kg">kg (Kilogramm)</option>
-                      <option value="dona">dona (Штука)</option>
-                      <option value="bog'lam">bog'lam (Связка / Пучок)</option>
-                      <option value="litr">litr (Литр)</option>
+                      <option value="kg">{language === 'ru' ? 'кг' : (language === 'en' ? 'kg' : 'kg')}</option>
+                      <option value="dona">{language === 'ru' ? 'шт.' : (language === 'en' ? 'pcs' : 'dona')}</option>
+                      <option value="bog'lam">{language === 'ru' ? 'пучок' : (language === 'en' ? 'bunch' : 'bog\'lam')}</option>
+                      <option value="litr">{language === 'ru' ? 'литр' : (language === 'en' ? 'liter' : 'litr')}</option>
                     </select>
                   </div>
                 </div>
 
                 {/* 1. PHOTO SELECTION: Gallery Upload or 1-Click Preset */}
                 <div className="form-group">
-                  <label className="form-label">📸 Mahsulot fotosi (Фото товара):</label>
+                  <label className="form-label">{language === 'ru' ? '📸 Фото товара:' : (language === 'en' ? '📸 Product Photo:' : '📸 Mahsulot fotosi:')}</label>
                   
                   {/* Gallery / Camera Input */}
                   <label 
@@ -1221,7 +1225,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                     }}
                   >
                     <Camera size={20} />
-                    <span>{imageUploading ? 'Rasm yuklanmoqda...' : '📁 Galereyadan rasm tanlash / Снять на камеру'}</span>
+                    <span>{imageUploading ? (language === 'ru' ? 'Загрузка...' : (language === 'en' ? 'Uploading...' : 'Rasm yuklanmoqda...')) : (language === 'ru' ? '📁 Выбрать из галереи / Снять' : (language === 'en' ? '📁 Choose from gallery / Capture' : '📁 Galereyadan rasm tanlash'))}</span>
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -1238,7 +1242,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                       style={{ width: '56px', height: '56px', borderRadius: '10px', objectFit: 'cover', border: '2px solid #059669' }}
                     />
                     <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
-                      Yoki tayyor shablonni tanlang:
+                      {language === 'ru' ? 'Или выберите готовый шаблон:' : (language === 'en' ? 'Or choose a ready template:' : 'Yoki tayyor shablonni tanlang:')}
                     </div>
                   </div>
 
@@ -1267,7 +1271,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
 
                 {/* 2. VIDEO REEL SELECTION: Gallery Upload */}
                 <div className="form-group">
-                  <label className="form-label">🎥 Video Reel (Видео товара):</label>
+                  <label className="form-label">{language === 'ru' ? '🎥 Видео товара (Reel):' : (language === 'en' ? '🎥 Video Reel:' : '🎥 Video Reel:')}</label>
                   
                   <label 
                     style={{
@@ -1286,7 +1290,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                     }}
                   >
                     <Video size={18} />
-                    <span>{videoUploading ? 'Video yuklanmoqda...' : '📁 Galereyadan video tanlash (MP4)'}</span>
+                    <span>{videoUploading ? (language === 'ru' ? 'Загрузка...' : (language === 'en' ? 'Uploading...' : 'Video yuklanmoqda...')) : (language === 'ru' ? '📁 Выбрать видео (MP4)' : (language === 'en' ? '📁 Choose video (MP4)' : '📁 Galereyadan video tanlash (MP4)'))}</span>
                     <input 
                       type="file" 
                       accept="video/*" 
@@ -1304,7 +1308,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                   disabled={addProductLoading || imageUploading || videoUploading}
                   style={{ height: '46px' }}
                 >
-                  {addProductLoading ? 'Qo\'shilmoqda...' : '✅ Mahsulotni saqlash va chiqarish'}
+                  {addProductLoading ? (language === 'ru' ? 'Добавление...' : (language === 'en' ? 'Adding...' : 'Qo\'shilmoqda...')) : (language === 'ru' ? '✅ Сохранить и опубликовать' : (language === 'en' ? '✅ Save and publish' : '✅ Mahsulotni saqlash va chiqarish'))}
                 </button>
               </div>
             </form>
@@ -1314,13 +1318,15 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
       )}
 
       {/* Register New Store Modal */}
+      {/* Register New Store Modal */}
       {showRegModal && createPortal(
-        <div className="modal-center-backdrop" onClick={() => setShowRegModal(false)}>
-          <div className="modal-center-card animate-scale" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+        <div style={{ position: 'fixed', inset: 0, background: '#ffffff', zIndex: 99999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '16px', overflowY: 'auto' }} onClick={() => setShowRegModal(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#ffffff', width: '100%', maxWidth: '480px', paddingTop: '10px' }}>
+            <div style={{ width: '40px', height: '4px', background: '#e2e8f0', borderRadius: '4px', margin: '0 auto 20px' }} />
+            <div className="modal-header" style={{ padding: '0 0 16px 0', background: 'transparent', borderBottom: 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Store size={20} color="#064e3b" />
-                <h3>Yangi do'kon / прилавок qo'shish</h3>
+                <h3>{language === 'ru' ? 'Добавить новый прилавок / магазин' : (language === 'en' ? 'Add new stall / store' : 'Yangi do\'kon / rasta qo\'shish')}</h3>
               </div>
               <button className="close-btn" onClick={() => setShowRegModal(false)}>
                 <X size={18} />
@@ -1330,11 +1336,11 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
             <form onSubmit={handleRegisterStoreSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Do'kon / Rasta nomi (O'zbekcha / Русский) *</label>
+                  <label className="form-label">{language === 'ru' ? 'Название прилавка *' : (language === 'en' ? 'Stall Name *' : 'Do\'kon / Rasta nomi *')}</label>
                   <input 
                     type="text" 
                     className="form-input"
-                    placeholder="Masalan: Jasur — Qashqadaryo Tandir Go'shti"
+                    placeholder={language === 'ru' ? 'Например: Жасур — Тандырное Мясо' : (language === 'en' ? 'E.g. Jasur — Tandir Meat' : 'Masalan: Jasur — Qashqadaryo Tandir Go\'shti')}
                     value={regForm.name_uz}
                     onChange={(e) => setRegForm({ ...regForm, name_uz: e.target.value, name_ru: e.target.value })}
                     required
@@ -1343,7 +1349,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label className="form-label">Rasta & Joy raqami *</label>
+                    <label className="form-label">{language === 'ru' ? 'Номер ряда & Места *' : (language === 'en' ? 'Stall & Place Number *' : 'Rasta & Joy raqami *')}</label>
                     <input 
                       type="text" 
                       className="form-input"
@@ -1355,29 +1361,29 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Kategoriya *</label>
+                    <label className="form-label">{language === 'ru' ? 'Категория *' : (language === 'en' ? 'Category *' : 'Kategoriya *')}</label>
                     <select 
                       className="form-select"
                       value={regForm.category_slug}
                       onChange={(e) => setRegForm({ ...regForm, category_slug: e.target.value })}
                     >
-                      <option value="meat">🥩 Go'sht & Qazi</option>
-                      <option value="vegetables">🍅 Sabzavotlar</option>
-                      <option value="fruits">🍇 Mevalar</option>
-                      <option value="bakery">🥖 Non & Somsa</option>
-                      <option value="dry_fruits">🥜 Quruq mevalar</option>
-                      <option value="dairy">🧀 Sut & Qaymoq</option>
+                      <option value="meat">{language === 'ru' ? '🥩 Мясо & Казы' : (language === 'en' ? '🥩 Meat & Kazi' : '🥩 Go\'sht & Qazi')}</option>
+                      <option value="vegetables">{language === 'ru' ? '🍅 Овощи' : (language === 'en' ? '🍅 Vegetables' : '🍅 Sabzavotlar')}</option>
+                      <option value="fruits">{language === 'ru' ? '🍇 Фрукты' : (language === 'en' ? '🍇 Fruits' : '🍇 Mevalar')}</option>
+                      <option value="bakery">{language === 'ru' ? '🥖 Хлеб & Самса' : (language === 'en' ? '🥖 Bread & Somsa' : '🥖 Non & Somsa')}</option>
+                      <option value="dry_fruits">{language === 'ru' ? '🥜 Сухофрукты & Орехи' : (language === 'en' ? '🥜 Dry fruits & Nuts' : '🥜 Quruq mevalar')}</option>
+                      <option value="dairy">{language === 'ru' ? '🧀 Молочка & Сливки' : (language === 'en' ? '🧀 Dairy & Cream' : '🧀 Sut & Qaymoq')}</option>
                     </select>
                   </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label className="form-label">Sotuvchi ismi *</label>
+                    <label className="form-label">{language === 'ru' ? 'Имя продавца *' : (language === 'en' ? 'Seller Name *' : 'Sotuvchi ismi *')}</label>
                     <input 
                       type="text" 
                       className="form-input"
-                      placeholder="Masalan: Jasur"
+                      placeholder={language === 'ru' ? 'Например: Жасур' : (language === 'en' ? 'E.g. Jasur' : 'Masalan: Jasur')}
                       value={regForm.owner_name}
                       onChange={(e) => setRegForm({ ...regForm, owner_name: e.target.value })}
                       required
@@ -1385,7 +1391,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">PIN-kod (4 raqam) *</label>
+                    <label className="form-label">{language === 'ru' ? 'PIN-код (4 цифры) *' : (language === 'en' ? 'PIN-code (4 digits) *' : 'PIN-kod (4 raqam) *')}</label>
                     <input 
                       type="password" 
                       maxLength="4"
@@ -1399,7 +1405,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Telefon raqam *</label>
+                  <label className="form-label">{language === 'ru' ? 'Номер телефона *' : (language === 'en' ? 'Phone Number *' : 'Telefon raqam *')}</label>
                   <input 
                     type="tel" 
                     className="form-input"
@@ -1418,7 +1424,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
                   disabled={regLoading}
                   style={{ height: '46px' }}
                 >
-                  {regLoading ? 'Qo\'shilmoqda...' : '✅ Do\'konni ro\'yxatdan o\'tkazish'}
+                  {regLoading ? (language === 'ru' ? 'Регистрация...' : (language === 'en' ? 'Registering...' : 'Qo\'shilmoqda...')) : (language === 'ru' ? '✅ Зарегистрировать магазин' : (language === 'en' ? '✅ Register store' : '✅ Do\'konni ro\'yxatdan o\'tkazish'))}
                 </button>
               </div>
             </form>
