@@ -109,7 +109,7 @@ async def update_order_status(
     status: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db)
 ):
-    valid_statuses = ["pending", "accepted", "picking", "on_the_way", "delivered", "cancelled"]
+    valid_statuses = ["pending", "accepted", "picking", "handed_over", "on_the_way", "delivered", "cancelled"]
     if status not in valid_statuses:
         raise HTTPException(status_code=400, detail="Noto'g'ri status")
 

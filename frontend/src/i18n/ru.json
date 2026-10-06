@@ -139,6 +139,7 @@
     "status_pending": "Заказ принят",
     "status_accepted": "Продавец подтвердил",
     "status_picking": "Собирается на базаре",
+    "status_handed_over": "Аравачи передал таксисту",
     "status_on_the_way": "Курьер в пути",
     "status_delivered": "Доставлен покупателю",
     "items_list": "Состав заказа",

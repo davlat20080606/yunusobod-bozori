@@ -7,7 +7,8 @@ from app.database import get_db
 from app.models.schemas import (
     StoreModel, ProductModel, OrderModel, OrderItemModel, CategoryModel,
     ProductSchema, StoreSchema, UpdatePriceSchema, ToggleAvailabilitySchema,
-    SellerLoginSchema, StoreRegisterSchema, StoreUpdateSchema, ProductCreateSchema, OrderSchema
+    SellerLoginSchema, StoreRegisterSchema, StoreUpdateSchema, ProductCreateSchema, OrderSchema,
+    MediaModel
 )
 
 router = APIRouter(prefix="/api/seller", tags=["seller"])
@@ -92,31 +93,32 @@ async def create_store_product(store_id: int, data: ProductCreateSchema, db: Asy
 import os
 import shutil
 import uuid
+import mimetypes
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File
 
 UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+MAX_MEDIA_BYTES = 20 * 1024 * 1024
+
 @router.post("/upload-media")
-async def upload_seller_media(file: UploadFile = File(...)):
-    try:
-        file_ext = Path(file.filename).suffix.lower() or ".jpg"
-        unique_name = f"{uuid.uuid4().hex}{file_ext}"
-        target_path = UPLOAD_DIR / unique_name
+async def upload_seller_media(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+    data = await file.read()
+    if len(data) > MAX_MEDIA_BYTES:
+        raise HTTPException(status_code=413, detail="Fayl juda katta (max 20 MB) / Файл слишком большой (макс. 20 МБ)")
 
-        with open(target_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+    file_ext = Path(file.filename or "").suffix.lower() or ".jpg"
+    unique_name = f"{uuid.uuid4().hex}{file_ext}"
+    content_type = file.content_type or mimetypes.guess_type(unique_name)[0] or "application/octet-stream"
+    db.add(MediaModel(filename=unique_name, content_type=content_type, data=data))
+    await db.commit()
 
-        # Public URL served by backend
-        media_url = f"/uploads/{unique_name}"
-        return {
-            "success": True,
-            "url": media_url,
-            "filename": unique_name
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"File upload failed: {e}")
+    return {
+        "success": True,
+        "url": f"/uploads/{unique_name}",
+        "filename": unique_name
+    }
 
 @router.post("/login")
 async def seller_login(data: SellerLoginSchema, db: AsyncSession = Depends(get_db)):

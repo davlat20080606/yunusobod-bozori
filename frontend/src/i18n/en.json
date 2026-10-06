@@ -139,6 +139,7 @@
     "status_pending": "Order Placed",
     "status_accepted": "Confirmed by Seller",
     "status_picking": "Being Picked at Bazaar",
+    "status_handed_over": "Handed over to taxi driver",
     "status_on_the_way": "Courier On The Way",
     "status_delivered": "Delivered to Customer",
     "items_list": "Order Items",

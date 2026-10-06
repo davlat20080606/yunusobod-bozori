@@ -10,7 +10,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-8676166803:AAGZDqo-IbXsttnLsrEPPq4s2EuWFcn8TVM}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - WEBAPP_URL=${WEBAPP_URL:-https://yunusobod-bozori.onrender.com}
       - APP_ENV=production
     volumes:

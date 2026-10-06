@@ -19,6 +19,7 @@ import CartDrawer from './components/CartDrawer';
 import CheckoutModal from './components/CheckoutModal';
 import SellerPanel from './components/SellerPanel';
 import SellerPinGate from './components/SellerPinGate';
+import PorterPanel from './components/PorterPanel';
 import OrderTracker from './components/OrderTracker';
 import MobileBottomNav from './components/MobileBottomNav';
 import Footer from './components/Footer';
@@ -28,12 +29,12 @@ import { Search, Sparkles, ChevronRight, Store, ShoppingBag, X } from 'lucide-re
 export default function App() {
   const { getLocalized, t } = useLanguage();
 
-  // Active Navigation Tab: 'market' | 'catalog' | 'saved' | 'orders' | 'seller'
+  // Active Navigation Tab: 'market' | 'catalog' | 'saved' | 'orders' | 'seller' | 'porter'
   const [activeTab, setActiveTab] = useState(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tab = urlParams.get('tab');
-      if (tab && ['market', 'catalog', 'saved', 'orders', 'seller'].includes(tab)) return tab;
+      if (tab && ['market', 'catalog', 'saved', 'orders', 'seller', 'porter'].includes(tab)) return tab;
     } catch {}
     return 'market';
   });
@@ -381,6 +382,11 @@ export default function App() {
                 />
               )}
 
+              {/* VIEW A2: ARAVACHI (BAZAAR PORTER) PANEL */}
+              {activeTab === 'porter' && (
+                <PorterPanel onBackToMarket={() => setActiveTab('market')} />
+              )}
+
               {/* VIEW B: ORDER TRACKER */}
               {activeTab === 'orders' && (
                 <OrderTracker 
@@ -497,6 +503,7 @@ export default function App() {
         onNavigateCatalog={() => setActiveTab('catalog')}
         onNavigateSaved={() => setActiveTab('saved')}
         onNavigateSeller={() => setActiveTab('seller')}
+        onNavigatePorter={() => setActiveTab('porter')}
         onNavigateOrders={() => setActiveTab('orders')}
       />
 

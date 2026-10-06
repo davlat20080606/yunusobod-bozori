@@ -139,6 +139,7 @@
     "status_pending": "Buyurtma qabul qilindi",
     "status_accepted": "Sotuvchi tasdiqladi",
     "status_picking": "Bozorda saralanmoqda",
+    "status_handed_over": "Aravachi taksiga topshirdi",
     "status_on_the_way": "Kuryer yo'lda",
     "status_delivered": "Xaridorga yetkazildi",
     "items_list": "Buyurtma tarkibi",

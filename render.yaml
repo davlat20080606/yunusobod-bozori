@@ -1,13 +1,16 @@
 services:
   - type: web
     name: yunusobod-bozori
-    env: docker
+    runtime: docker
     plan: free
     region: frankfurt
+    healthCheckPath: /api/health
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
-      - key: WEBAPP_URL
+      - key: DATABASE_URL
+        sync: false
+      - key: PORTER_PIN
         sync: false
       - key: APP_ENV
         value: production

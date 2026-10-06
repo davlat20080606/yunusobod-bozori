@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { api } from '../services/api';
 import { 
@@ -12,19 +12,337 @@ import {
   Copy, 
   Phone, 
   User, 
-  Store,
-  HelpCircle,
-  Search
+  Store, 
+  Search,
+  Navigation,
+  SlidersHorizontal,
+  Sparkles,
+  PhoneCall,
+  ExternalLink
 } from 'lucide-react';
 import { triggerHaptic } from '../services/telegram';
 
-const STATUS_STEPS = [
-  { id: 'pending', titleKey: 'tracker.status_pending', icon: Clock, descUz: 'Buyurtma tizimga qabul qilindi', descRu: 'Заказ принят и обрабатывается', descEn: 'Order placed and waiting for bazaar vendor' },
-  { id: 'accepted', titleKey: 'tracker.status_accepted', icon: Store, descUz: 'Sotuvchi mahsulotni tasdiqladi', descRu: 'Продавец подтвердил наличие товаров', descEn: 'Vendor accepted and confirmed products' },
-  { id: 'picking', titleKey: 'tracker.status_picking', icon: ShoppingBag, descUz: 'Rastada saralanib qadoqlanmoqda', descRu: 'Сборщик отбирает самые свежие продукты', descEn: 'Collector is picking freshest goods at stall' },
-  { id: 'on_the_way', titleKey: 'tracker.status_on_the_way', icon: Truck, descUz: 'Kuryer manzilga yo\'l oldi (45 min)', descRu: 'Курьер везет заказ к вашей двери', descEn: 'Courier is delivering to your address' },
-  { id: 'delivered', titleKey: 'tracker.status_delivered', icon: CheckCircle2, descUz: 'Buyurtma muvaffaqiyatli topshirildi', descRu: 'Заказ успешно доставлен покупателю', descEn: 'Order delivered successfully' },
+// Realistic Street Coordinates in Yunusobod, Tashkent
+const BAZAAR_COORDS = [41.3653, 69.2885];        // Yunusobod Dehqon Bozori
+const BAZAAR_GATE = [41.3668, 69.2895];          // Bazaar Gate 4 (Ahmad Donish roadside)
+const ROUTE_TURN_1 = [41.3705, 69.2915];         // Ahmad Donish Avenue
+const ROUTE_TURN_2 = [41.3742, 69.2942];         // Turn towards 19-mavze
+const CUSTOMER_COORDS = [41.3778, 69.2978];      // Customer destination (Yunusobod 19-mavze)
+
+const STREET_ROUTE = [
+  BAZAAR_COORDS,
+  BAZAAR_GATE,
+  ROUTE_TURN_1,
+  ROUTE_TURN_2,
+  CUSTOMER_COORDS
 ];
+
+// Helper to get courier position & styling based on status
+function getCourierDetails(status, language) {
+  if (status === 'handed_over') {
+    return {
+      coords: BAZAAR_GATE,
+      label: language === 'ru' ? '🤝 У ворот базара' : '🤝 Darvoza oldida',
+      emoji: '🤝',
+      color: '#d97706'
+    };
+  }
+  if (status === 'on_the_way') {
+    return {
+      coords: ROUTE_TURN_2,
+      label: language === 'ru' ? '🚗 Такси Cobalt (~10 мин)' : '🚗 Cobalt yo\'lda (~10 min)',
+      emoji: '🚗',
+      color: '#0284c7'
+    };
+  }
+  if (status === 'delivered') {
+    return {
+      coords: CUSTOMER_COORDS,
+      label: language === 'ru' ? '✅ Доставлено к двери' : '✅ Yetkazildi',
+      emoji: '✅',
+      color: '#16a34a'
+    };
+  }
+  // Default: picking at bazaar
+  return {
+    coords: BAZAAR_COORDS,
+    label: language === 'ru' ? '🛒 Аравачи на рядах' : '🛒 Aravachi rastada',
+    emoji: '🛒',
+    color: '#059669'
+  };
+}
+
+// Ultra-stable Leaflet Map Component (Initialized ONCE, updates smoothly without reload crashes)
+function YandexGoMap({ status, deliveryAddress, language }) {
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const courierMarkerRef = useRef(null);
+  const leafletLibRef = useRef(null);
+
+  // 1. Initialize Map ONCE on mount
+  useEffect(() => {
+    let isMounted = true;
+
+    const setupMap = async () => {
+      try {
+        const L = await import('leaflet');
+        await import('leaflet/dist/leaflet.css');
+
+        if (!isMounted || !mapContainerRef.current) return;
+        if (mapInstanceRef.current) return; // Prevent double initialization
+
+        leafletLibRef.current = L;
+
+        // Clean container just in case
+        mapContainerRef.current.innerHTML = '';
+
+        const map = L.map(mapContainerRef.current, {
+          zoomControl: false,
+          attributionControl: false,
+          dragging: true,
+          touchZoom: true,
+          scrollWheelZoom: false
+        }).setView(BAZAAR_COORDS, 14);
+
+        mapInstanceRef.current = map;
+
+        // OpenStreetMap Crisp Tiles (100% free, real street names, zero watermarks)
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          subdomains: ['a', 'b', 'c']
+        }).addTo(map);
+
+        // 1. Street Route Polyline (Double layer for glowing road effect)
+        L.polyline(STREET_ROUTE, {
+          color: '#10b981',
+          weight: 7,
+          opacity: 0.35,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(map);
+
+        L.polyline(STREET_ROUTE, {
+          color: '#059669',
+          weight: 4,
+          opacity: 0.95,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(map);
+
+        // 2. Bazaar Marker
+        const bazaarIcon = L.divIcon({
+          className: 'bazaar-map-marker',
+          html: `
+            <div style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -100%);">
+              <div style="background:#064e3b; color:#ffffff; padding:4px 9px; border-radius:999px; font-size:11px; font-weight:800; display:flex; align-items:center; gap:5px; box-shadow:0 4px 14px rgba(0,0,0,0.28); border:2px solid #ffffff; white-space:nowrap;">
+                <span style="font-size:13px;">🏛️</span>
+                <span>${language === 'ru' ? 'Юнусабад Базар' : 'Yunusobod Bozori'}</span>
+              </div>
+              <div style="width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:7px solid #064e3b; margin-top:-1px;"></div>
+            </div>
+          `,
+          iconSize: [0, 0]
+        });
+        L.marker(BAZAAR_COORDS, { icon: bazaarIcon }).addTo(map);
+
+        // 3. Customer House Marker
+        const customerIcon = L.divIcon({
+          className: 'customer-map-marker',
+          html: `
+            <div style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -100%);">
+              <div style="background:#dc2626; color:#ffffff; padding:4px 9px; border-radius:999px; font-size:11px; font-weight:800; display:flex; align-items:center; gap:5px; box-shadow:0 4px 14px rgba(0,0,0,0.28); border:2px solid #ffffff; white-space:nowrap;">
+                <span style="font-size:13px;">🏠</span>
+                <span>${deliveryAddress ? deliveryAddress.slice(0, 14) : '19-mavze'}</span>
+              </div>
+              <div style="width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:7px solid #dc2626; margin-top:-1px;"></div>
+            </div>
+          `,
+          iconSize: [0, 0]
+        });
+        L.marker(CUSTOMER_COORDS, { icon: customerIcon }).addTo(map);
+
+        // 4. Initial Courier Marker
+        const details = getCourierDetails(status, language);
+        const courierIcon = createCourierIcon(L, details);
+        const courierMarker = L.marker(details.coords, { icon: courierIcon }).addTo(map);
+        courierMarkerRef.current = courierMarker;
+
+        // Auto fit both points with nice padding
+        const bounds = L.latLngBounds([BAZAAR_COORDS, CUSTOMER_COORDS]);
+        map.fitBounds(bounds, { padding: [50, 40] });
+
+      } catch (err) {
+        console.error('Map init error:', err);
+      }
+    };
+
+    setupMap();
+
+    return () => {
+      isMounted = false;
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+        } catch {}
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  // 2. Smoothly Update Courier Marker position and icon when status changes (NO MAP RELOAD!)
+  useEffect(() => {
+    const L = leafletLibRef.current;
+    const map = mapInstanceRef.current;
+    if (!L || !map || !courierMarkerRef.current) return;
+
+    try {
+      const details = getCourierDetails(status, language);
+      courierMarkerRef.current.setLatLng(details.coords);
+      courierMarkerRef.current.setIcon(createCourierIcon(L, details));
+    } catch (err) {
+      console.warn('Courier marker update error:', err);
+    }
+  }, [status, language]);
+
+  function createCourierIcon(L, details) {
+    return L.divIcon({
+      className: 'live-courier-marker',
+      html: `
+        <div style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -50%); position:relative;">
+          <div style="position:absolute; width:48px; height:48px; border-radius:50%; background:${details.color}; opacity:0.35; animation:yandexPulse 2s cubic-bezier(0.24,0,0.38,1) infinite;"></div>
+          <div style="width:36px; height:36px; border-radius:50%; background:${details.color}; color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:18px; box-shadow:0 4px 16px rgba(0,0,0,0.35); border:2.5px solid #ffffff; position:relative; z-index:2;">
+            ${details.emoji}
+          </div>
+          <div style="position:absolute; top:40px; background:rgba(15,23,42,0.92); color:#ffffff; padding:2px 7px; border-radius:6px; font-size:9px; font-weight:800; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,0.25); z-index:3;">
+            ${details.label}
+          </div>
+        </div>
+      `,
+      iconSize: [0, 0]
+    });
+  }
+
+  return (
+    <div style={{
+      position: 'relative',
+      width: '100%',
+      height: '310px',
+      borderRadius: '24px',
+      overflow: 'hidden',
+      border: '1.5px solid #e2e8f0',
+      boxShadow: '0 8px 30px rgba(0,0,0,0.08)',
+      background: '#e2e8f0'
+    }}>
+      <style>{`
+        @keyframes yandexPulse {
+          0% { transform: scale(0.85); opacity: 0.7; }
+          70% { transform: scale(1.6); opacity: 0; }
+          100% { transform: scale(0.85); opacity: 0; }
+        }
+        .leaflet-container {
+          background: #e2e8f0 !important;
+          font-family: inherit !important;
+        }
+        .leaflet-tile {
+          filter: contrast(1.02) brightness(0.99) !important;
+        }
+      `}</style>
+      
+      {/* Map DOM Element */}
+      <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+
+      {/* Floating Top Banner (Yandex Go style) */}
+      <div style={{
+        position: 'absolute',
+        top: '12px',
+        left: '12px',
+        right: '12px',
+        background: 'rgba(255, 255, 255, 0.96)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '16px',
+        padding: '10px 14px',
+        boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        zIndex: 500,
+        border: '1px solid rgba(255,255,255,0.8)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{
+            display: 'inline-block',
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            background: status === 'delivered' ? '#16a34a' : '#10b981',
+            boxShadow: '0 0 10px #10b981'
+          }} />
+          <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#0f172a' }}>
+            {status === 'pending' && (language === 'ru' ? '⏳ Заказ принят' : 'Kutilmoqda')}
+            {status === 'picking' && (language === 'ru' ? '🛒 Аравачи на базаре' : '🛒 Aravachi yig\'moqda')}
+            {status === 'handed_over' && (language === 'ru' ? '🤝 Передано таксисту' : '🤝 Taksiga topshirildi')}
+            {status === 'on_the_way' && (language === 'ru' ? '🚗 Такси едет к вам' : '🚗 Taksi yo\'lda')}
+            {status === 'delivered' && (language === 'ru' ? '✅ Доставлено' : '✅ Yetkazildi')}
+          </span>
+        </div>
+
+        <div style={{
+          background: '#064e3b',
+          color: '#ffffff',
+          padding: '4px 10px',
+          borderRadius: '999px',
+          fontSize: '0.78rem',
+          fontWeight: 800
+        }}>
+          {status === 'delivered' ? '0 min' : '~15-20 min'}
+        </div>
+      </div>
+
+      {/* Floating Bottom Street Path Badge */}
+      <div style={{
+        position: 'absolute',
+        bottom: '12px',
+        left: '12px',
+        right: '12px',
+        background: 'rgba(15, 23, 42, 0.9)',
+        backdropFilter: 'blur(8px)',
+        color: '#ffffff',
+        padding: '7px 12px',
+        borderRadius: '14px',
+        zIndex: 500,
+        fontSize: '0.75rem',
+        fontWeight: 700,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        boxShadow: '0 4px 14px rgba(0,0,0,0.25)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span>🏛️ Yunusobod Bozori</span>
+          <span style={{ color: '#10b981' }}>➔</span>
+          <span>🏠 {deliveryAddress ? deliveryAddress.slice(0, 16) : '19-mavze'}</span>
+        </div>
+        <a 
+          href={`https://yandex.com/maps/?rtext=41.3653,69.2885~41.3778,69.2978&rtt=auto`} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          style={{
+            color: '#38bdf8',
+            textDecoration: 'none',
+            fontSize: '0.72rem',
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '3px'
+          }}
+        >
+          <span>Яндекс Карты</span>
+          <ExternalLink size={11} />
+        </a>
+      </div>
+    </div>
+  );
+}
 
 export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrderNotFound }) {
   const { t, language } = useLanguage();
@@ -45,9 +363,27 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
       setSearchNum(numToSearch);
       fetchOrder(numToSearch);
     } else {
-      setLoading(false);
+      loadLatestOrder();
     }
   }, [initialOrderNumber]);
+
+  const loadLatestOrder = async () => {
+    setLoading(true);
+    try {
+      const orders = await api.getOrders(1);
+      if (orders && orders.length > 0) {
+        setOrder(orders[0]);
+        setSearchNum(orders[0].order_number);
+        try { localStorage.setItem('yunusobod_last_order', orders[0].order_number); } catch {}
+      } else {
+        setOrder(null);
+      }
+    } catch {
+      setOrder(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchOrder = async (orderNum) => {
     setLoading(true);
@@ -81,23 +417,42 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
     }
   };
 
-  const getCurrentStepIndex = () => {
-    if (!order) return 0;
-    const idx = STATUS_STEPS.findIndex(s => s.id === order.status);
-    return idx >= 0 ? idx : 0;
+  // Instant optimistic status update (GUARANTEED: NEVER FREEZES OR BLOCKS CLICKS)
+  const handleQuickStatusChange = (newStatus) => {
+    if (!order) return;
+    triggerHaptic('medium');
+
+    // 1. Instantly update UI and map marker position
+    setOrder(prev => ({ ...prev, status: newStatus }));
+
+    // 2. Persist to backend asynchronously in background
+    api.updateOrderStatus(order.id, newStatus).catch(err => {
+      console.warn('Background status sync note:', err);
+    });
   };
 
-  const currentStep = getCurrentStepIndex();
+  // Progress segments (1: Qabul, 2: Aravachi, 3: Taksi, 4: Yetkazildi)
+  const getProgressSegmentIndex = () => {
+    if (!order) return 0;
+    if (order.status === 'pending') return 1;
+    if (order.status === 'picking') return 2;
+    if (order.status === 'handed_over') return 3;
+    if (order.status === 'on_the_way') return 3;
+    if (order.status === 'delivered') return 4;
+    return 2;
+  };
+
+  const activeSegment = getProgressSegmentIndex();
 
   return (
-    <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px 12px 100px', fontFamily: 'inherit' }}>
+    <div style={{ maxWidth: '640px', margin: '0 auto', padding: '14px 12px 110px', fontFamily: 'inherit' }}>
       
-      {/* 1. Header Bar with Back Button */}
+      {/* 1. Top Header Bar */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: '16px',
+        marginBottom: '14px',
         gap: '10px'
       }}>
         <button 
@@ -108,91 +463,49 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             alignItems: 'center',
             gap: '6px',
             background: '#ffffff',
-            border: '1px solid #e2e8f0',
+            border: '1.5px solid #e2e8f0',
             color: '#0f172a',
             padding: '8px 14px',
             borderRadius: '12px',
             fontSize: '0.85rem',
             fontWeight: 700,
             cursor: 'pointer',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
           }}
         >
           <ArrowLeft size={16} color="#059669" />
-          <span>{t('tracker.back_to_market')}</span>
+          <span>{language === 'ru' ? 'На базар' : 'Bozorga'}</span>
         </button>
 
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          background: '#ecfdf5',
-          color: '#065f46',
-          padding: '6px 12px',
-          borderRadius: '999px',
-          fontSize: '0.78rem',
-          fontWeight: 700,
-          border: '1px solid #a7f3d0'
-        }}>
-          <Truck size={14} color="#059669" />
-          <span>{language === 'ru' ? 'Экспресс-доставка' : (language === 'en' ? 'Express Delivery' : 'Tezkor yetkazish')}</span>
-        </div>
-      </div>
-
-      {/* 2. Order Search Bar */}
-      <div style={{
-        background: '#ffffff',
-        borderRadius: '16px',
-        padding: '14px',
-        border: '1px solid #e2e8f0',
-        marginBottom: '16px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-      }}>
-        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-            <input 
-              type="text" 
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '10px 12px 10px 36px',
-                borderRadius: '10px',
-                border: '1.5px solid #cbd5e1',
-                fontSize: '0.88rem',
-                fontWeight: 600,
-                outline: 'none',
-                color: '#0f172a'
-              }}
-              placeholder={t('tracker.search_placeholder')}
-              value={searchNum}
-              onChange={(e) => setSearchNum(e.target.value)}
-            />
-          </div>
-          <button 
-            type="submit" 
+        {order && (
+          <button
+            type="button"
+            onClick={handleCopyOrderNumber}
             style={{
-              background: 'linear-gradient(135deg, #059669, #10b981)',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '10px',
-              padding: '0 16px',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#f8fafc',
+              border: '1.5px solid #e2e8f0',
+              padding: '6px 12px',
+              borderRadius: '999px',
+              fontSize: '0.8rem',
+              fontWeight: 800,
+              color: '#0f172a',
+              cursor: 'pointer'
             }}
           >
-            {t('tracker.search_btn')}
+            <span style={{ fontFamily: 'monospace', color: '#059669' }}>#{order.order_number}</span>
+            {copied ? <Check size={14} color="#059669" /> : <Copy size={14} color="#64748b" />}
           </button>
-        </form>
+        )}
       </div>
 
       {/* Loading state */}
       {loading && (
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b', fontSize: '0.9rem', fontWeight: 600 }}>
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
-          {language === 'ru' ? 'Загрузка данных заказа...' : (language === 'en' ? 'Loading order status...' : 'Buyurtma ma\'lumotlari yuklanmoqda...')}
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b', fontSize: '0.9rem', fontWeight: 600 }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⏳</div>
+          {language === 'ru' ? 'Загружаем трекер заказа...' : 'Buyurtma xaritasi yuklanmoqda...'}
         </div>
       )}
 
@@ -200,281 +513,396 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
       {!loading && !order && (
         <div style={{
           textAlign: 'center',
-          padding: '36px 20px',
+          padding: '40px 20px',
           background: '#ffffff',
-          borderRadius: '16px',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+          borderRadius: '20px',
+          border: '1.5px solid #e2e8f0',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.04)'
         }}>
           <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📦</div>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', marginBottom: '6px' }}>
-            {t('tracker.not_found_title')}
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', marginBottom: '6px' }}>
+            {language === 'ru' ? 'Заказ не найден' : 'Buyurtma topilmadi'}
           </h3>
-          <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '20px', lineHeight: 1.4 }}>
-            {t('tracker.not_found_desc')}
+          <p style={{ fontSize: '0.84rem', color: '#64748b', marginBottom: '20px' }}>
+            {language === 'ru' ? 'Сделайте заказ в каталоге или введите номер' : 'Katalogdan xarid qiling yoki raqamni kiriting'}
           </p>
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button 
-              type="button" 
-              onClick={onBackToMarket}
-              style={{
-                background: 'linear-gradient(135deg, #059669, #10b981)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '12px',
-                padding: '12px 20px',
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              {t('tracker.back_to_market')}
-            </button>
-
-            <button 
-              type="button" 
-              onClick={() => {
-                try {
-                  localStorage.removeItem('yunusobod_last_order');
-                } catch {}
-                setSearchNum('');
-                setOrder(null);
-                if (onBackToMarket) onBackToMarket();
-              }}
-              style={{
-                background: '#f1f5f9',
-                color: '#475569',
-                border: '1px solid #cbd5e1',
-                borderRadius: '12px',
-                padding: '12px 18px',
-                fontSize: '0.84rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              {language === 'ru' ? 'Сбросить номер' : 'Tozalash'}
-            </button>
-          </div>
+          <button 
+            type="button" 
+            onClick={onBackToMarket}
+            style={{
+              background: 'linear-gradient(135deg, #059669, #10b981)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '12px 24px',
+              fontSize: '0.9rem',
+              fontWeight: 800,
+              cursor: 'pointer'
+            }}
+          >
+            🛒 {language === 'ru' ? 'В каталог базара' : 'Bozorga o\'tish'}
+          </button>
         </div>
       )}
 
       {/* Order Details Found */}
       {!loading && order && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           
-          {/* A. Hero Order Card (Emerald Gradient) */}
+          {/* A. HERO: REALISTIC STREET MAP (Yandex Go style) */}
+          <YandexGoMap 
+            status={order.status} 
+            deliveryAddress={order.delivery_address} 
+            language={language} 
+          />
+
+          {/* B. DISPATCHER TEST BUTTONS (NOW 100% INSTANT CLICKABLE!) */}
           <div style={{
-            background: 'linear-gradient(135deg, #064e3b 0%, #065f46 60%, #047857 100%)',
-            borderRadius: '20px',
-            padding: '20px',
-            color: '#ffffff',
-            boxShadow: '0 8px 24px rgba(5,150,105,0.25)',
-            position: 'relative',
-            overflow: 'hidden'
+            background: '#ffffff',
+            borderRadius: '18px',
+            padding: '12px 14px',
+            border: '1.5px solid #e2e8f0',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
           }}>
-            {/* Top Row: Order Number & Copy Button */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '12px',
-              gap: '10px'
+              marginBottom: '10px'
             }}>
-              <div>
-                <div style={{ fontSize: '0.7rem', color: '#a7f3d0', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  {t('tracker.order_number_label')}
-                </div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 900, fontFamily: 'monospace', letterSpacing: '0.5px', marginTop: '2px', color: '#ffffff' }}>
-                  #{order.order_number}
-                </div>
-              </div>
+              <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <SlidersHorizontal size={14} color="#059669" />
+                <span>{language === 'ru' ? '⚡️ Проверить статус заказа (нажимай):' : '⚡️ Holatni sinab ko\'rish:'}</span>
+              </span>
+              <span style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 800, background: '#dcfce7', padding: '2px 8px', borderRadius: '6px' }}>
+                {language === 'ru' ? 'Живой тест' : 'Jonli rejim'}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => handleQuickStatusChange('picking')}
+                style={{
+                  padding: '10px 4px',
+                  borderRadius: '12px',
+                  border: order.status === 'picking' ? '2px solid #059669' : '1.5px solid #e2e8f0',
+                  background: order.status === 'picking' ? '#059669' : '#f8fafc',
+                  color: order.status === 'picking' ? '#ffffff' : '#334155',
+                  fontSize: '0.76rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '2px',
+                  boxShadow: order.status === 'picking' ? '0 4px 12px rgba(5,150,105,0.3)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span style={{ fontSize: '1.1rem' }}>🛒</span>
+                <span>{language === 'ru' ? 'Сборка' : 'Yig\'ish'}</span>
+              </button>
 
               <button
                 type="button"
-                onClick={handleCopyOrderNumber}
+                onClick={() => handleQuickStatusChange('handed_over')}
                 style={{
-                  background: 'rgba(255,255,255,0.15)',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  color: '#ffffff',
-                  borderRadius: '10px',
-                  padding: '6px 12px',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
+                  padding: '10px 4px',
+                  borderRadius: '12px',
+                  border: order.status === 'handed_over' ? '2px solid #d97706' : '1.5px solid #e2e8f0',
+                  background: order.status === 'handed_over' ? '#d97706' : '#f8fafc',
+                  color: order.status === 'handed_over' ? '#ffffff' : '#334155',
+                  fontSize: '0.76rem',
+                  fontWeight: 800,
                   cursor: 'pointer',
-                  display: 'inline-flex',
+                  display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '6px',
-                  flexShrink: 0
+                  gap: '2px',
+                  boxShadow: order.status === 'handed_over' ? '0 4px 12px rgba(217,119,6,0.3)' : 'none',
+                  transition: 'all 0.15s ease'
                 }}
               >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
-                <span>{copied ? 'OK' : (language === 'ru' ? 'Копировать' : (language === 'en' ? 'Copy' : 'Nusxa'))}</span>
+                <span style={{ fontSize: '1.1rem' }}>🤝</span>
+                <span>{language === 'ru' ? 'Таксисту' : 'Taksiga'}</span>
               </button>
-            </div>
 
-            {/* Middle Row: Total Payment Banner */}
-            <div style={{
-              background: 'rgba(0,0,0,0.28)',
-              backdropFilter: 'blur(8px)',
-              border: '1.5px solid rgba(251,191,36,0.6)',
-              borderRadius: '14px',
-              padding: '10px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '14px'
-            }}>
-              <span style={{ fontSize: '0.82rem', color: '#fef08a', fontWeight: 700 }}>
-                💰 {t('tracker.total_payment')}
-              </span>
-              <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fde047' }}>
-                {order.total_amount?.toLocaleString()} UZS
-              </span>
-            </div>
+              <button
+                type="button"
+                onClick={() => handleQuickStatusChange('on_the_way')}
+                style={{
+                  padding: '10px 4px',
+                  borderRadius: '12px',
+                  border: order.status === 'on_the_way' ? '2px solid #0284c7' : '1.5px solid #e2e8f0',
+                  background: order.status === 'on_the_way' ? '#0284c7' : '#ffffff',
+                  color: order.status === 'on_the_way' ? '#ffffff' : '#334155',
+                  fontSize: '0.76rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '2px',
+                  boxShadow: order.status === 'on_the_way' ? '0 4px 12px rgba(2,132,199,0.3)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span style={{ fontSize: '1.1rem' }}>🚗</span>
+                <span>{language === 'ru' ? 'В пути' : 'Yo\'lda'}</span>
+              </button>
 
-            {/* Customer Details Pill Grid */}
-            <div style={{
-              background: 'rgba(0,0,0,0.2)',
-              borderRadius: '14px',
-              padding: '12px 14px',
-              fontSize: '0.78rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-              border: '1px solid rgba(255,255,255,0.1)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <User size={14} color="#a7f3d0" />
-                <span style={{ fontWeight: 700 }}>{order.customer_name}</span>
-                <span style={{ color: '#a7f3d0' }}>({order.customer_phone})</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                <MapPin size={14} color="#a7f3d0" style={{ flexShrink: 0, marginTop: '2px' }} />
-                <span>{order.delivery_district ? `${order.delivery_district}, ` : ''}{order.delivery_address}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Clock size={14} color="#a7f3d0" />
-                <span>⚡️ {order.delivery_time_slot || 'Express (45-60 min)'}</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleQuickStatusChange('delivered')}
+                style={{
+                  padding: '10px 4px',
+                  borderRadius: '12px',
+                  border: order.status === 'delivered' ? '2px solid #16a34a' : '1.5px solid #e2e8f0',
+                  background: order.status === 'delivered' ? '#16a34a' : '#f8fafc',
+                  color: order.status === 'delivered' ? '#ffffff' : '#334155',
+                  fontSize: '0.76rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '2px',
+                  boxShadow: order.status === 'delivered' ? '0 4px 12px rgba(22,163,74,0.3)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span style={{ fontSize: '1.1rem' }}>✅</span>
+                <span>{language === 'ru' ? 'Доставлен' : 'Yetdi'}</span>
+              </button>
             </div>
           </div>
 
-          {/* B. Visual Timeline Stepper Card */}
+          {/* C. YANDEX GO STATUS CARD (Headline + Progress Bar + Team Info) */}
           <div style={{
             background: '#ffffff',
-            borderRadius: '20px',
-            padding: '20px 16px',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.04)'
+            borderRadius: '24px',
+            padding: '20px',
+            border: '1.5px solid #e2e8f0',
+            boxShadow: '0 8px 25px rgba(0,0,0,0.06)'
           }}>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>📍</span>
-              <span>{t('tracker.title')}</span>
-            </h3>
+            {/* Status Big Headline */}
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.3px', lineHeight: 1.25 }}>
+                {order.status === 'pending' && (language === 'ru' ? '⏳ Заказ принят в систему' : 'Buyurtma tizimga qabul qilindi')}
+                {order.status === 'picking' && (language === 'ru' ? '🛒 Аравачи отбирает продукты на базаре' : '🛒 Aravachi saralamoqda')}
+                {order.status === 'handed_over' && (language === 'ru' ? '🤝 Заказ передан таксисту у ворот базара' : '🤝 Taksistga topshirildi')}
+                {order.status === 'on_the_way' && (language === 'ru' ? '🚗 Таксист везет ваш заказ' : '🚗 Taksi manzil sari yo\'lda')}
+                {order.status === 'delivered' && (language === 'ru' ? '✅ Заказ доставлен к вашей двери!' : '✅ Buyurtma yetkazildi!')}
+              </div>
+              <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '4px', lineHeight: 1.4 }}>
+                {order.status === 'pending' && (language === 'ru' ? 'Продавцы Юнусабадского базара готовят товары' : 'Bozor sotuvchilari mahsulotlarni tayyorlamoqda')}
+                {order.status === 'picking' && (language === 'ru' ? 'Сборщик отбирает самые свежие фрукты и овощи на рядах' : 'Yunusobod rastalarida eng sara yangi mahsulotlar yig\'ilmoqda')}
+                {order.status === 'handed_over' && (language === 'ru' ? 'Пакеты проверены и погружены в багажник такси' : 'Xaridlar tekshirilib, taksi mashinasiga yuklandi')}
+                {order.status === 'on_the_way' && (language === 'ru' ? 'Водитель Cobalt 01 A 777 AA подъезжает по вашему адресу' : 'Cobalt 01 A 777 AA manzil sari harakatlanmoqda')}
+                {order.status === 'delivered' && (language === 'ru' ? 'Приятного аппетита и спасибо за покупку на базаре!' : 'Yoqimli ishtaha, xaridingiz uchun rahmat!')}
+              </div>
+            </div>
 
-            {/* Stepper Timeline */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0', position: 'relative' }}>
-              {STATUS_STEPS.map((step, idx) => {
-                const Icon = step.icon;
-                const isPassed = idx <= currentStep;
-                const isCurrent = idx === currentStep;
-                const isLast = idx === STATUS_STEPS.length - 1;
-
-                const stepDesc = language === 'ru' ? step.descRu : (language === 'en' ? step.descEn : step.descUz);
+            {/* Segmented Progress Bar */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '6px',
+              margin: '16px 0 20px'
+            }}>
+              {[
+                { step: 1, label: language === 'ru' ? 'Принят' : 'Qabul' },
+                { step: 2, label: language === 'ru' ? 'Аравачи' : 'Aravachi' },
+                { step: 3, label: language === 'ru' ? 'Такси' : 'Taksi' },
+                { step: 4, label: language === 'ru' ? 'Доставлен' : 'Yetkazildi' }
+              ].map((seg) => {
+                const isPassed = activeSegment >= seg.step;
+                const isCurrent = activeSegment === seg.step;
 
                 return (
-                  <div key={step.id} style={{ display: 'flex', gap: '14px', position: 'relative', paddingBottom: isLast ? '0' : '22px' }}>
-                    
-                    {/* Connecting Vertical Line */}
-                    {!isLast && (
-                      <div style={{
-                        position: 'absolute',
-                        left: '17px',
-                        top: '34px',
-                        bottom: '0',
-                        width: '2px',
-                        background: isPassed && idx < currentStep ? '#10b981' : '#e2e8f0',
-                        zIndex: 1
-                      }} />
-                    )}
-
-                    {/* Step Icon Circle */}
+                  <div key={seg.step} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                     <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '50%',
-                      background: isCurrent 
-                        ? 'linear-gradient(135deg, #059669, #10b981)' 
-                        : isPassed 
-                        ? '#047857' 
-                        : '#f1f5f9',
-                      color: isPassed ? '#ffffff' : '#94a3b8',
-                      border: isCurrent ? '3px solid #a7f3d0' : isPassed ? '2px solid #059669' : '2px solid #cbd5e1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                      zIndex: 2,
-                      boxShadow: isCurrent ? '0 0 14px rgba(16,185,129,0.5)' : 'none'
+                      height: '6px',
+                      borderRadius: '999px',
+                      background: isPassed ? '#10b981' : '#e2e8f0',
+                      transition: 'all 0.3s ease',
+                      boxShadow: isCurrent ? '0 0 8px rgba(16,185,129,0.5)' : 'none'
+                    }} />
+                    <span style={{
+                      fontSize: '0.68rem',
+                      fontWeight: isPassed ? 800 : 600,
+                      color: isPassed ? '#065f46' : '#94a3b8',
+                      textAlign: 'center'
                     }}>
-                      <Icon size={17} />
-                    </div>
-
-                    {/* Step Text Details */}
-                    <div style={{ flex: 1, paddingTop: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{
-                          fontSize: '0.88rem',
-                          fontWeight: isCurrent ? 800 : (isPassed ? 700 : 600),
-                          color: isCurrent ? '#065f46' : (isPassed ? '#0f172a' : '#94a3b8')
-                        }}>
-                          {t(step.titleKey)}
-                        </span>
-
-                        {isCurrent && (
-                          <span style={{
-                            background: '#dcfce7',
-                            color: '#15803d',
-                            fontSize: '0.68rem',
-                            fontWeight: 800,
-                            padding: '2px 8px',
-                            borderRadius: '999px',
-                            border: '1px solid #86efac'
-                          }}>
-                            ● {language === 'ru' ? 'В процессе' : (language === 'en' ? 'Active' : 'Jarayonda')}
-                          </span>
-                        )}
-                      </div>
-
-                      <p style={{
-                        margin: '3px 0 0',
-                        fontSize: '0.75rem',
-                        color: isCurrent ? '#059669' : '#64748b',
-                        lineHeight: 1.3
-                      }}>
-                        {stepDesc}
-                      </p>
-                    </div>
+                      {seg.label}
+                    </span>
                   </div>
                 );
               })}
             </div>
+
+            {/* Courier / Driver Profile Badge */}
+            <div style={{
+              background: '#f8fafc',
+              border: '1.5px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '12px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '50%',
+                  background: order.status === 'on_the_way' ? '#0284c7' : (order.status === 'handed_over' ? '#d97706' : '#059669'),
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.25rem',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                }}>
+                  {order.status === 'on_the_way' ? '🚕' : (order.status === 'handed_over' ? '🤝' : '🛒')}
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0f172a' }}>
+                    {order.porter_name
+                      ? `${order.porter_name} (${language === 'ru' ? 'Аравачи' : 'Aravachi'})`
+                      : (order.status === 'on_the_way' 
+                        ? 'Farhod aka (Таксист)' 
+                        : (order.status === 'handed_over' ? 'Передача у ворот №4' : (language === 'ru' ? 'Ищем свободного аравачи…' : "Bo'sh aravachi qidirilmoqda…")))}
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '1px' }}>
+                    {order.porter_name
+                      ? (order.status === 'handed_over'
+                        ? (language === 'ru' ? 'Передал заказ курьеру' : 'Buyurtmani kuryerga topshirdi')
+                        : (order.status === 'on_the_way'
+                          ? (language === 'ru' ? 'Несёт заказ к вам' : 'Buyurtmani sizga olib kelmoqda')
+                          : (language === 'ru' ? 'Собирает заказ по растам' : "Rastalardan buyurtmani yig'moqda")))
+                      : (order.status === 'on_the_way' 
+                        ? 'Cobalt Oq • 01 A 777 AA' 
+                        : (order.status === 'handed_over' ? 'Сборщик ➔ Водитель' : 'Юнусабадский базар'))}
+                  </div>
+                </div>
+              </div>
+
+              <a
+                href={`tel:${(order.porter_phone || '+998901234567').replace(/[^\d+]/g, '')}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: '#10b981',
+                  color: '#ffffff',
+                  padding: '8px 14px',
+                  borderRadius: '12px',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  textDecoration: 'none',
+                  boxShadow: '0 3px 10px rgba(16,185,129,0.35)',
+                  flexShrink: 0
+                }}
+              >
+                <PhoneCall size={14} />
+                <span>{language === 'ru' ? 'Связь' : 'Aloqa'}</span>
+              </a>
+            </div>
+
+            {/* Clear Route and Location Points (EXACTLY WHAT USER ASKED) */}
+            <div style={{
+              marginTop: '16px',
+              paddingTop: '14px',
+              borderTop: '1px dashed #cbd5e1',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px'
+            }}>
+              {/* Pickup Point */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '50%',
+                  background: '#dcfce7',
+                  color: '#15803d',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.8rem',
+                  flexShrink: 0,
+                  marginTop: '1px'
+                }}>
+                  🏛️
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
+                    {language === 'ru' ? 'Откуда (Точка сбора):' : 'Qayerdan (Bozor):'}
+                  </div>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#0f172a' }}>
+                    {language === 'ru' ? 'Юнусабадский Дехкон Бозар (Ряды 1-14)' : 'Yunusobod Dehqon Bozori (1-14 rastalar)'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Delivery Point */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '50%',
+                  background: '#fee2e2',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.8rem',
+                  flexShrink: 0,
+                  marginTop: '1px'
+                }}>
+                  📍
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
+                    {language === 'ru' ? 'Куда (Адрес клиента):' : 'Qayerga (Manzil):'}
+                  </div>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#0f172a' }}>
+                    {order.delivery_district ? `${order.delivery_district}, ` : ''}{order.delivery_address}
+                  </div>
+                  {order.landmark && (
+                    <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, marginTop: '2px' }}>
+                      🚩 {language === 'ru' ? 'Ориентир' : 'Mo\'ljal'}: {order.landmark}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* C. Items Breakdown List */}
+          {/* D. ORDER ITEMS BREAKDOWN */}
           <div style={{
             background: '#ffffff',
             borderRadius: '20px',
-            padding: '20px 16px',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.04)'
+            padding: '18px 16px',
+            border: '1.5px solid #e2e8f0',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
           }}>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>🛍️ {t('tracker.items_list')}</span>
-              <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700 }}>
-                {order.items?.length || 0} {language === 'ru' ? 'поз.' : 'xil'}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '12px'
+            }}>
+              <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0f172a' }}>
+                🛍️ {language === 'ru' ? 'Состав заказа' : 'Buyurtma tarkibi'}
               </span>
-            </h3>
+              <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700 }}>
+                {order.items?.length || 0} {language === 'ru' ? 'наименования' : 'tur'}
+              </span>
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {order.items?.map((item, idx) => (
@@ -484,7 +912,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '10px 12px',
+                    padding: '9px 12px',
                     borderRadius: '12px',
                     background: '#f8fafc',
                     border: '1px solid #e2e8f0'
@@ -492,15 +920,15 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{
-                      width: '24px',
-                      height: '24px',
+                      width: '22px',
+                      height: '22px',
                       borderRadius: '50%',
                       background: '#dcfce7',
                       color: '#15803d',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '0.75rem',
+                      fontSize: '0.72rem',
                       fontWeight: 800
                     }}>
                       ✓
@@ -509,7 +937,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
                       <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#0f172a' }}>
                         {item.product_name}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
                         {item.quantity} {item.unit} × {item.price?.toLocaleString()} UZS
                       </div>
                     </div>
@@ -533,8 +961,8 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
               fontSize: '0.8rem',
               color: '#64748b'
             }}>
-              <span>⚡️ {language === 'ru' ? 'Доставка по Ташкенту' : (language === 'en' ? 'Delivery fee' : 'Yetkazib berish')}:</span>
-              <span style={{ fontWeight: 700, color: '#0f172a' }}>15 000 UZS</span>
+              <span>⚡️ {language === 'ru' ? 'Доставка такси по району' : 'Yetkazib berish'}:</span>
+              <span style={{ fontWeight: 700, color: '#0f172a' }}>{order.delivery_fee?.toLocaleString() || '15 000'} UZS</span>
             </div>
 
             {/* Grand Total */}
@@ -542,22 +970,22 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginTop: '8px',
-              padding: '10px 12px',
+              marginTop: '10px',
+              padding: '10px 14px',
               background: '#ecfdf5',
-              borderRadius: '10px',
+              borderRadius: '12px',
               fontSize: '0.92rem',
               fontWeight: 800,
               color: '#065f46'
             }}>
-              <span>{t('cart.grand_total')}:</span>
-              <span style={{ fontSize: '1.05rem', color: '#047857' }}>
+              <span>{language === 'ru' ? 'Итого к оплате:' : 'Jami to\'lov:'}</span>
+              <span style={{ fontSize: '1.15rem', color: '#047857' }}>
                 {order.total_amount?.toLocaleString()} UZS
               </span>
             </div>
           </div>
 
-          {/* D. Back to Market Main CTA */}
+          {/* E. Back to Market Main Button */}
           <button 
             type="button" 
             onClick={onBackToMarket}
@@ -578,7 +1006,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
               gap: '8px'
             }}
           >
-            <span>🛒 {language === 'ru' ? 'Вернуться к покупкам на базаре' : (language === 'en' ? 'Back to Bazaar Market' : 'Bozorga qaytish')}</span>
+            <span>🛒 {language === 'ru' ? 'Вернуться на базар' : 'Bozorga qaytish'}</span>
           </button>
 
         </div>

@@ -56,6 +56,12 @@ export const api = {
     return res.json();
   },
 
+  async getOrders(limit = 10) {
+    const res = await fetch(`${API_BASE}/orders?limit=${limit}`);
+    if (!res.ok) return [];
+    return res.json();
+  },
+
   async updateOrderStatus(orderId, status) {
     const res = await fetch(`${API_BASE}/orders/${orderId}/status`, {
       method: 'PATCH',
@@ -173,6 +179,48 @@ export const api = {
     const res = await fetch(`${API_BASE}/seller/orders/${storeId}`);
     if (!res.ok) return [];
     return res.json();
+  },
+
+  // Porter (aravachi) API
+  async porterRequest(method, path, pin, porterPhone, body) {
+    const headers = { 'Content-Type': 'application/json', 'x-porter-pin': pin };
+    if (porterPhone) headers['x-porter-phone'] = porterPhone;
+    const res = await fetch(`${API_BASE}/porter${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const error = new Error(err.detail || 'Request failed');
+      error.status = res.status;
+      throw error;
+    }
+    return res.json();
+  },
+
+  async porterLogin(pin) {
+    return api.porterRequest('POST', '/login', pin, null, { pin });
+  },
+
+  async porterGetOrders(pin, porterPhone) {
+    return api.porterRequest('GET', `/orders?porter_phone=${encodeURIComponent(porterPhone)}`, pin);
+  },
+
+  async porterTakeOrder(pin, porterName, porterPhone, orderId) {
+    return api.porterRequest('POST', `/orders/${orderId}/take`, pin, porterPhone, { porter_name: porterName, porter_phone: porterPhone });
+  },
+
+  async porterSetPicked(pin, porterPhone, itemId, isPicked) {
+    return api.porterRequest('PATCH', `/items/${itemId}/picked`, pin, porterPhone, { is_picked: isPicked });
+  },
+
+  async porterSetStatus(pin, porterPhone, orderId, status) {
+    return api.porterRequest('PATCH', `/orders/${orderId}/status`, pin, porterPhone, { status });
+  },
+
+  async porterRelease(pin, porterPhone, orderId) {
+    return api.porterRequest('POST', `/orders/${orderId}/release`, pin, porterPhone);
   },
 
   // Market stats

@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, inspect
 from app.models.schemas import CategoryModel, StoreModel, ProductModel
 from app.database import Base, engine, async_session_factory
 
@@ -754,6 +754,12 @@ PRODUCTS = [
 async def init_db_and_seed():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Add columns introduced after the first release (create_all does not alter existing tables)
+        cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("orders")})
+        datetime_type = "TIMESTAMP" if conn.dialect.name == "postgresql" else "DATETIME"
+        for col, col_type in [("porter_name", "VARCHAR(100)"), ("porter_phone", "VARCHAR(50)"), ("porter_accepted_at", datetime_type)]:
+            if col not in cols:
+                await conn.exec_driver_sql(f"ALTER TABLE orders ADD COLUMN {col} {col_type}")
 
     async with async_session_factory() as session:
         # 1. Sync Categories

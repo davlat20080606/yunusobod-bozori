@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, LargeBinary
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -99,6 +99,9 @@ class OrderModel(Base):
     total_amount = Column(Float, nullable=False)
     delivery_fee = Column(Float, default=15000.0)
     notes = Column(Text, nullable=True)
+    porter_name = Column(String(100), nullable=True)
+    porter_phone = Column(String(50), nullable=True)
+    porter_accepted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     items = relationship("OrderItemModel", back_populates="order", cascade="all, delete-orphan")
@@ -121,6 +124,17 @@ class OrderItemModel(Base):
     order = relationship("OrderModel", back_populates="items")
     product = relationship("ProductModel", back_populates="order_items")
     store = relationship("StoreModel", back_populates="order_items")
+
+
+class MediaModel(Base):
+    """Seller photos/videos kept in the database, so free cloud hosting does not lose them on restart."""
+    __tablename__ = "media"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String(100), unique=True, index=True, nullable=False)
+    content_type = Column(String(100), nullable=False)
+    data = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 # ================= Pydantic Schemas =================
@@ -244,6 +258,8 @@ class OrderSchema(BaseModel):
     total_amount: float
     delivery_fee: float
     notes: Optional[str] = None
+    porter_name: Optional[str] = None
+    porter_phone: Optional[str] = None
     created_at: datetime
     items: List[OrderItemSchema] = []
 

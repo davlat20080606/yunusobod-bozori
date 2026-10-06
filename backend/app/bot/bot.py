@@ -26,6 +26,7 @@ TEXTS = {
         ),
         "open_bazaar": "🛒 Bozorni ochish (Mini App)",
         "seller_portal": "🏪 Sotuvchi Kabineti",
+        "porter_portal": "🛒 Aravachi Kabineti",
         "my_orders": "📦 Zakazlarim",
         "select_lang": "Tilni tanlang / Выберите язык:",
         "bottom_btn": "🛒 Bozorni ochish (Mini App)"
@@ -38,6 +39,7 @@ TEXTS = {
         ),
         "open_bazaar": "🛒 Открыть базар (Mini App)",
         "seller_portal": "🏪 Кабинет продавца",
+        "porter_portal": "🛒 Кабинет аравачи",
         "my_orders": "📦 Мои заказы",
         "select_lang": "Выберите язык / Tilni tanlang:",
         "bottom_btn": "🛒 Открыть базар (Mini App)"
@@ -50,6 +52,7 @@ TEXTS = {
         ),
         "open_bazaar": "🛒 Open Market (Mini App)",
         "seller_portal": "🏪 Seller Portal",
+        "porter_portal": "🛒 Porter Portal",
         "my_orders": "📦 My Orders",
         "select_lang": "Select Language / Tilni tanlang:",
         "bottom_btn": "🛒 Open Market (Mini App)"
@@ -73,6 +76,7 @@ def build_keyboard(lang: str = "uz"):
     url_main = f"{webapp_url}?lang={lang}"
     url_seller = f"{webapp_url}?tab=seller&lang={lang}"
     url_orders = f"{webapp_url}?tab=orders&lang={lang}"
+    url_porter = f"{webapp_url}?tab=porter&lang={lang}"
 
     inline_buttons = [
         # Main WebApp button
@@ -91,6 +95,13 @@ def build_keyboard(lang: str = "uz"):
             InlineKeyboardButton(
                 text=t["my_orders"],
                 web_app=WebAppInfo(url=url_orders)
+            )
+        ],
+        # Aravachi (bazaar porter)
+        [
+            InlineKeyboardButton(
+                text=t["porter_portal"],
+                web_app=WebAppInfo(url=url_porter)
             )
         ],
         # Language Switcher Row

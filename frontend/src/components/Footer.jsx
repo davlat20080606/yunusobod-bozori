@@ -3,7 +3,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Phone, Clock, MapPin, Send, ShieldCheck, ShoppingBag, Sparkles } from 'lucide-react';
 import { ClickLogo, PaymeLogo, UzcardBadge, HumoBadge } from './PaymentLogos';
 
-export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateSeller, onNavigateOrders }) {
+export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateSeller, onNavigateOrders, onNavigatePorter }) {
   const { t, language } = useLanguage();
 
   return (
@@ -67,6 +67,12 @@ export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateS
                 <button type="button" onClick={onNavigateSeller} className="med-footer-link">
                   <span>👤</span>
                   <span>{t('nav.seller_mode')}</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" onClick={onNavigatePorter} className="med-footer-link">
+                  <span>🛒</span>
+                  <span>{language === 'ru' ? 'Кабинет аравачи' : (language === 'en' ? 'Porter dashboard' : 'Aravachi kabineti')}</span>
                 </button>
               </li>
             </ul>
