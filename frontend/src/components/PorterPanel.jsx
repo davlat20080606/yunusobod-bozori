@@ -41,7 +41,7 @@ const T = {
   logout: { uz: 'Chiqish', ru: 'Выйти', en: 'Sign out' },
   min_ago: { uz: 'daq. oldin', ru: 'мин. назад', en: 'min ago' },
   cash: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' },
-  paid: { uz: "To'langan", ru: 'Оплачено', en: 'Paid' },
+  check_payment: { uz: "to'lovni tekshiring", ru: 'проверьте оплату', en: 'check payment' },
 };
 
 const PIN_KEY = 'porter_pin';
@@ -475,7 +475,7 @@ function OrderRoute({ t, language, order, busy, error, onBack, onTogglePicked, o
         {order.landmark && <div style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>📍 {order.landmark}</div>}
         <div style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>⏱ {order.delivery_time_slot}</div>
         <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
-          {Math.round(order.total_amount).toLocaleString()} UZS · {order.payment_method === 'cash' ? t('cash') : t('paid')}
+          {Math.round(order.total_amount).toLocaleString()} UZS · {order.payment_method === 'cash' ? t('cash') : `${order.payment_method === 'payme' ? 'Payme' : 'Click'} (${t('check_payment')})`}
         </div>
         {order.notes && <div style={{ fontSize: 13, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 10px', marginBottom: 8 }}>💬 {t('note')}: {order.notes}</div>}
         <a href={mapUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#0284c7', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>

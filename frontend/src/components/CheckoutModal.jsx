@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { X, CheckCircle, Clock, MapPin, CreditCard, Banknote, ShieldCheck } from 'lucide-react';
+import { X, CheckCircle, Clock, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { triggerHaptic, getTelegramUser } from '../services/telegram';
 import { api } from '../services/api';
@@ -19,7 +19,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
   const [address, setAddress] = useState('');
   const [landmark, setLandmark] = useState('');
   const [timeSlot, setTimeSlot] = useState('Express (45-60 min)');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentMethod, setPaymentMethod] = useState('click');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -246,13 +246,8 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
             {/* Payment Method */}
             <div className="form-group">
               <label className="form-label">{t('checkout.payment')}</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
                 {[
-                  { 
-                    id: 'cash', 
-                    label: language === 'ru' ? '💵 Наличные' : (language === 'en' ? '💵 Cash' : '💵 Naqd pul'),
-                    icon: Banknote 
-                  },
                   { id: 'click', label: 'Click', icon: CreditCard },
                   { id: 'payme', label: 'Payme', icon: CreditCard },
                 ].map(pay => (

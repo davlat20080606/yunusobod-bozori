@@ -54,7 +54,8 @@ async def create_order(data: OrderCreateSchema, db: AsyncSession = Depends(get_d
         landmark=data.landmark,
         delivery_time_slot=data.delivery_time_slot,
         payment_method=data.payment_method,
-        payment_status="paid" if data.payment_method in ["click", "payme"] else "pending",
+        # Click/Payme are not connected to a merchant account yet, so nothing confirms the payment
+        payment_status="pending",
         status="pending",
         total_amount=total_amount + delivery_fee,
         delivery_fee=delivery_fee,
