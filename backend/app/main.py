@@ -66,6 +66,8 @@ async def lifespan(app: FastAPI):
 
     # 2. Start Telegram Bot polling in background
     bot = get_bot()
+    bot_status["bot"] = "ok" if bot else ("no token" if not settings.TELEGRAM_BOT_TOKEN else "invalid token")
+    bot_status["mode"] = "webhook" if USE_WEBHOOK else "polling"
     if bot:
         dp = setup_dispatcher()
         bot_dp = dp
@@ -104,8 +106,10 @@ async def lifespan(app: FastAPI):
                     allowed_updates=["message", "callback_query"]
                 )
                 logger.info(f"🤖 Telegram Bot webhook set: {settings.WEBAPP_URL}{WEBHOOK_PATH}")
+                bot_status["webhook"] = "ok"
             except Exception as e:
                 logger.error(f"Webhook setup failed: {e}")
+                bot_status["webhook"] = f"failed: {e}"
         elif not cloud_url:
             bot_task = asyncio.create_task(run_bot_polling())
 
@@ -147,9 +151,11 @@ app.include_router(orders.router)
 app.include_router(stats.router)
 app.include_router(porter.router)
 
+bot_status = {"bot": "not started"}
+
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV}
+    return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV, **bot_status}
 
 @app.post(WEBHOOK_PATH)
 async def telegram_webhook(request: Request):

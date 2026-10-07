@@ -17,9 +17,10 @@ class Settings(BaseSettings):
         extra = "ignore"
 
 settings = Settings()
-# Clean token if loaded from .env
-if "HTTP API:" in settings.TELEGRAM_BOT_TOKEN:
-    settings.TELEGRAM_BOT_TOKEN = settings.TELEGRAM_BOT_TOKEN.replace("HTTP API:", "").strip()
+# Clean token pasted with extra text, spaces or line breaks (easy to do in a hosting dashboard)
+settings.TELEGRAM_BOT_TOKEN = "".join(settings.TELEGRAM_BOT_TOKEN.replace("HTTP API:", "").split())
+settings.DATABASE_URL = settings.DATABASE_URL.strip()
+settings.PORTER_PIN = settings.PORTER_PIN.strip()
 
 # Render gives every service a permanent public https address
 RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "").strip()
