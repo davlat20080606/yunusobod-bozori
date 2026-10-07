@@ -4,7 +4,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 
 const VALID_PINS = ['2008', '1234', '0000', '2026', '2222'];
 
-export default function SellerPinGate({ onUnlock, onCancel }) {
+export default function SellerPinGate({ onUnlock, onCancel, onOpenPorter }) {
   const { language } = useLanguage();
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
@@ -26,6 +26,11 @@ export default function SellerPinGate({ onUnlock, onCancel }) {
       uz: "Noto'g'ri PIN-kod",
       ru: "Неверный PIN-код",
       en: "Incorrect PIN code"
+    },
+    porter: {
+      uz: "🛒 Men aravachiman (yuk tashuvchi) →",
+      ru: "🛒 Я аравачи (носильщик) →",
+      en: "🛒 I am a porter (aravachi) →"
     },
     back: {
       uz: "Orqaga",
@@ -174,6 +179,28 @@ export default function SellerPinGate({ onUnlock, onCancel }) {
           );
         })}
       </div>
+
+      {/* Porter entry: porters use the same Telegram button as sellers */}
+      {onOpenPorter && (
+        <button
+          onClick={onOpenPorter}
+          style={{
+            background: 'rgba(245,158,11,0.15)',
+            border: '1.5px solid rgba(245,158,11,0.45)',
+            color: '#fbbf24',
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: 'pointer',
+            padding: '12px 20px',
+            borderRadius: 14,
+            marginBottom: 8,
+            width: '100%',
+            maxWidth: 280
+          }}
+        >
+          {t('porter')}
+        </button>
+      )}
 
       {/* Cancel Button */}
       <button

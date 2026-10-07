@@ -370,6 +370,7 @@ export default function App() {
                 <SellerPinGate
                   onUnlock={() => setSellerUnlocked(true)}
                   onCancel={() => setActiveTab('market')}
+                  onOpenPorter={() => setActiveTab('porter')}
                 />
               )}
               {activeTab === 'seller' && sellerUnlocked && (
