@@ -71,6 +71,8 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
         "delivery_address": order.delivery_address,
         "delivery_district": order.delivery_district,
         "landmark": order.landmark,
+        "delivery_lat": order.delivery_lat,
+        "delivery_lng": order.delivery_lng,
         "delivery_time_slot": order.delivery_time_slot,
         "payment_method": order.payment_method,
         "total_amount": order.total_amount,

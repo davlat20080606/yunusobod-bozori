@@ -1,1017 +1,453 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ArrowLeft, Phone, Copy, Check, ChevronDown, ChevronRight, MapPin, Clock, CreditCard, Package } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { api } from '../services/api';
-import { 
-  CheckCircle2, 
-  Clock, 
-  Truck, 
-  ShoppingBag, 
-  MapPin, 
-  Check, 
-  ArrowLeft, 
-  Copy, 
-  Phone, 
-  User, 
-  Store, 
-  Search,
-  Navigation,
-  SlidersHorizontal,
-  Sparkles,
-  PhoneCall,
-  ExternalLink
-} from 'lucide-react';
 import { triggerHaptic } from '../services/telegram';
 
-// Realistic Street Coordinates in Yunusobod, Tashkent
-const BAZAAR_COORDS = [41.3653, 69.2885];        // Yunusobod Dehqon Bozori
-const BAZAAR_GATE = [41.3668, 69.2895];          // Bazaar Gate 4 (Ahmad Donish roadside)
-const ROUTE_TURN_1 = [41.3705, 69.2915];         // Ahmad Donish Avenue
-const ROUTE_TURN_2 = [41.3742, 69.2942];         // Turn towards 19-mavze
-const CUSTOMER_COORDS = [41.3778, 69.2978];      // Customer destination (Yunusobod 19-mavze)
+const BAZAAR = { lat: 41.3655, lng: 69.2885 };
+const MY_ORDERS_KEY = 'yunusobod_my_orders';
+const REFRESH_MS = 10000;
 
-const STREET_ROUTE = [
-  BAZAAR_COORDS,
-  BAZAAR_GATE,
-  ROUTE_TURN_1,
-  ROUTE_TURN_2,
-  CUSTOMER_COORDS
-];
+const T = {
+  my_orders: { uz: 'Mening buyurtmalarim', ru: 'Мои заказы', en: 'My orders' },
+  empty: { uz: "Sizda hali buyurtma yo'q", ru: 'У вас пока нет заказов', en: 'You have no orders yet' },
+  empty_hint: { uz: "Bozordan mahsulot tanlang — buyurtma holati shu yerda ko'rinadi", ru: 'Выберите товары на базаре — статус заказа появится здесь', en: 'Pick products at the bazaar — order status will appear here' },
+  to_market: { uz: "Bozorga o'tish", ru: 'Перейти на базар', en: 'Go to the bazaar' },
+  order: { uz: 'Buyurtma', ru: 'Заказ', en: 'Order' },
+  arrive_by: { uz: 'Taxminiy vaqt', ru: 'Ожидаемое время', en: 'Estimated arrival' },
+  porter: { uz: 'Aravachi', ru: 'Аравачи', en: 'Porter' },
+  call: { uz: "Qo'ng'iroq", ru: 'Позвонить', en: 'Call' },
+  contents: { uz: 'Buyurtma tarkibi', ru: 'Состав заказа', en: 'Order contents' },
+  items: { uz: 'ta mahsulot', ru: 'товаров', en: 'items' },
+  collected_of: { uz: "yig'ildi", ru: 'собрано', en: 'collected' },
+  address: { uz: 'Manzil', ru: 'Адрес', en: 'Address' },
+  payment: { uz: "To'lov", ru: 'Оплата', en: 'Payment' },
+  delivery: { uz: 'Yetkazish', ru: 'Доставка', en: 'Delivery' },
+  total: { uz: 'Jami', ru: 'Итого', en: 'Total' },
+  copied: { uz: 'nusxa olindi', ru: 'скопировано', en: 'copied' },
+  order_again: { uz: 'Yana buyurtma berish', ru: 'Заказать ещё', en: 'Order again' },
+  cash: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' },
+};
 
-// Helper to get courier position & styling based on status
-function getCourierDetails(status, language) {
-  if (status === 'handed_over') {
-    return {
-      coords: BAZAAR_GATE,
-      label: language === 'ru' ? '🤝 У ворот базара' : '🤝 Darvoza oldida',
-      emoji: '🤝',
-      color: '#d97706'
-    };
-  }
-  if (status === 'on_the_way') {
-    return {
-      coords: ROUTE_TURN_2,
-      label: language === 'ru' ? '🚗 Такси Cobalt (~10 мин)' : '🚗 Cobalt yo\'lda (~10 min)',
-      emoji: '🚗',
-      color: '#0284c7'
-    };
-  }
-  if (status === 'delivered') {
-    return {
-      coords: CUSTOMER_COORDS,
-      label: language === 'ru' ? '✅ Доставлено к двери' : '✅ Yetkazildi',
-      emoji: '✅',
-      color: '#16a34a'
-    };
-  }
-  // Default: picking at bazaar
-  return {
-    coords: BAZAAR_COORDS,
-    label: language === 'ru' ? '🛒 Аравачи на рядах' : '🛒 Aravachi rastada',
-    emoji: '🛒',
-    color: '#059669'
-  };
+const STEPS = {
+  uz: ['Qabul qilindi', "Yig'ilmoqda", "Yo'lda", 'Yetkazildi'],
+  ru: ['Принят', 'Собираем', 'В пути', 'Доставлен'],
+  en: ['Accepted', 'Collecting', 'On the way', 'Delivered'],
+};
+
+const STATUS = {
+  pending: {
+    step: 0, emoji: '🧾',
+    title: { uz: 'Buyurtma qabul qilindi', ru: 'Заказ принят', en: 'Order accepted' },
+    sub: { uz: "Bo'sh aravachini qidiryapmiz", ru: 'Ищем свободного аравачи на базаре', en: 'Looking for a free porter' },
+  },
+  picking: {
+    step: 1, emoji: '🛒',
+    title: { uz: "Bozorda yig'ilmoqda", ru: 'Собираем на базаре', en: 'Collecting at the bazaar' },
+    sub: { uz: 'Aravachi rastalarni aylanib chiqmoqda', ru: 'Аравачи обходит расты и выбирает свежее', en: 'The porter is visiting the stalls' },
+  },
+  handed_over: {
+    step: 2, emoji: '🤝',
+    title: { uz: 'Kuryerga topshirildi', ru: 'Передан курьеру', en: 'Handed to courier' },
+    sub: { uz: "Kuryer tez orada yo'lga chiqadi", ru: 'Курьер скоро выедет к вам', en: 'The courier is about to leave' },
+  },
+  on_the_way: {
+    step: 2, emoji: '🚗',
+    title: { uz: "Kuryer yo'lda", ru: 'Курьер в пути', en: 'Courier on the way' },
+    sub: { uz: 'Buyurtmangizni olib kelmoqda', ru: 'Везём заказ к вам', en: 'Bringing your order to you' },
+  },
+  delivered: {
+    step: 3, emoji: '🎉',
+    title: { uz: 'Yetkazildi', ru: 'Заказ доставлен', en: 'Delivered' },
+    sub: { uz: 'Yoqimli ishtaha!', ru: 'Приятного аппетита!', en: 'Enjoy your meal!' },
+  },
+  cancelled: {
+    step: -1, emoji: '✖️',
+    title: { uz: 'Buyurtma bekor qilindi', ru: 'Заказ отменён', en: 'Order cancelled' },
+    sub: { uz: "Savollar bo'lsa, bizga yozing", ru: 'Если есть вопросы, напишите нам', en: 'Contact us if you have questions' },
+  },
+};
+STATUS.accepted = STATUS.pending;
+
+export const ACTIVE_STATUSES = ['pending', 'accepted', 'picking', 'handed_over', 'on_the_way'];
+
+export function statusTitle(status, language) {
+  const lang = language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz');
+  const s = STATUS[status] || STATUS.pending;
+  return `${s.emoji} ${s.title[lang]}`;
 }
 
-// Ultra-stable Leaflet Map Component (Initialized ONCE, updates smoothly without reload crashes)
-function YandexGoMap({ status, deliveryAddress, language }) {
-  const mapContainerRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const courierMarkerRef = useRef(null);
-  const leafletLibRef = useRef(null);
+function readMyOrders() {
+  try {
+    const list = JSON.parse(localStorage.getItem(MY_ORDERS_KEY) || '[]');
+    const last = localStorage.getItem('yunusobod_last_order');
+    if (last && !list.includes(last)) list.unshift(last);
+    return list;
+  } catch {
+    return [];
+  }
+}
 
-  // 1. Initialize Map ONCE on mount
+function saveMyOrders(list) {
+  try { localStorage.setItem(MY_ORDERS_KEY, JSON.stringify(list.slice(0, 20))); } catch {}
+}
+
+export function rememberMyOrder(orderNumber) {
+  saveMyOrders([orderNumber, ...readMyOrders().filter((n) => n !== orderNumber)]);
+}
+
+function parseDate(value) {
+  if (!value) return null;
+  // Backend sends UTC without a timezone suffix
+  return new Date(/Z|[+-]\d\d:?\d\d$/.test(value) ? value : `${value}Z`);
+}
+
+function formatTime(date) {
+  return date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '';
+}
+
+function etaText(order, lang) {
+  if (!ACTIVE_STATUSES.includes(order.status)) return null;
+  const created = parseDate(order.created_at);
+  if (order.delivery_time_slot?.startsWith('Express') && created) {
+    const time = formatTime(new Date(created.getTime() + 60 * 60000));
+    return lang === 'ru' ? `до ${time}` : (lang === 'en' ? `by ${time}` : `${time} gacha`);
+  }
+  return order.delivery_time_slot;
+}
+
+// Small map: bazaar → delivery point (MapLibre + free OpenFreeMap tiles)
+function RouteMap({ order }) {
+  const elRef = useRef(null);
+  const mapRef = useRef(null);
+  const hasHome = order.delivery_lat != null && order.delivery_lng != null;
+
   useEffect(() => {
-    let isMounted = true;
+    let cancelled = false;
+    (async () => {
+      const maplibregl = (await import('maplibre-gl')).default;
+      await import('maplibre-gl/dist/maplibre-gl.css');
+      if (cancelled || !elRef.current || mapRef.current) return;
 
-    const setupMap = async () => {
-      try {
-        const L = await import('leaflet');
-        await import('leaflet/dist/leaflet.css');
+      const map = new maplibregl.Map({
+        container: elRef.current,
+        style: 'https://tiles.openfreemap.org/styles/liberty',
+        center: [BAZAAR.lng, BAZAAR.lat],
+        zoom: 14.5,
+        interactive: false,
+        attributionControl: { compact: true }
+      });
+      mapRef.current = map;
 
-        if (!isMounted || !mapContainerRef.current) return;
-        if (mapInstanceRef.current) return; // Prevent double initialization
+      const pin = (emoji, bg) => {
+        const el = document.createElement('div');
+        el.style.cssText = `width:36px;height:36px;border-radius:50%;background:${bg};border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:17px`;
+        el.textContent = emoji;
+        return el;
+      };
+      new maplibregl.Marker({ element: pin('🏪', '#059669') }).setLngLat([BAZAAR.lng, BAZAAR.lat]).addTo(map);
 
-        leafletLibRef.current = L;
-
-        // Clean container just in case
-        mapContainerRef.current.innerHTML = '';
-
-        const map = L.map(mapContainerRef.current, {
-          zoomControl: false,
-          attributionControl: false,
-          dragging: true,
-          touchZoom: true,
-          scrollWheelZoom: false
-        }).setView(BAZAAR_COORDS, 14);
-
-        mapInstanceRef.current = map;
-
-        // OpenStreetMap Crisp Tiles (100% free, real street names, zero watermarks)
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          subdomains: ['a', 'b', 'c']
-        }).addTo(map);
-
-        // 1. Street Route Polyline (Double layer for glowing road effect)
-        L.polyline(STREET_ROUTE, {
-          color: '#10b981',
-          weight: 7,
-          opacity: 0.35,
-          lineCap: 'round',
-          lineJoin: 'round'
-        }).addTo(map);
-
-        L.polyline(STREET_ROUTE, {
-          color: '#059669',
-          weight: 4,
-          opacity: 0.95,
-          lineCap: 'round',
-          lineJoin: 'round'
-        }).addTo(map);
-
-        // 2. Bazaar Marker
-        const bazaarIcon = L.divIcon({
-          className: 'bazaar-map-marker',
-          html: `
-            <div style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -100%);">
-              <div style="background:#064e3b; color:#ffffff; padding:4px 9px; border-radius:999px; font-size:11px; font-weight:800; display:flex; align-items:center; gap:5px; box-shadow:0 4px 14px rgba(0,0,0,0.28); border:2px solid #ffffff; white-space:nowrap;">
-                <span style="font-size:13px;">🏛️</span>
-                <span>${language === 'ru' ? 'Юнусабад Базар' : 'Yunusobod Bozori'}</span>
-              </div>
-              <div style="width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:7px solid #064e3b; margin-top:-1px;"></div>
-            </div>
-          `,
-          iconSize: [0, 0]
+      map.once('load', () => {
+        map.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
+        if (!hasHome) return;
+        map.addSource('route', {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [[BAZAAR.lng, BAZAAR.lat], [order.delivery_lng, order.delivery_lat]] } }
         });
-        L.marker(BAZAAR_COORDS, { icon: bazaarIcon }).addTo(map);
+        map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#059669', 'line-width': 4, 'line-dasharray': [2, 1.5] } });
+      });
 
-        // 3. Customer House Marker
-        const customerIcon = L.divIcon({
-          className: 'customer-map-marker',
-          html: `
-            <div style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -100%);">
-              <div style="background:#dc2626; color:#ffffff; padding:4px 9px; border-radius:999px; font-size:11px; font-weight:800; display:flex; align-items:center; gap:5px; box-shadow:0 4px 14px rgba(0,0,0,0.28); border:2px solid #ffffff; white-space:nowrap;">
-                <span style="font-size:13px;">🏠</span>
-                <span>${deliveryAddress ? deliveryAddress.slice(0, 14) : '19-mavze'}</span>
-              </div>
-              <div style="width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:7px solid #dc2626; margin-top:-1px;"></div>
-            </div>
-          `,
-          iconSize: [0, 0]
-        });
-        L.marker(CUSTOMER_COORDS, { icon: customerIcon }).addTo(map);
-
-        // 4. Initial Courier Marker
-        const details = getCourierDetails(status, language);
-        const courierIcon = createCourierIcon(L, details);
-        const courierMarker = L.marker(details.coords, { icon: courierIcon }).addTo(map);
-        courierMarkerRef.current = courierMarker;
-
-        // Auto fit both points with nice padding
-        const bounds = L.latLngBounds([BAZAAR_COORDS, CUSTOMER_COORDS]);
-        map.fitBounds(bounds, { padding: [50, 40] });
-
-      } catch (err) {
-        console.error('Map init error:', err);
+      if (hasHome) {
+        new maplibregl.Marker({ element: pin('🏠', '#2563eb') }).setLngLat([order.delivery_lng, order.delivery_lat]).addTo(map);
+        const bounds = new maplibregl.LngLatBounds([BAZAAR.lng, BAZAAR.lat], [BAZAAR.lng, BAZAAR.lat]).extend([order.delivery_lng, order.delivery_lat]);
+        map.fitBounds(bounds, { padding: { top: 50, bottom: 70, left: 50, right: 50 }, maxZoom: 15, duration: 0 });
       }
-    };
-
-    setupMap();
-
+    })();
     return () => {
-      isMounted = false;
-      if (mapInstanceRef.current) {
-        try {
-          mapInstanceRef.current.remove();
-        } catch {}
-        mapInstanceRef.current = null;
-      }
+      cancelled = true;
+      mapRef.current?.remove();
+      mapRef.current = null;
     };
-  }, []);
+  }, [order.order_number, hasHome, order.delivery_lat, order.delivery_lng]);
 
-  // 2. Smoothly Update Courier Marker position and icon when status changes (NO MAP RELOAD!)
-  useEffect(() => {
-    const L = leafletLibRef.current;
-    const map = mapInstanceRef.current;
-    if (!L || !map || !courierMarkerRef.current) return;
-
-    try {
-      const details = getCourierDetails(status, language);
-      courierMarkerRef.current.setLatLng(details.coords);
-      courierMarkerRef.current.setIcon(createCourierIcon(L, details));
-    } catch (err) {
-      console.warn('Courier marker update error:', err);
-    }
-  }, [status, language]);
-
-  function createCourierIcon(L, details) {
-    return L.divIcon({
-      className: 'live-courier-marker',
-      html: `
-        <div style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -50%); position:relative;">
-          <div style="position:absolute; width:48px; height:48px; border-radius:50%; background:${details.color}; opacity:0.35; animation:yandexPulse 2s cubic-bezier(0.24,0,0.38,1) infinite;"></div>
-          <div style="width:36px; height:36px; border-radius:50%; background:${details.color}; color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:18px; box-shadow:0 4px 16px rgba(0,0,0,0.35); border:2.5px solid #ffffff; position:relative; z-index:2;">
-            ${details.emoji}
-          </div>
-          <div style="position:absolute; top:40px; background:rgba(15,23,42,0.92); color:#ffffff; padding:2px 7px; border-radius:6px; font-size:9px; font-weight:800; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,0.25); z-index:3;">
-            ${details.label}
-          </div>
-        </div>
-      `,
-      iconSize: [0, 0]
-    });
-  }
-
-  return (
-    <div style={{
-      position: 'relative',
-      width: '100%',
-      height: '310px',
-      borderRadius: '24px',
-      overflow: 'hidden',
-      border: '1.5px solid #e2e8f0',
-      boxShadow: '0 8px 30px rgba(0,0,0,0.08)',
-      background: '#e2e8f0'
-    }}>
-      <style>{`
-        @keyframes yandexPulse {
-          0% { transform: scale(0.85); opacity: 0.7; }
-          70% { transform: scale(1.6); opacity: 0; }
-          100% { transform: scale(0.85); opacity: 0; }
-        }
-        .leaflet-container {
-          background: #e2e8f0 !important;
-          font-family: inherit !important;
-        }
-        .leaflet-tile {
-          filter: contrast(1.02) brightness(0.99) !important;
-        }
-      `}</style>
-      
-      {/* Map DOM Element */}
-      <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
-
-      {/* Floating Top Banner (Yandex Go style) */}
-      <div style={{
-        position: 'absolute',
-        top: '12px',
-        left: '12px',
-        right: '12px',
-        background: 'rgba(255, 255, 255, 0.96)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '16px',
-        padding: '10px 14px',
-        boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        zIndex: 500,
-        border: '1px solid rgba(255,255,255,0.8)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{
-            display: 'inline-block',
-            width: '10px',
-            height: '10px',
-            borderRadius: '50%',
-            background: status === 'delivered' ? '#16a34a' : '#10b981',
-            boxShadow: '0 0 10px #10b981'
-          }} />
-          <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#0f172a' }}>
-            {status === 'pending' && (language === 'ru' ? '⏳ Заказ принят' : 'Kutilmoqda')}
-            {status === 'picking' && (language === 'ru' ? '🛒 Аравачи на базаре' : '🛒 Aravachi yig\'moqda')}
-            {status === 'handed_over' && (language === 'ru' ? '🤝 Передано таксисту' : '🤝 Taksiga topshirildi')}
-            {status === 'on_the_way' && (language === 'ru' ? '🚗 Такси едет к вам' : '🚗 Taksi yo\'lda')}
-            {status === 'delivered' && (language === 'ru' ? '✅ Доставлено' : '✅ Yetkazildi')}
-          </span>
-        </div>
-
-        <div style={{
-          background: '#064e3b',
-          color: '#ffffff',
-          padding: '4px 10px',
-          borderRadius: '999px',
-          fontSize: '0.78rem',
-          fontWeight: 800
-        }}>
-          {status === 'delivered' ? '0 min' : '~15-20 min'}
-        </div>
-      </div>
-
-      {/* Floating Bottom Street Path Badge */}
-      <div style={{
-        position: 'absolute',
-        bottom: '12px',
-        left: '12px',
-        right: '12px',
-        background: 'rgba(15, 23, 42, 0.9)',
-        backdropFilter: 'blur(8px)',
-        color: '#ffffff',
-        padding: '7px 12px',
-        borderRadius: '14px',
-        zIndex: 500,
-        fontSize: '0.75rem',
-        fontWeight: 700,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: '0 4px 14px rgba(0,0,0,0.25)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span>🏛️ Yunusobod Bozori</span>
-          <span style={{ color: '#10b981' }}>➔</span>
-          <span>🏠 {deliveryAddress ? deliveryAddress.slice(0, 16) : '19-mavze'}</span>
-        </div>
-        <a 
-          href={`https://yandex.com/maps/?rtext=41.3653,69.2885~41.3778,69.2978&rtt=auto`} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          style={{
-            color: '#38bdf8',
-            textDecoration: 'none',
-            fontSize: '0.72rem',
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '3px'
-          }}
-        >
-          <span>Яндекс Карты</span>
-          <ExternalLink size={11} />
-        </a>
-      </div>
-    </div>
-  );
+  return <div ref={elRef} style={{ position: 'absolute', inset: 0 }} />;
 }
+
+const card = { background: '#ffffff', borderRadius: 20, padding: 16, marginBottom: 12, boxShadow: '0 1px 4px rgba(15,23,42,0.06)' };
 
 export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrderNotFound }) {
-  const { t, language } = useLanguage();
-  const [order, setOrder] = useState(null);
+  const { language } = useLanguage();
+  const lang = language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz');
+  const t = (key) => T[key]?.[lang] || T[key]?.uz || key;
+  const st = (status) => STATUS[status] || STATUS.pending;
+
+  const [myOrders, setMyOrders] = useState(() => {
+    if (initialOrderNumber) rememberMyOrder(initialOrderNumber);
+    return readMyOrders();
+  });
+  const [orders, setOrders] = useState({});
+  const [openNumber, setOpenNumber] = useState(initialOrderNumber || null);
   const [loading, setLoading] = useState(true);
-  const [searchNum, setSearchNum] = useState(initialOrderNumber || '');
+  const [showItems, setShowItems] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    let numToSearch = initialOrderNumber;
-    if (!numToSearch) {
-      try {
-        numToSearch = localStorage.getItem('yunusobod_last_order') || '';
-      } catch {}
-    }
-
-    if (numToSearch) {
-      setSearchNum(numToSearch);
-      fetchOrder(numToSearch);
-    } else {
-      loadLatestOrder();
-    }
+    if (!initialOrderNumber) return;
+    rememberMyOrder(initialOrderNumber);
+    setMyOrders(readMyOrders());
+    setOpenNumber(initialOrderNumber);
   }, [initialOrderNumber]);
 
-  const loadLatestOrder = async () => {
-    setLoading(true);
-    try {
-      const orders = await api.getOrders(1);
-      if (orders && orders.length > 0) {
-        setOrder(orders[0]);
-        setSearchNum(orders[0].order_number);
-        try { localStorage.setItem('yunusobod_last_order', orders[0].order_number); } catch {}
-      } else {
-        setOrder(null);
-      }
-    } catch {
-      setOrder(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchOrder = async (orderNum) => {
-    setLoading(true);
-    try {
-      const data = await api.getOrder(orderNum);
-      setOrder(data);
-    } catch (e) {
-      console.error(e);
-      setOrder(null);
-      if (onOrderNotFound) onOrderNotFound();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    if (searchNum.trim()) {
-      triggerHaptic('light');
-      fetchOrder(searchNum.trim());
-    }
-  };
-
-  const handleCopyOrderNumber = () => {
-    if (!order) return;
-    triggerHaptic('light');
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(order.order_number);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  // Instant optimistic status update (GUARANTEED: NEVER FREEZES OR BLOCKS CLICKS)
-  const handleQuickStatusChange = (newStatus) => {
-    if (!order) return;
-    triggerHaptic('medium');
-
-    // 1. Instantly update UI and map marker position
-    setOrder(prev => ({ ...prev, status: newStatus }));
-
-    // 2. Persist to backend asynchronously in background
-    api.updateOrderStatus(order.id, newStatus).catch(err => {
-      console.warn('Background status sync note:', err);
+  const load = useCallback(async (numbers) => {
+    const results = await Promise.all(numbers.map((n) => api.getOrder(n).then((o) => [n, o]).catch(() => [n, null])));
+    setOrders((prev) => {
+      const next = { ...prev };
+      results.forEach(([n, o]) => { if (o) next[n] = o; });
+      return next;
     });
+    setLoading(false);
+    return results;
+  }, []);
+
+  // Orders are remembered on this device only, so customers never see each other's orders
+  useEffect(() => {
+    if (myOrders.length === 0) { setLoading(false); return; }
+    load(myOrders.slice(0, 10)).then((results) => {
+      const missing = results.filter(([, o]) => !o).map(([n]) => n);
+      if (!missing.length) return;
+      const kept = readMyOrders().filter((n) => !missing.includes(n));
+      saveMyOrders(kept);
+      try {
+        if (missing.includes(localStorage.getItem('yunusobod_last_order'))) localStorage.removeItem('yunusobod_last_order');
+      } catch {}
+      setMyOrders(kept);
+      if (missing.includes(openNumber)) setOpenNumber(null);
+      if (missing.includes(initialOrderNumber) && onOrderNotFound) onOrderNotFound();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myOrders.join(',')]);
+
+  // Live updates while the open order is still in progress
+  const openOrder = openNumber ? orders[openNumber] : null;
+  useEffect(() => {
+    if (!openNumber || (openOrder && !ACTIVE_STATUSES.includes(openOrder.status))) return;
+    const timer = setInterval(() => load([openNumber]), REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [openNumber, openOrder?.status, load]);
+
+  // Gentle vibration when the status changes, like delivery apps do
+  const lastStatusRef = useRef(null);
+  useEffect(() => {
+    if (!openOrder) return;
+    if (lastStatusRef.current && lastStatusRef.current !== openOrder.status) triggerHaptic('success');
+    lastStatusRef.current = openOrder.status;
+  }, [openOrder?.status]);
+
+  const copyNumber = () => {
+    if (!openOrder || !navigator.clipboard) return;
+    navigator.clipboard.writeText(openOrder.order_number);
+    triggerHaptic('light');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  // Progress segments (1: Qabul, 2: Aravachi, 3: Taksi, 4: Yetkazildi)
-  const getProgressSegmentIndex = () => {
-    if (!order) return 0;
-    if (order.status === 'pending') return 1;
-    if (order.status === 'picking') return 2;
-    if (order.status === 'handed_over') return 3;
-    if (order.status === 'on_the_way') return 3;
-    if (order.status === 'delivered') return 4;
-    return 2;
-  };
+  const backBtn = (onClick) => (
+    <button type="button" onClick={onClick} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', background: '#ffffff', boxShadow: '0 1px 6px rgba(15,23,42,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }} aria-label="back">
+      <ArrowLeft size={20} />
+    </button>
+  );
 
-  const activeSegment = getProgressSegmentIndex();
+  // ---------- Order detail (Yandex Go style) ----------
+  if (openNumber && (openOrder || loading)) {
+    if (!openOrder) {
+      return <div style={{ padding: '60px 16px', textAlign: 'center', color: '#64748b' }}>…</div>;
+    }
+    const status = st(openOrder.status);
+    const items = openOrder.items || [];
+    const picked = items.filter((i) => i.is_picked).length;
+    const eta = etaText(openOrder, lang);
+    const isActive = ACTIVE_STATUSES.includes(openOrder.status);
+    const subtitle = openOrder.status === 'picking' && openOrder.porter_name
+      ? `${openOrder.porter_name} · ${t('collected_of')} ${picked} / ${items.length}`
+      : status.sub[lang];
+    const paymentLabel = openOrder.payment_method === 'payme' ? 'Payme' : (openOrder.payment_method === 'click' ? 'Click' : t('cash'));
 
-  return (
-    <div style={{ maxWidth: '640px', margin: '0 auto', padding: '14px 12px 110px', fontFamily: 'inherit' }}>
-      
-      {/* 1. Top Header Bar */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '14px',
-        gap: '10px'
-      }}>
-        <button 
-          type="button" 
-          onClick={onBackToMarket}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: '#ffffff',
-            border: '1.5px solid #e2e8f0',
-            color: '#0f172a',
-            padding: '8px 14px',
-            borderRadius: '12px',
-            fontSize: '0.85rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-          }}
-        >
-          <ArrowLeft size={16} color="#059669" />
-          <span>{language === 'ru' ? 'На базар' : 'Bozorga'}</span>
-        </button>
-
-        {order && (
-          <button
-            type="button"
-            onClick={handleCopyOrderNumber}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: '#f8fafc',
-              border: '1.5px solid #e2e8f0',
-              padding: '6px 12px',
-              borderRadius: '999px',
-              fontSize: '0.8rem',
-              fontWeight: 800,
-              color: '#0f172a',
-              cursor: 'pointer'
-            }}
-          >
-            <span style={{ fontFamily: 'monospace', color: '#059669' }}>#{order.order_number}</span>
-            {copied ? <Check size={14} color="#059669" /> : <Copy size={14} color="#64748b" />}
-          </button>
-        )}
-      </div>
-
-      {/* Loading state */}
-      {loading && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b', fontSize: '0.9rem', fontWeight: 600 }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⏳</div>
-          {language === 'ru' ? 'Загружаем трекер заказа...' : 'Buyurtma xaritasi yuklanmoqda...'}
+    return (
+      <div className="animate-fade" style={{ maxWidth: 640, margin: '0 auto', paddingBottom: 110 }}>
+        {/* Map header */}
+        <div style={{ position: 'relative', height: 240, margin: '0 -12px', background: '#e5e7eb', overflow: 'hidden' }}>
+          <RouteMap order={openOrder} />
+          <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 2 }}>
+            {backBtn(() => { setOpenNumber(null); setShowItems(false); })}
+          </div>
         </div>
-      )}
 
-      {/* Not Found */}
-      {!loading && !order && (
-        <div style={{
-          textAlign: 'center',
-          padding: '40px 20px',
-          background: '#ffffff',
-          borderRadius: '20px',
-          border: '1.5px solid #e2e8f0',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.04)'
-        }}>
-          <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📦</div>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', marginBottom: '6px' }}>
-            {language === 'ru' ? 'Заказ не найден' : 'Buyurtma topilmadi'}
-          </h3>
-          <p style={{ fontSize: '0.84rem', color: '#64748b', marginBottom: '20px' }}>
-            {language === 'ru' ? 'Сделайте заказ в каталоге или введите номер' : 'Katalogdan xarid qiling yoki raqamni kiriting'}
-          </p>
-          <button 
-            type="button" 
-            onClick={onBackToMarket}
-            style={{
-              background: 'linear-gradient(135deg, #059669, #10b981)',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '12px',
-              padding: '12px 24px',
-              fontSize: '0.9rem',
-              fontWeight: 800,
-              cursor: 'pointer'
-            }}
-          >
-            🛒 {language === 'ru' ? 'В каталог базара' : 'Bozorga o\'tish'}
-          </button>
-        </div>
-      )}
-
-      {/* Order Details Found */}
-      {!loading && order && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          
-          {/* A. HERO: REALISTIC STREET MAP (Yandex Go style) */}
-          <YandexGoMap 
-            status={order.status} 
-            deliveryAddress={order.delivery_address} 
-            language={language} 
-          />
-
-          {/* B. DISPATCHER TEST BUTTONS (NOW 100% INSTANT CLICKABLE!) */}
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '18px',
-            padding: '12px 14px',
-            border: '1.5px solid #e2e8f0',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '10px'
-            }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <SlidersHorizontal size={14} color="#059669" />
-                <span>{language === 'ru' ? '⚡️ Проверить статус заказа (нажимай):' : '⚡️ Holatni sinab ko\'rish:'}</span>
-              </span>
-              <span style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 800, background: '#dcfce7', padding: '2px 8px', borderRadius: '6px' }}>
-                {language === 'ru' ? 'Живой тест' : 'Jonli rejim'}
-              </span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-              <button
-                type="button"
-                onClick={() => handleQuickStatusChange('picking')}
-                style={{
-                  padding: '10px 4px',
-                  borderRadius: '12px',
-                  border: order.status === 'picking' ? '2px solid #059669' : '1.5px solid #e2e8f0',
-                  background: order.status === 'picking' ? '#059669' : '#f8fafc',
-                  color: order.status === 'picking' ? '#ffffff' : '#334155',
-                  fontSize: '0.76rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '2px',
-                  boxShadow: order.status === 'picking' ? '0 4px 12px rgba(5,150,105,0.3)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <span style={{ fontSize: '1.1rem' }}>🛒</span>
-                <span>{language === 'ru' ? 'Сборка' : 'Yig\'ish'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickStatusChange('handed_over')}
-                style={{
-                  padding: '10px 4px',
-                  borderRadius: '12px',
-                  border: order.status === 'handed_over' ? '2px solid #d97706' : '1.5px solid #e2e8f0',
-                  background: order.status === 'handed_over' ? '#d97706' : '#f8fafc',
-                  color: order.status === 'handed_over' ? '#ffffff' : '#334155',
-                  fontSize: '0.76rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '2px',
-                  boxShadow: order.status === 'handed_over' ? '0 4px 12px rgba(217,119,6,0.3)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <span style={{ fontSize: '1.1rem' }}>🤝</span>
-                <span>{language === 'ru' ? 'Таксисту' : 'Taksiga'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickStatusChange('on_the_way')}
-                style={{
-                  padding: '10px 4px',
-                  borderRadius: '12px',
-                  border: order.status === 'on_the_way' ? '2px solid #0284c7' : '1.5px solid #e2e8f0',
-                  background: order.status === 'on_the_way' ? '#0284c7' : '#ffffff',
-                  color: order.status === 'on_the_way' ? '#ffffff' : '#334155',
-                  fontSize: '0.76rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '2px',
-                  boxShadow: order.status === 'on_the_way' ? '0 4px 12px rgba(2,132,199,0.3)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <span style={{ fontSize: '1.1rem' }}>🚗</span>
-                <span>{language === 'ru' ? 'В пути' : 'Yo\'lda'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickStatusChange('delivered')}
-                style={{
-                  padding: '10px 4px',
-                  borderRadius: '12px',
-                  border: order.status === 'delivered' ? '2px solid #16a34a' : '1.5px solid #e2e8f0',
-                  background: order.status === 'delivered' ? '#16a34a' : '#f8fafc',
-                  color: order.status === 'delivered' ? '#ffffff' : '#334155',
-                  fontSize: '0.76rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '2px',
-                  boxShadow: order.status === 'delivered' ? '0 4px 12px rgba(22,163,74,0.3)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <span style={{ fontSize: '1.1rem' }}>✅</span>
-                <span>{language === 'ru' ? 'Доставлен' : 'Yetdi'}</span>
-              </button>
+        {/* Status sheet overlapping the map */}
+        <div style={{ ...card, marginTop: -32, position: 'relative', zIndex: 3, borderRadius: 24, padding: '18px 18px 16px', boxShadow: '0 -4px 18px rgba(15,23,42,0.10)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <div style={{ fontSize: 30, lineHeight: 1 }}>{status.emoji}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>{status.title[lang]}</div>
+              <div style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>{subtitle}</div>
             </div>
           </div>
 
-          {/* C. YANDEX GO STATUS CARD (Headline + Progress Bar + Team Info) */}
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '24px',
-            padding: '20px',
-            border: '1.5px solid #e2e8f0',
-            boxShadow: '0 8px 25px rgba(0,0,0,0.06)'
-          }}>
-            {/* Status Big Headline */}
-            <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.3px', lineHeight: 1.25 }}>
-                {order.status === 'pending' && (language === 'ru' ? '⏳ Заказ принят в систему' : 'Buyurtma tizimga qabul qilindi')}
-                {order.status === 'picking' && (language === 'ru' ? '🛒 Аравачи отбирает продукты на базаре' : '🛒 Aravachi saralamoqda')}
-                {order.status === 'handed_over' && (language === 'ru' ? '🤝 Заказ передан таксисту у ворот базара' : '🤝 Taksistga topshirildi')}
-                {order.status === 'on_the_way' && (language === 'ru' ? '🚗 Таксист везет ваш заказ' : '🚗 Taksi manzil sari yo\'lda')}
-                {order.status === 'delivered' && (language === 'ru' ? '✅ Заказ доставлен к вашей двери!' : '✅ Buyurtma yetkazildi!')}
-              </div>
-              <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '4px', lineHeight: 1.4 }}>
-                {order.status === 'pending' && (language === 'ru' ? 'Продавцы Юнусабадского базара готовят товары' : 'Bozor sotuvchilari mahsulotlarni tayyorlamoqda')}
-                {order.status === 'picking' && (language === 'ru' ? 'Сборщик отбирает самые свежие фрукты и овощи на рядах' : 'Yunusobod rastalarida eng sara yangi mahsulotlar yig\'ilmoqda')}
-                {order.status === 'handed_over' && (language === 'ru' ? 'Пакеты проверены и погружены в багажник такси' : 'Xaridlar tekshirilib, taksi mashinasiga yuklandi')}
-                {order.status === 'on_the_way' && (language === 'ru' ? 'Водитель Cobalt 01 A 777 AA подъезжает по вашему адресу' : 'Cobalt 01 A 777 AA manzil sari harakatlanmoqda')}
-                {order.status === 'delivered' && (language === 'ru' ? 'Приятного аппетита и спасибо за покупку на базаре!' : 'Yoqimli ishtaha, xaridingiz uchun rahmat!')}
-              </div>
-            </div>
-
-            {/* Segmented Progress Bar */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '6px',
-              margin: '16px 0 20px'
-            }}>
-              {[
-                { step: 1, label: language === 'ru' ? 'Принят' : 'Qabul' },
-                { step: 2, label: language === 'ru' ? 'Аравачи' : 'Aravachi' },
-                { step: 3, label: language === 'ru' ? 'Такси' : 'Taksi' },
-                { step: 4, label: language === 'ru' ? 'Доставлен' : 'Yetkazildi' }
-              ].map((seg) => {
-                const isPassed = activeSegment >= seg.step;
-                const isCurrent = activeSegment === seg.step;
-
-                return (
-                  <div key={seg.step} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <div style={{
-                      height: '6px',
-                      borderRadius: '999px',
-                      background: isPassed ? '#10b981' : '#e2e8f0',
-                      transition: 'all 0.3s ease',
-                      boxShadow: isCurrent ? '0 0 8px rgba(16,185,129,0.5)' : 'none'
-                    }} />
-                    <span style={{
-                      fontSize: '0.68rem',
-                      fontWeight: isPassed ? 800 : 600,
-                      color: isPassed ? '#065f46' : '#94a3b8',
-                      textAlign: 'center'
-                    }}>
-                      {seg.label}
-                    </span>
+          {status.step >= 0 && (
+            <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
+              {STEPS[lang].map((label, i) => (
+                <div key={label} style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ height: 6, borderRadius: 3, background: i < status.step || status.step === 3 ? '#059669' : '#e2e8f0', overflow: 'hidden', position: 'relative' }}>
+                    {i === status.step && status.step < 3 && (
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, #a7f3d0, #059669, #a7f3d0)', backgroundSize: '200% 100%', animation: 'ot-flow 1.6s linear infinite' }} />
+                    )}
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Courier / Driver Profile Badge */}
-            <div style={{
-              background: '#f8fafc',
-              border: '1.5px solid #e2e8f0',
-              borderRadius: '16px',
-              padding: '12px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '50%',
-                  background: order.status === 'on_the_way' ? '#0284c7' : (order.status === 'handed_over' ? '#d97706' : '#059669'),
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.25rem',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-                }}>
-                  {order.status === 'on_the_way' ? '🚕' : (order.status === 'handed_over' ? '🤝' : '🛒')}
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0f172a' }}>
-                    {order.porter_name
-                      ? `${order.porter_name} (${language === 'ru' ? 'Аравачи' : 'Aravachi'})`
-                      : (order.status === 'on_the_way' 
-                        ? 'Farhod aka (Таксист)' 
-                        : (order.status === 'handed_over' ? 'Передача у ворот №4' : (language === 'ru' ? 'Ищем свободного аравачи…' : "Bo'sh aravachi qidirilmoqda…")))}
-                  </div>
-                  <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '1px' }}>
-                    {order.porter_name
-                      ? (order.status === 'handed_over'
-                        ? (language === 'ru' ? 'Передал заказ курьеру' : 'Buyurtmani kuryerga topshirdi')
-                        : (order.status === 'on_the_way'
-                          ? (language === 'ru' ? 'Несёт заказ к вам' : 'Buyurtmani sizga olib kelmoqda')
-                          : (language === 'ru' ? 'Собирает заказ по растам' : "Rastalardan buyurtmani yig'moqda")))
-                      : (order.status === 'on_the_way' 
-                        ? 'Cobalt Oq • 01 A 777 AA' 
-                        : (order.status === 'handed_over' ? 'Сборщик ➔ Водитель' : 'Юнусабадский базар'))}
-                  </div>
-                </div>
-              </div>
-
-              <a
-                href={`tel:${(order.porter_phone || '+998901234567').replace(/[^\d+]/g, '')}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: '#10b981',
-                  color: '#ffffff',
-                  padding: '8px 14px',
-                  borderRadius: '12px',
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  textDecoration: 'none',
-                  boxShadow: '0 3px 10px rgba(16,185,129,0.35)',
-                  flexShrink: 0
-                }}
-              >
-                <PhoneCall size={14} />
-                <span>{language === 'ru' ? 'Связь' : 'Aloqa'}</span>
-              </a>
-            </div>
-
-            {/* Clear Route and Location Points (EXACTLY WHAT USER ASKED) */}
-            <div style={{
-              marginTop: '16px',
-              paddingTop: '14px',
-              borderTop: '1px dashed #cbd5e1',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px'
-            }}>
-              {/* Pickup Point */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <div style={{
-                  width: '26px',
-                  height: '26px',
-                  borderRadius: '50%',
-                  background: '#dcfce7',
-                  color: '#15803d',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.8rem',
-                  flexShrink: 0,
-                  marginTop: '1px'
-                }}>
-                  🏛️
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
-                    {language === 'ru' ? 'Откуда (Точка сбора):' : 'Qayerdan (Bozor):'}
-                  </div>
-                  <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#0f172a' }}>
-                    {language === 'ru' ? 'Юнусабадский Дехкон Бозар (Ряды 1-14)' : 'Yunusobod Dehqon Bozori (1-14 rastalar)'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Delivery Point */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <div style={{
-                  width: '26px',
-                  height: '26px',
-                  borderRadius: '50%',
-                  background: '#fee2e2',
-                  color: '#dc2626',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.8rem',
-                  flexShrink: 0,
-                  marginTop: '1px'
-                }}>
-                  📍
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
-                    {language === 'ru' ? 'Куда (Адрес клиента):' : 'Qayerga (Manzil):'}
-                  </div>
-                  <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#0f172a' }}>
-                    {order.delivery_district ? `${order.delivery_district}, ` : ''}{order.delivery_address}
-                  </div>
-                  {order.landmark && (
-                    <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, marginTop: '2px' }}>
-                      🚩 {language === 'ru' ? 'Ориентир' : 'Mo\'ljal'}: {order.landmark}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* D. ORDER ITEMS BREAKDOWN */}
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '20px',
-            padding: '18px 16px',
-            border: '1.5px solid #e2e8f0',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '12px'
-            }}>
-              <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0f172a' }}>
-                🛍️ {language === 'ru' ? 'Состав заказа' : 'Buyurtma tarkibi'}
-              </span>
-              <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700 }}>
-                {order.items?.length || 0} {language === 'ru' ? 'наименования' : 'tur'}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {order.items?.map((item, idx) => (
-                <div 
-                  key={item.id || idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '9px 12px',
-                    borderRadius: '12px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '22px',
-                      height: '22px',
-                      borderRadius: '50%',
-                      background: '#dcfce7',
-                      color: '#15803d',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.72rem',
-                      fontWeight: 800
-                    }}>
-                      ✓
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#0f172a' }}>
-                        {item.product_name}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
-                        {item.quantity} {item.unit} × {item.price?.toLocaleString()} UZS
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#065f46' }}>
-                    {item.total_price?.toLocaleString()} UZS
-                  </div>
+                  <div style={{ fontSize: 11, marginTop: 5, color: i <= status.step ? '#065f46' : '#94a3b8', fontWeight: i === status.step ? 800 : 600, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
                 </div>
               ))}
             </div>
+          )}
 
-            {/* Delivery fee info */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginTop: '12px',
-              paddingTop: '10px',
-              borderTop: '1px dashed #cbd5e1',
-              fontSize: '0.8rem',
-              color: '#64748b'
-            }}>
-              <span>⚡️ {language === 'ru' ? 'Доставка такси по району' : 'Yetkazib berish'}:</span>
-              <span style={{ fontWeight: 700, color: '#0f172a' }}>{order.delivery_fee?.toLocaleString() || '15 000'} UZS</span>
+          {isActive && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, gap: 8 }}>
+              <div style={{ fontSize: 14, color: '#0f172a', minWidth: 0 }}>
+                {eta && <><span style={{ color: '#64748b' }}>{t('arrive_by')}: </span><b>{eta}</b></>}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#059669', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', animation: 'ot-pulse 1.4s ease-in-out infinite' }} />
+                LIVE
+              </div>
             </div>
+          )}
+        </div>
 
-            {/* Grand Total */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginTop: '10px',
-              padding: '10px 14px',
-              background: '#ecfdf5',
-              borderRadius: '12px',
-              fontSize: '0.92rem',
-              fontWeight: 800,
-              color: '#065f46'
-            }}>
-              <span>{language === 'ru' ? 'Итого к оплате:' : 'Jami to\'lov:'}</span>
-              <span style={{ fontSize: '1.15rem', color: '#047857' }}>
-                {order.total_amount?.toLocaleString()} UZS
-              </span>
+        {/* Porter */}
+        {openOrder.porter_name && (
+          <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#ecfdf5', color: '#047857', fontWeight: 800, fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {openOrder.porter_name.trim().charAt(0).toUpperCase()}
             </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>{openOrder.porter_name}</div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>{t('porter')} · Yunusobod Dehqon Bozori</div>
+            </div>
+            {openOrder.porter_phone && isActive && (
+              <a href={`tel:${openOrder.porter_phone.replace(/[^\d+]/g, '')}`} style={{ width: 44, height: 44, borderRadius: '50%', background: '#059669', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} aria-label={t('call')}>
+                <Phone size={20} />
+              </a>
+            )}
           </div>
+        )}
 
-          {/* E. Back to Market Main Button */}
-          <button 
-            type="button" 
-            onClick={onBackToMarket}
-            style={{
-              width: '100%',
-              padding: '14px',
-              borderRadius: '16px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-              color: '#ffffff',
-              fontSize: '0.95rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(16,185,129,0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-          >
-            <span>🛒 {language === 'ru' ? 'Вернуться на базар' : 'Bozorga qaytish'}</span>
+        {/* Contents */}
+        <div style={card}>
+          <button type="button" onClick={() => setShowItems((v) => !v)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
+            <Package size={20} color="#059669" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 15, color: '#0f172a' }}>{t('contents')}</div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>
+                {items.length} {t('items')} · {openOrder.status === 'picking' ? `${t('collected_of')} ${picked}/${items.length}` : `${Math.round(openOrder.total_amount).toLocaleString()} UZS`}
+              </div>
+            </div>
+            <ChevronDown size={20} color="#64748b" style={{ transform: showItems ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease', flexShrink: 0 }} />
           </button>
+          {showItems && (
+            <div style={{ marginTop: 12 }}>
+              {items.map((item) => (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderTop: '1px solid #f1f5f9' }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: item.is_picked ? '#059669' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {item.is_picked && <Check size={14} color="#ffffff" />}
+                  </div>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#0f172a' }}>{item.product_name}</span>
+                  <span style={{ fontSize: 13, color: '#64748b', whiteSpace: 'nowrap' }}>{Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(1)} {item.unit}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap' }}>{Math.round(item.total_price).toLocaleString()}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderTop: '1px solid #f1f5f9', fontSize: 14, color: '#64748b' }}>
+                <span>{t('delivery')}</span><span>{Math.round(openOrder.delivery_fee).toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 9, borderTop: '1px solid #e2e8f0', fontSize: 16, fontWeight: 800 }}>
+                <span>{t('total')}</span><span>{Math.round(openOrder.total_amount).toLocaleString()} UZS</span>
+              </div>
+            </div>
+          )}
+        </div>
 
+        {/* Details */}
+        <div style={card}>
+          {[
+            [MapPin, t('address'), [openOrder.delivery_district, openOrder.delivery_address].filter(Boolean).join(', ') + (openOrder.landmark ? ` · ${openOrder.landmark}` : '')],
+            [Clock, t('delivery'), openOrder.delivery_time_slot],
+            [CreditCard, t('payment'), paymentLabel],
+          ].map(([Icon, label, value], i) => (
+            <div key={label} style={{ display: 'flex', gap: 12, padding: '10px 0', borderTop: i ? '1px solid #f1f5f9' : 'none' }}>
+              <Icon size={18} color="#64748b" style={{ flexShrink: 0, marginTop: 2 }} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, color: '#64748b' }}>{label}</div>
+                <div style={{ fontSize: 14, color: '#0f172a', fontWeight: 600, overflowWrap: 'anywhere' }}>{value}</div>
+              </div>
+            </div>
+          ))}
+          <button type="button" onClick={copyNumber} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 0 0', marginTop: 4, border: 'none', borderTop: '1px solid #f1f5f9', background: 'none', cursor: 'pointer', color: '#64748b', fontSize: 13 }}>
+            {copied ? <Check size={16} color="#059669" /> : <Copy size={16} />}
+            {t('order')} #{openOrder.order_number}{copied ? ` · ${t('copied')}` : ''}
+          </button>
+        </div>
+
+        {!isActive && (
+          <button type="button" onClick={onBackToMarket} style={{ width: '100%', height: 52, borderRadius: 16, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 16, cursor: 'pointer' }}>
+            {t('order_again')}
+          </button>
+        )}
+
+        <style>{`
+          @keyframes ot-flow { from { background-position: 200% 0; } to { background-position: 0 0; } }
+          @keyframes ot-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+          .maplibregl-ctrl-attrib { font-size: 9px; }
+        `}</style>
+      </div>
+    );
+  }
+
+  // ---------- List of this customer's orders ----------
+  const listed = myOrders.map((n) => orders[n]).filter(Boolean);
+
+  return (
+    <div className="animate-fade" style={{ maxWidth: 640, margin: '0 auto', padding: '14px 0 110px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        {backBtn(onBackToMarket)}
+        <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>{t('my_orders')}</h2>
+      </div>
+
+      {!loading && listed.length === 0 && (
+        <div style={{ ...card, textAlign: 'center', padding: '36px 20px' }}>
+          <div style={{ fontSize: 44, marginBottom: 10 }}>🛍️</div>
+          <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 6 }}>{t('empty')}</div>
+          <div style={{ fontSize: 14, color: '#64748b', marginBottom: 18 }}>{t('empty_hint')}</div>
+          <button type="button" onClick={onBackToMarket} style={{ padding: '13px 22px', borderRadius: 14, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
+            {t('to_market')}
+          </button>
         </div>
       )}
 
+      {listed.map((o) => {
+        const active = ACTIVE_STATUSES.includes(o.status);
+        const created = parseDate(o.created_at);
+        return (
+          <button key={o.order_number} type="button" onClick={() => { triggerHaptic('light'); setOpenNumber(o.order_number); }} style={{ ...card, width: '100%', display: 'flex', alignItems: 'center', gap: 12, border: active ? '1.5px solid #6ee7b7' : '1.5px solid transparent', cursor: 'pointer', textAlign: 'left' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: active ? '#ecfdf5' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>
+              {st(o.status).emoji}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 15, color: active ? '#047857' : '#0f172a' }}>{st(o.status).title[lang]}</div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>
+                #{o.order_number} · {created ? created.toLocaleDateString([], { day: 'numeric', month: 'short' }) : ''} {formatTime(created)}
+              </div>
+              <div style={{ fontSize: 13, color: '#0f172a', fontWeight: 600 }}>{Math.round(o.total_amount).toLocaleString()} UZS</div>
+            </div>
+            <ChevronRight size={20} color="#94a3b8" style={{ flexShrink: 0 }} />
+          </button>
+        );
+      })}
     </div>
   );
 }

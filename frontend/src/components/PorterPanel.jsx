@@ -386,7 +386,10 @@ function ProfileStep({ t, onSave }) {
 function OrderRoute({ t, language, order, busy, error, onBack, onTogglePicked, onSetStatus, onRelease }) {
   const allPicked = order.items_count > 0 && order.picked_count === order.items_count;
   const progress = order.items_count ? Math.round((order.picked_count / order.items_count) * 100) : 0;
-  const mapUrl = `https://yandex.uz/maps/?text=${encodeURIComponent(`Toshkent, ${order.delivery_district}, ${order.delivery_address}`)}`;
+  // Exact point when the customer picked it on the map, otherwise search by the address text
+  const mapUrl = order.delivery_lat != null && order.delivery_lng != null
+    ? `https://yandex.uz/maps/?pt=${order.delivery_lng},${order.delivery_lat}&z=17&l=map`
+    : `https://yandex.uz/maps/?text=${encodeURIComponent(`Toshkent, ${order.delivery_district}, ${order.delivery_address}`)}`;
 
   return (
     <div className="animate-fade" style={{ paddingTop: 12, paddingBottom: 110 }}>

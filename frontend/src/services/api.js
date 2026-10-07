@@ -56,21 +56,6 @@ export const api = {
     return res.json();
   },
 
-  async getOrders(limit = 10) {
-    const res = await fetch(`${API_BASE}/orders?limit=${limit}`);
-    if (!res.ok) return [];
-    return res.json();
-  },
-
-  async updateOrderStatus(orderId, status) {
-    const res = await fetch(`${API_BASE}/orders/${orderId}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
-    });
-    return res.json();
-  },
-
   // Seller API
   async sellerLogin(phone_or_slug, pin) {
     const res = await fetch(`${API_BASE}/seller/login`, {

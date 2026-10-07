@@ -20,20 +20,13 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
   const [landmark, setLandmark] = useState('');
   const [timeSlot, setTimeSlot] = useState('Express (45-60 min)');
   const [paymentMethod, setPaymentMethod] = useState('click');
-  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showMap, setShowMap] = useState(false);
+  const [deliveryCoords, setDeliveryCoords] = useState(null);
 
   const itemsTotal = cart.reduce((sum, item) => sum + ((item.product?.price || 0) * (item.quantity || 1)), 0);
   const finalGrandTotal = (grandTotal !== undefined && grandTotal !== null) ? grandTotal : (itemsTotal + 15000);
-
-  const handleCopyCard = () => {
-    navigator.clipboard.writeText('4466136951540450');
-    setCopied(true);
-    triggerHaptic('success');
-    setTimeout(() => setCopied(false), 2500);
-  };
 
   if (!isOpen) return null;
 
@@ -58,6 +51,8 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
       landmark: landmark,
       delivery_time_slot: timeSlot,
       payment_method: paymentMethod,
+      delivery_lat: deliveryCoords?.lat ?? null,
+      delivery_lng: deliveryCoords?.lng ?? null,
       notes: notes || pickerNotes,
       items: cart.map(i => ({
         product_id: i.product.id,
@@ -198,8 +193,9 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
             {showMap && (
               <MapPicker
                 language={language}
-                onAddressSelect={(addr) => {
+                onAddressSelect={(addr, coords) => {
                   setAddress(addr);
+                  setDeliveryCoords(coords || null);
                   setShowMap(false);
                 }}
                 onClose={() => setShowMap(false)}
@@ -281,98 +277,6 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                   </button>
                 ))}
               </div>
-
-              {/* App redirect for Click / Payme */}
-              {paymentMethod !== 'cash' && (
-                <div style={{
-                  background: paymentMethod === 'click' 
-                    ? 'linear-gradient(135deg, #eff6ff, #dbeafe)' 
-                    : 'linear-gradient(135deg, #f0fdf9, #ccfbf1)',
-                  border: `1.5px solid ${paymentMethod === 'click' ? '#93c5fd' : '#99f6e4'}`,
-                  borderRadius: '14px',
-                  padding: '16px',
-                  marginTop: '14px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ 
-                    marginBottom: '10px',
-                    display: 'flex',
-                    justifyContent: 'center'
-                  }}>
-                    {paymentMethod === 'click' ? (
-                      <ClickLogo height={28} color="blue" />
-                    ) : (
-                      <PaymeLogo height={26} variant="color" />
-                    )}
-                  </div>
-                  <p style={{ 
-                    fontWeight: 800, 
-                    color: paymentMethod === 'click' ? '#1d4ed8' : '#0f766e',
-                    fontSize: '0.95rem',
-                    marginBottom: '4px'
-                  }}>
-                    {paymentMethod === 'click'
-                      ? (language === 'ru' ? 'Оплата через Click' : (language === 'en' ? 'Pay via Click' : 'Click orqali to\'lash'))
-                      : (language === 'ru' ? 'Оплата через Payme' : (language === 'en' ? 'Pay via Payme' : 'Payme orqali to\'lash'))
-                    }
-                  </p>
-                  <p style={{ 
-                    fontSize: '0.78rem', 
-                    color: '#64748b', 
-                    marginBottom: '14px',
-                    lineHeight: 1.4
-                  }}>
-                    {language === 'ru' 
-                      ? 'После оформления заказа нажмите кнопку ниже, чтобы перейти в приложение и оплатить.'
-                      : (language === 'en'
-                        ? 'After placing the order, tap the button below to open the app and pay.'
-                        : 'Buyurtmani rasmiylashtirgach, quyidagi tugmani bosib ilovaga o\'ting va to\'lang.'
-                      )
-                    }
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const url = paymentMethod === 'click' 
-                        ? 'https://my.click.uz' 
-                        : 'https://payme.uz';
-                      if (window.Telegram?.WebApp?.openLink) {
-                        window.Telegram.WebApp.openLink(url);
-                      } else {
-                        window.open(url, '_blank');
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      borderRadius: '10px',
-                      border: 'none',
-                      background: paymentMethod === 'click' 
-                        ? 'linear-gradient(135deg, #0088FF, #005CE6)' 
-                        : 'linear-gradient(135deg, #00C4D0, #009DA8)',
-                      color: '#ffffff',
-                      fontWeight: 800,
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      boxShadow: paymentMethod === 'click' 
-                        ? '0 3px 10px rgba(0, 119, 255, 0.3)' 
-                        : '0 3px 10px rgba(0, 196, 208, 0.3)'
-                    }}
-                  >
-                    <span>
-                      {paymentMethod === 'click'
-                        ? (language === 'ru' ? 'Перейти в Click' : (language === 'en' ? 'Open Click' : 'Click ilovasiga o\'tish'))
-                        : (language === 'ru' ? 'Перейти в Payme' : (language === 'en' ? 'Open Payme' : 'Payme ilovasiga o\'tish'))
-                      }
-                    </span>
-                    <span style={{ fontSize: '1rem' }}>→</span>
-                  </button>
-                </div>
-              )}
 
             </div>
           </div>

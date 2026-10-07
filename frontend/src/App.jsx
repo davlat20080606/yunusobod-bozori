@@ -20,14 +20,14 @@ import CheckoutModal from './components/CheckoutModal';
 import SellerPanel from './components/SellerPanel';
 import SellerPinGate from './components/SellerPinGate';
 import PorterPanel from './components/PorterPanel';
-import OrderTracker from './components/OrderTracker';
+import OrderTracker, { statusTitle, ACTIVE_STATUSES, rememberMyOrder } from './components/OrderTracker';
 import MobileBottomNav from './components/MobileBottomNav';
 import Footer from './components/Footer';
 
 import { Search, Sparkles, ChevronRight, Store, ShoppingBag, X } from 'lucide-react';
 
 export default function App() {
-  const { getLocalized, t } = useLanguage();
+  const { getLocalized, t, language } = useLanguage();
 
   // Active Navigation Tab: 'market' | 'catalog' | 'saved' | 'orders' | 'seller' | 'porter'
   const [activeTab, setActiveTab] = useState(() => {
@@ -85,6 +85,7 @@ export default function App() {
     }
   });
   const [sellerUnlocked, setSellerUnlocked] = useState(false);
+  const [activeOrderStatus, setActiveOrderStatus] = useState('pending');
 
   // Initialize Telegram WebApp SDK
   useEffect(() => {
@@ -127,21 +128,22 @@ export default function App() {
     }
   }, [savedProductIds]);
 
-  // Validate active order with backend on startup (auto-remove ghost/stale orders)
+  // Keep the active order banner live; hide it once the order is finished or gone
   useEffect(() => {
     if (!activeOrderNumber) return;
-    api.getOrder(activeOrderNumber)
+    const clear = () => {
+      setActiveOrderNumber('');
+      try { localStorage.removeItem('yunusobod_last_order'); } catch {}
+    };
+    const check = () => api.getOrder(activeOrderNumber)
       .then((order) => {
-        if (!order || order.status === 'delivered') {
-          setActiveOrderNumber('');
-          try { localStorage.removeItem('yunusobod_last_order'); } catch {}
-        }
+        if (!order || !ACTIVE_STATUSES.includes(order.status)) clear();
+        else setActiveOrderStatus(order.status);
       })
-      .catch(() => {
-        // Order does not exist on server -> purge ghost banner immediately
-        setActiveOrderNumber('');
-        try { localStorage.removeItem('yunusobod_last_order'); } catch {}
-      });
+      .catch(clear);
+    check();
+    const timer = setInterval(check, 15000);
+    return () => clearInterval(timer);
   }, [activeOrderNumber]);
 
   // Load Data from API
@@ -309,7 +311,7 @@ export default function App() {
                   {t('tracker.title')}: #{activeOrderNumber}
                 </div>
                 <div style={{ fontSize: '0.72rem', color: '#a7f3d0' }}>
-                  {t('tracker.status_on_the_way')} — {t('tracker.back_to_market')} →
+                  {statusTitle(activeOrderStatus, language)}
                 </div>
               </div>
             </div>
@@ -583,6 +585,8 @@ export default function App() {
         onOrderSuccess={(orderNum) => {
           setCheckoutModalOpen(false);
           setActiveOrderNumber(orderNum);
+          setActiveOrderStatus('pending');
+          rememberMyOrder(orderNum);
           try {
             localStorage.setItem('yunusobod_last_order', orderNum);
           } catch {}

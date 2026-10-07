@@ -92,6 +92,8 @@ class OrderModel(Base):
     delivery_address = Column(String(300), nullable=False)
     delivery_district = Column(String(100), default="Yunusobod")
     landmark = Column(String(200), nullable=True)
+    delivery_lat = Column(Float, nullable=True)
+    delivery_lng = Column(Float, nullable=True)
     delivery_time_slot = Column(String(100), default="Express (45-60 min)")
     payment_method = Column(String(50), default="cash")
     payment_status = Column(String(30), default="pending")
@@ -221,6 +223,8 @@ class OrderCreateSchema(BaseModel):
     delivery_address: str
     delivery_district: str = "Yunusobod"
     landmark: Optional[str] = None
+    delivery_lat: Optional[float] = None
+    delivery_lng: Optional[float] = None
     delivery_time_slot: str = "Express (45-60 min)"
     payment_method: str = "cash"
     notes: Optional[str] = None
@@ -251,6 +255,8 @@ class OrderSchema(BaseModel):
     delivery_address: str
     delivery_district: str
     landmark: Optional[str] = None
+    delivery_lat: Optional[float] = None
+    delivery_lng: Optional[float] = None
     delivery_time_slot: str
     payment_method: str
     payment_status: str

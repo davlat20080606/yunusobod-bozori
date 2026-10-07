@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.database import get_db
+from app.api.porter import check_pin
 from app.models.schemas import OrderModel, OrderItemModel, ProductModel, StoreModel, OrderCreateSchema, OrderSchema
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
@@ -15,7 +16,7 @@ async def create_order(data: OrderCreateSchema, db: AsyncSession = Depends(get_d
     if not data.items:
         raise HTTPException(status_code=400, detail="Buyurtmada mahsulotlar yo'q / Корзина пуста")
 
-    rand_suffix = random.randint(1000, 9999)
+    rand_suffix = random.SystemRandom().randint(100000, 999999)
     order_number = f"YB-{datetime.now().strftime('%d%m')}-{rand_suffix}"
 
     total_amount = 0.0
@@ -52,6 +53,8 @@ async def create_order(data: OrderCreateSchema, db: AsyncSession = Depends(get_d
         delivery_address=data.delivery_address,
         delivery_district=data.delivery_district,
         landmark=data.landmark,
+        delivery_lat=data.delivery_lat,
+        delivery_lng=data.delivery_lng,
         delivery_time_slot=data.delivery_time_slot,
         payment_method=data.payment_method,
         # Click/Payme are not connected to a merchant account yet, so nothing confirms the payment
@@ -87,24 +90,17 @@ async def create_order(data: OrderCreateSchema, db: AsyncSession = Depends(get_d
 @router.get("/{order_number_or_id}", response_model=OrderSchema)
 async def get_order(order_number_or_id: str, db: AsyncSession = Depends(get_db)):
     clean_num = order_number_or_id.replace("#", "").strip()
-    if clean_num.isdigit():
-        query = select(OrderModel).where(OrderModel.id == int(clean_num)).options(selectinload(OrderModel.items))
-    else:
-        query = select(OrderModel).where(OrderModel.order_number == clean_num).options(selectinload(OrderModel.items))
+    # Only the full order number works, so nobody can browse other people's orders by id
+    query = select(OrderModel).where(OrderModel.order_number == clean_num.upper()).options(selectinload(OrderModel.items))
 
     result = await db.execute(query)
     order = result.scalars().first()
-    if not order:
-        # Fallback to case-insensitive partial match
-        query = select(OrderModel).where(OrderModel.order_number.ilike(f"%{clean_num}%")).options(selectinload(OrderModel.items))
-        result = await db.execute(query)
-        order = result.scalars().first()
 
     if not order:
         raise HTTPException(status_code=404, detail="Buyurtma topilmadi / Заказ не найден")
     return order
 
-@router.patch("/{order_id}/status")
+@router.patch("/{order_id}/status", dependencies=[Depends(check_pin)])
 async def update_order_status(
     order_id: int,
     status: str = Body(..., embed=True),
@@ -125,7 +121,7 @@ async def update_order_status(
 
     return {"success": True, "status": order.status, "message": "Buyurtma holati yangilandi"}
 
-@router.patch("/items/{item_id}/toggle-picked")
+@router.patch("/items/{item_id}/toggle-picked", dependencies=[Depends(check_pin)])
 async def toggle_item_picked(item_id: int, db: AsyncSession = Depends(get_db)):
     res = await db.execute(select(OrderItemModel).where(OrderItemModel.id == item_id))
     item = res.scalars().first()
@@ -137,10 +133,3 @@ async def toggle_item_picked(item_id: int, db: AsyncSession = Depends(get_db)):
     await db.refresh(item)
 
     return {"success": True, "is_picked": item.is_picked}
-
-@router.get("", response_model=List[OrderSchema])
-async def list_orders(limit: int = 50, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(OrderModel).order_by(OrderModel.id.desc()).limit(limit).options(selectinload(OrderModel.items))
-    )
-    return result.scalars().all()
