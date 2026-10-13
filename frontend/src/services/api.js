@@ -18,6 +18,23 @@ export function setSellerSession(session) {
   } catch {}
 }
 
+function sessionStore(key) {
+  return {
+    get() {
+      try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; }
+    },
+    set(value) {
+      try {
+        if (value) localStorage.setItem(key, JSON.stringify(value));
+        else localStorage.removeItem(key);
+      } catch {}
+    }
+  };
+}
+
+export const staffSession = sessionStore('staff_session');
+export const adminSession = sessionStore('admin_session');
+
 function tgHeaders() {
   const initData = getTelegramInitData();
   return initData ? { 'x-telegram-init-data': initData } : {};
@@ -46,7 +63,79 @@ async function sellerFetch(path, options = {}) {
   return res.json();
 }
 
+// Same pattern for workers (aravachi, taksichi, pattachi) and the bozorkom
+async function tokenFetch(path, session, header, event, options = {}) {
+  const current = session.get();
+  const headers = { ...(options.headers || {}) };
+  if (current?.token) headers[header] = current.token;
+  if (options.body) headers['Content-Type'] = 'application/json';
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (res.status === 401) {
+    session.set(null);
+    window.dispatchEvent(new Event(event));
+  }
+  if (!res.ok) throw await readError(res, 'Request failed');
+  return res.json();
+}
+
+const staffFetch = (path, options) => tokenFetch(path, staffSession, 'x-staff-token', 'staff-signed-out', options);
+const adminFetch = (path, options) => tokenFetch(path, adminSession, 'x-admin-token', 'admin-signed-out', options);
+const json = (method, body) => ({ method, body: body === undefined ? undefined : JSON.stringify(body) });
+
 export const api = {
+  async getConfig() {
+    const res = await fetch(`${API_BASE}/config`);
+    if (!res.ok) throw await readError(res, 'Failed to load settings');
+    return res.json();
+  },
+
+  // Workers
+  async staffRegister(data) {
+    const res = await fetch(`${API_BASE}/staff/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...tgHeaders() }, body: JSON.stringify(data)
+    });
+    if (!res.ok) throw await readError(res, 'Registration failed');
+    return res.json();
+  },
+  async staffLogin(phone, pin) {
+    const res = await fetch(`${API_BASE}/staff/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...tgHeaders() }, body: JSON.stringify({ phone, pin })
+    });
+    if (!res.ok) throw await readError(res, 'Login failed');
+    return res.json();
+  },
+  porterOrders: () => staffFetch('/porter/orders'),
+  porterTake: (orderId) => staffFetch(`/porter/orders/${orderId}/take`, json('POST', {})),
+  porterPicked: (itemId, isPicked) => staffFetch(`/porter/items/${itemId}/picked`, json('PATCH', { is_picked: isPicked })),
+  porterStatus: (orderId, status) => staffFetch(`/porter/orders/${orderId}/status`, json('PATCH', { status })),
+  porterRelease: (orderId) => staffFetch(`/porter/orders/${orderId}/release`, json('POST', {})),
+  taxiOrders: () => staffFetch('/taxi/orders'),
+  taxiTake: (orderId) => staffFetch(`/taxi/orders/${orderId}/take`, json('POST', {})),
+  taxiStatus: (orderId, status) => staffFetch(`/taxi/orders/${orderId}/status`, json('PATCH', { status })),
+  pattaToday: () => staffFetch('/patta/today'),
+  pattaPay: (storeId, amount) => staffFetch(`/patta/${storeId}`, json('POST', { amount })),
+  pattaUndo: (storeId) => staffFetch(`/patta/${storeId}`, { method: 'DELETE' }),
+
+  // Bozorkom
+  async adminLogin(pin) {
+    const res = await fetch(`${API_BASE}/admin/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...tgHeaders() }, body: JSON.stringify({ pin })
+    });
+    if (!res.ok) throw await readError(res, 'Login failed');
+    return res.json();
+  },
+  adminOverview: () => adminFetch('/admin/overview'),
+  adminStores: () => adminFetch('/admin/stores'),
+  adminStoreStatus: (id, status) => adminFetch(`/admin/stores/${id}/status`, json('POST', { status })),
+  adminStorePin: (id, pin) => adminFetch(`/admin/stores/${id}/reset-pin`, json('POST', { pin })),
+  adminStaff: () => adminFetch('/admin/staff'),
+  adminStaffStatus: (id, status) => adminFetch(`/admin/staff/${id}/status`, json('POST', { status })),
+  adminStaffPin: (id, pin) => adminFetch(`/admin/staff/${id}/reset-pin`, json('POST', { pin })),
+  adminOrders: () => adminFetch('/admin/orders'),
+  adminCancelOrder: (id) => adminFetch(`/admin/orders/${id}/cancel`, json('POST', {})),
+  adminPatta: (day) => adminFetch(`/admin/patta${day ? `?day=${day}` : ''}`),
+  adminSettings: (values) => adminFetch('/admin/settings', json('PUT', values)),
+
   // Stores & Categories
   async getStores(category = '') {
     const url = category ? `${API_BASE}/stores?category=${category}` : `${API_BASE}/stores`;
@@ -132,10 +221,10 @@ export const api = {
     return res.json();
   },
 
-  async registerStore(storeData, adminPin) {
+  async registerStore(storeData) {
     const res = await fetch(`${API_BASE}/seller/register-store`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-admin-pin': adminPin },
+      headers: { 'Content-Type': 'application/json', ...tgHeaders() },
       body: JSON.stringify(storeData)
     });
     if (!res.ok) throw await readError(res, 'Failed to register store');
@@ -174,43 +263,6 @@ export const api = {
 
   async getStoreOrders() {
     return sellerFetch('/orders');
-  },
-
-  // Porter (aravachi) API
-  async porterRequest(method, path, pin, porterPhone, body) {
-    const headers = { 'Content-Type': 'application/json', 'x-porter-pin': pin, ...tgHeaders() };
-    if (porterPhone) headers['x-porter-phone'] = porterPhone;
-    const res = await fetch(`${API_BASE}/porter${path}`, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined
-    });
-    if (!res.ok) throw await readError(res, 'Request failed');
-    return res.json();
-  },
-
-  async porterLogin(pin) {
-    return api.porterRequest('POST', '/login', pin, null, { pin });
-  },
-
-  async porterGetOrders(pin, porterPhone, porterName = '') {
-    return api.porterRequest('GET', `/orders?porter_phone=${encodeURIComponent(porterPhone)}&porter_name=${encodeURIComponent(porterName)}`, pin);
-  },
-
-  async porterTakeOrder(pin, porterName, porterPhone, orderId) {
-    return api.porterRequest('POST', `/orders/${orderId}/take`, pin, porterPhone, { porter_name: porterName, porter_phone: porterPhone });
-  },
-
-  async porterSetPicked(pin, porterPhone, itemId, isPicked) {
-    return api.porterRequest('PATCH', `/items/${itemId}/picked`, pin, porterPhone, { is_picked: isPicked });
-  },
-
-  async porterSetStatus(pin, porterPhone, orderId, status) {
-    return api.porterRequest('PATCH', `/orders/${orderId}/status`, pin, porterPhone, { status });
-  },
-
-  async porterRelease(pin, porterPhone, orderId) {
-    return api.porterRequest('POST', `/orders/${orderId}/release`, pin, porterPhone);
   },
 
   // Market stats

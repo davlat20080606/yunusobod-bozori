@@ -799,7 +799,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
                   {/* 1-Tap Yandex Go Courier Action */}
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <a 
-                      href={`https://yandex.uz/maps/?rtext=41.3655,69.2885~${encodeURIComponent(order.delivery_district + ' ' + order.delivery_address)}&rtt=auto`}
+                      href={`https://yandex.uz/maps/?rtext=41.36467,69.29089~${encodeURIComponent(order.delivery_district + ' ' + order.delivery_address)}&rtt=auto`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="nav-btn"

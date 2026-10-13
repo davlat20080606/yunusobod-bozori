@@ -4,7 +4,7 @@ from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.database import get_db
-from app.models.schemas import ProductModel, ProductSchema
+from app.models.schemas import ProductModel, ProductSchema, StoreModel
 
 router = APIRouter(prefix="/api/products", tags=["products"])
 
@@ -16,7 +16,13 @@ async def get_products(
     featured_only: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
-    query = select(ProductModel).where(ProductModel.is_available == True).options(selectinload(ProductModel.store))
+    # Only stalls approved by the bozorkom sell to customers
+    query = (
+        select(ProductModel)
+        .join(StoreModel, StoreModel.id == ProductModel.store_id)
+        .where(ProductModel.is_available == True, StoreModel.status == "approved")
+        .options(selectinload(ProductModel.store))
+    )
 
     if category:
         query = query.where(ProductModel.category_slug == category)

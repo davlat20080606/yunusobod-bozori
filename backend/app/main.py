@@ -19,7 +19,7 @@ from app.database import engine, Base, get_db
 from app.models.schemas import MediaModel
 from app.services.seed_data import init_db_and_seed
 from app.services import maintenance
-from app.api import stores, products, seller, orders, stats, porter, reviews
+from app.api import stores, products, seller, orders, stats, porter, reviews, staff, taxi, patta, admin
 from app.bot.bot import setup_dispatcher, get_bot
 
 logging.basicConfig(level=logging.INFO)
@@ -156,6 +156,20 @@ app.include_router(orders.router)
 app.include_router(stats.router)
 app.include_router(porter.router)
 app.include_router(reviews.router)
+app.include_router(staff.router)
+app.include_router(taxi.router)
+app.include_router(patta.router)
+app.include_router(admin.router)
+
+
+@app.get("/api/config")
+async def public_config(db: AsyncSession = Depends(get_db)):
+    """What the app needs to draw the delivery zone."""
+    from app.services.config_store import get_setting, BAZAAR_LAT, BAZAAR_LNG
+    return {
+        "bazaar": {"lat": BAZAAR_LAT, "lng": BAZAAR_LNG},
+        "delivery_radius_km": float(await get_setting(db, "delivery_radius_km")),
+    }
 
 bot_status = {"bot": "not started"}
 

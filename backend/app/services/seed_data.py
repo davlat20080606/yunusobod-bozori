@@ -7,6 +7,22 @@ from app.database import Base, engine, async_session_factory
 
 CATEGORIES = [
     {
+        "slug": "poliz",
+        "name_uz": "Poliz: qovun va tarvuz",
+        "name_ru": "Бахча: дыни и арбузы",
+        "name_en": "Melons & watermelons",
+        "icon": "🍉",
+        "stall_area": "Poliz qatori"
+    },
+    {
+        "slug": "shop",
+        "name_uz": "Magazin: oziq-ovqat",
+        "name_ru": "Магазин: продукты",
+        "name_en": "Grocery shop",
+        "icon": "🏪",
+        "stall_area": "Magazinlar qatori"
+    },
+    {
         "slug": "combos",
         "name_uz": "👑 Katta Oila & Osh To'plamlari",
         "name_ru": "👑 Семейные Наборы & Плов-Сеты",
@@ -807,9 +823,15 @@ async def init_db_and_seed():
         cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("orders")})
         datetime_type = "TIMESTAMP" if conn.dialect.name == "postgresql" else "DATETIME"
         for col, col_type in [("porter_name", "VARCHAR(100)"), ("porter_phone", "VARCHAR(50)"), ("porter_accepted_at", datetime_type),
-                         ("delivery_lat", "FLOAT"), ("delivery_lng", "FLOAT")]:
+                         ("delivery_lat", "FLOAT"), ("delivery_lng", "FLOAT"),
+                         ("taxi_name", "VARCHAR(100)"), ("taxi_phone", "VARCHAR(50)")]:
             if col not in cols:
                 await conn.exec_driver_sql(f"ALTER TABLE orders ADD COLUMN {col} {col_type}")
+        store_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("stores")})
+        if "status" not in store_cols:
+            # Stalls that already exist were added by the administration, so they count as approved
+            await conn.exec_driver_sql("ALTER TABLE stores ADD COLUMN status VARCHAR(20) DEFAULT 'approved'")
+            await conn.exec_driver_sql("UPDATE stores SET status = 'approved'")
 
     async with async_session_factory() as session:
         # 1. Sync Categories

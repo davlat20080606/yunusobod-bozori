@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import async_session_factory
-from app.models.schemas import OrderModel, StoreModel, PorterModel
+from app.models.schemas import OrderModel, StoreModel, StaffModel
 from app.bot.bot import get_bot
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 CUSTOMER_TEXTS = {
     "pending": ("🧾 <b>Buyurtma qabul qilindi</b>", "🧾 <b>Заказ принят</b>", "Bo'sh aravachini qidiryapmiz", "Ищем свободного аравачи"),
     "picking": ("🛒 <b>Bozorda yig'ilmoqda</b>", "🛒 <b>Собираем на базаре</b>", "{porter} rastalarni aylanmoqda", "{porter} обходит расты"),
-    "handed_over": ("🤝 <b>Kuryerga topshirildi</b>", "🤝 <b>Передан курьеру</b>", "Kuryer tez orada yo'lga chiqadi", "Курьер скоро выедет"),
+    "handed_over": ("🤝 <b>Taksichiga topshirildi</b>", "🤝 <b>Передан таксисту</b>", "{taxi}", "{taxi}"),
     "on_the_way": ("🚗 <b>Kuryer yo'lda</b>", "🚗 <b>Курьер в пути</b>", "Buyurtmangizni olib kelmoqda", "Везём заказ к вам"),
     "delivered": ("🎉 <b>Yetkazildi!</b>", "🎉 <b>Заказ доставлен!</b>", "Yoqimli ishtaha! Rahmat", "Приятного аппетита! Спасибо"),
     "cancelled": ("✖️ <b>Buyurtma bekor qilindi</b>", "✖️ <b>Заказ отменён</b>", "", ""),
@@ -52,7 +52,13 @@ async def _customer_status(order_id: int):
             return
         title_uz, title_ru, sub_uz, sub_ru = texts
         porter = escape(order.porter_name or "Aravachi")
-        sub = " / ".join(x.format(porter=porter) for x in (sub_uz, sub_ru) if x)
+        taxi = escape(order.taxi_name) if order.taxi_name else ""
+        if order.status == "handed_over" and not taxi:
+            sub_uz, sub_ru = "Taksichi tez orada oladi", "Таксист скоро заберёт"
+        if order.status == "on_the_way" and taxi:
+            sub_uz, sub_ru = f"🚕 {taxi}", ""
+        parts = [x.format(porter=porter, taxi=taxi) for x in (sub_uz, sub_ru) if x]
+        sub = " / ".join(dict.fromkeys(parts))
         text = f"{title_uz} · {title_ru.replace('<b>', '').replace('</b>', '')}\n#{order.order_number}" + (f"\n{sub}" if sub else "")
         await _send(order.customer_tg_id, text, _webapp_button("📦 Buyurtma / Заказ", f"tab=orders&order={order.order_number}"))
 
@@ -69,7 +75,7 @@ async def _new_order(order_id: int):
             stores.setdefault(item.store_id, []).append(item)
         store_rows = (await db.execute(select(StoreModel).where(StoreModel.id.in_(list(stores))))).scalars().all()
         porters = (await db.execute(
-            select(PorterModel).where(PorterModel.last_seen >= datetime.utcnow() - timedelta(days=30))
+            select(StaffModel).where(StaffModel.role == "porter", StaffModel.status == "approved", StaffModel.tg_id.isnot(None))
         )).scalars().all()
 
     stalls = ", ".join(escape(s.stall_number) for s in store_rows)
@@ -94,6 +100,59 @@ async def _new_order(order_id: int):
         await _send(store.telegram_chat_id, seller_text, _webapp_button("🏪 Kabinet / Кабинет", "tab=seller_cabinet"))
 
 
+async def _taxis(order_id: int):
+    async with async_session_factory() as db:
+        order = await db.get(OrderModel, order_id)
+        taxis = (await db.execute(
+            select(StaffModel).where(StaffModel.role == "taxi", StaffModel.status == "approved", StaffModel.tg_id.isnot(None))
+        )).scalars().all()
+    if not order:
+        return
+    text = (
+        f"🚕 <b>Buyurtma tayyor · Заказ готов</b> #{order.order_number}\n"
+        f"🛒 {escape(order.porter_name or '')} — bozor darvozasida / у ворот базара\n"
+        f"📍 {escape(order.delivery_district or '')}, {escape(order.delivery_address)}"
+    )
+    keyboard = _webapp_button("🚕 Olish / Взять заказ", "tab=taxi")
+    await asyncio.gather(*[_send(t.tg_id, text, keyboard) for t in taxis])
+
+
+async def _admin(text: str):
+    from app.services.config_store import get_setting
+    async with async_session_factory() as db:
+        admin_tg = await get_setting(db, "admin_tg_id")
+    if admin_tg:
+        await _send(admin_tg, f"📝 <b>Yangi ariza · Новая заявка</b>\n{escape(text)}", _webapp_button("🏛 Bozorkom", "tab=admin"))
+
+
+async def _store_decision(store_id: int):
+    async with async_session_factory() as db:
+        store = await db.get(StoreModel, store_id)
+    if not store or not store.telegram_chat_id:
+        return
+    text = {
+        "approved": "✅ Rastangiz tasdiqlandi! Endi xaridorlar uni ko'radi. / Ваша раста одобрена!",
+        "rejected": "❌ Arizangiz rad etildi. Bozorkomga murojaat qiling. / Заявка отклонена.",
+        "blocked": "⛔ Rastangiz vaqtincha yopildi. Bozorkomga murojaat qiling. / Раста заблокирована.",
+    }.get(store.status)
+    if text:
+        await _send(store.telegram_chat_id, text)
+
+
+async def _staff_decision(staff_id: int):
+    async with async_session_factory() as db:
+        staff = await db.get(StaffModel, staff_id)
+    if not staff or not staff.tg_id:
+        return
+    text = {
+        "approved": "✅ Hisobingiz tasdiqlandi! Endi kabinetga kira olasiz. / Аккаунт одобрен!",
+        "rejected": "❌ Arizangiz rad etildi. / Заявка отклонена.",
+        "blocked": "⛔ Hisobingiz bloklandi. / Аккаунт заблокирован.",
+    }.get(staff.status)
+    if text:
+        await _send(staff.tg_id, text)
+
+
 def _background(coro):
     try:
         asyncio.get_running_loop().create_task(coro)
@@ -108,3 +167,19 @@ def notify_status(order_id: int):
 def notify_new_order(order_id: int):
     _background(_new_order(order_id))
     _background(_customer_status(order_id))
+
+
+def notify_taxis(order_id: int):
+    _background(_taxis(order_id))
+
+
+def notify_admin_application(text: str):
+    _background(_admin(text))
+
+
+def notify_store_decision(store_id: int):
+    _background(_store_decision(store_id))
+
+
+def notify_staff_decision(staff_id: int):
+    _background(_staff_decision(staff_id))

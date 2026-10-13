@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ShoppingCart, Phone, MapPin, CheckCircle2, Circle, ChevronLeft, LogOut, RefreshCw, User, Store, AlertCircle } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { api } from '../services/api';
+import { api, staffSession } from '../services/api';
+import StaffLogin from './StaffLogin';
 import { triggerHaptic } from '../services/telegram';
 
 const T = {
@@ -29,39 +30,21 @@ const T = {
   customer: { uz: 'Mijoz', ru: 'Покупатель', en: 'Customer' },
   map: { uz: 'Xaritada ochish', ru: 'Открыть на карте', en: 'Open on map' },
   note: { uz: 'Izoh', ru: 'Комментарий', en: 'Note' },
-  handed_over: { uz: '🤝 Kuryerga topshirdim', ru: '🤝 Передал курьеру', en: '🤝 Handed to courier' },
+  handed_over: { uz: '🤝 Taksichiga topshirdim', ru: '🤝 Передал таксисту', en: '🤝 Handed to taxi' },
   self_deliver: { uz: "🚶 O'zim olib boraman", ru: '🚶 Отнесу сам', en: '🚶 I will deliver' },
   delivered: { uz: '✅ Yetkazildi', ru: '✅ Доставлено', en: '✅ Delivered' },
   collect_first: { uz: "Avval hamma mahsulotlarni belgilang", ru: 'Сначала отметьте все товары', en: 'Tick all items first' },
+  waiting_taxi: { uz: "🚕 Taksichi kelib olishini kuting — u xabar oldi", ru: '🚕 Ждите таксиста — он получил уведомление', en: '🚕 Wait for the taxi driver — they got a notification' },
   release: { uz: 'Buyurtmani qaytarish', ru: 'Вернуть заказ', en: 'Give order back' },
   release_confirm: { uz: 'Buyurtmani qaytarasizmi? Boshqa aravachi oladi.', ru: 'Вернуть заказ? Его возьмёт другой аравачи.', en: 'Give the order back? Another porter will take it.' },
   status_picking: { uz: '🛒 Yig\'ilmoqda', ru: '🛒 Собирается', en: '🛒 Collecting' },
-  status_handed_over: { uz: '🤝 Kuryerga topshirildi', ru: '🤝 Передан курьеру', en: '🤝 With courier' },
+  status_handed_over: { uz: '🤝 Taksichini kutmoqda', ru: '🤝 Ждёт таксиста', en: '🤝 Waiting for taxi' },
   status_on_the_way: { uz: "🚶 Yo'lda", ru: '🚶 В пути', en: '🚶 On the way' },
   logout: { uz: 'Chiqish', ru: 'Выйти', en: 'Sign out' },
   min_ago: { uz: 'daq. oldin', ru: 'мин. назад', en: 'min ago' },
   cash: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' },
   check_payment: { uz: "to'lovni tekshiring", ru: 'проверьте оплату', en: 'check payment' },
 };
-
-const PIN_KEY = 'porter_pin';
-const PROFILE_KEY = 'porter_profile';
-
-function readStorage(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeStorage(key, value) {
-  try {
-    if (value === null) localStorage.removeItem(key);
-    else localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-}
 
 const card = {
   background: '#ffffff',
@@ -110,8 +93,12 @@ export default function PorterPanel({ onBackToMarket }) {
   const { language } = useLanguage();
   const t = (key) => T[key]?.[language] || T[key]?.uz || key;
 
-  const [pin, setPin] = useState(() => readStorage(PIN_KEY, ''));
-  const [profile, setProfile] = useState(() => readStorage(PROFILE_KEY, null));
+  // Personal account of this aravachi (phone + PIN, approved by the bozorkom)
+  const [session, setSession] = useState(() => {
+    const current = staffSession.get();
+    return current?.staff?.role === 'porter' ? current : null;
+  });
+  const profile = session?.staff;
   const [orders, setOrders] = useState({ available: [], mine: [] });
   const [tab, setTab] = useState('new');
   const [openOrderId, setOpenOrderId] = useState(null);
@@ -119,20 +106,20 @@ export default function PorterPanel({ onBackToMarket }) {
   const [busy, setBusy] = useState(false);
 
   const loadOrders = useCallback(async () => {
-    if (!pin || !profile) return;
+    if (!session) return;
     try {
-      const data = await api.porterGetOrders(pin, profile.phone, profile.name);
+      const data = await api.porterOrders();
       setOrders(data);
       setError('');
     } catch (err) {
-      if (err.status === 401) {
-        setPin('');
-        writeStorage(PIN_KEY, null);
+      if (err.status === 401 || err.status === 403) {
+        staffSession.set(null);
+        setSession(null);
       } else {
         setError(err.message);
       }
     }
-  }, [pin, profile]);
+  }, [session]);
 
   // Refresh every 10 seconds so new orders appear without touching the screen
   useEffect(() => {
@@ -156,12 +143,8 @@ export default function PorterPanel({ onBackToMarket }) {
     }
   };
 
-  if (!pin) {
-    return <PinStep t={t} onBack={onBackToMarket} onSuccess={(p) => { setPin(p); writeStorage(PIN_KEY, p); }} />;
-  }
-
-  if (!profile) {
-    return <ProfileStep t={t} onSave={(p) => { setProfile(p); writeStorage(PROFILE_KEY, p); }} />;
+  if (!session) {
+    return <StaffLogin role="porter" onBack={onBackToMarket} onSignedIn={() => setSession(staffSession.get())} />;
   }
 
   const openOrder = orders.mine.find((o) => o.id === openOrderId);
@@ -177,17 +160,17 @@ export default function PorterPanel({ onBackToMarket }) {
         onBack={() => setOpenOrderId(null)}
         onTogglePicked={(item) => runAction(async () => {
           triggerHaptic(item.is_picked ? 'light' : 'success');
-          await api.porterSetPicked(pin, profile.phone, item.id, !item.is_picked);
+          await api.porterPicked(item.id, !item.is_picked);
         })}
         onSetStatus={(status) => runAction(async () => {
           triggerHaptic('success');
-          await api.porterSetStatus(pin, profile.phone, openOrder.id, status);
+          await api.porterStatus(openOrder.id, status);
           if (status === 'delivered') setOpenOrderId(null);
         })}
         onRelease={() => {
           if (!window.confirm(t('release_confirm'))) return;
           runAction(async () => {
-            await api.porterRelease(pin, profile.phone, openOrder.id);
+            await api.porterRelease(openOrder.id);
             setOpenOrderId(null);
             setTab('new');
           });
@@ -213,7 +196,7 @@ export default function PorterPanel({ onBackToMarket }) {
         </div>
         <button
           type="button"
-          onClick={() => { setProfile(null); writeStorage(PROFILE_KEY, null); setPin(''); writeStorage(PIN_KEY, null); }}
+          onClick={() => { staffSession.set(null); setSession(null); }}
           style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#ffffff', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
         >
           <LogOut size={14} /> {t('logout')}
@@ -285,7 +268,7 @@ export default function PorterPanel({ onBackToMarket }) {
                 type="button"
                 disabled={busy}
                 onClick={() => runAction(async () => {
-                  await api.porterTakeOrder(pin, profile.name, profile.phone, order.id);
+                  await api.porterTake(order.id);
                   triggerHaptic('success');
                   setTab('mine');
                   setOpenOrderId(order.id);
@@ -311,75 +294,6 @@ function ErrorBox({ text }) {
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', borderRadius: 12, padding: '10px 12px', marginBottom: 12, fontSize: 13, fontWeight: 600 }}>
       <AlertCircle size={16} style={{ flexShrink: 0 }} /> {text}
     </div>
-  );
-}
-
-function PinStep({ t, onBack, onSuccess }) {
-  const [value, setValue] = useState('');
-  const [error, setError] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      await api.porterLogin(value);
-      triggerHaptic('success');
-      onSuccess(value);
-    } catch {
-      triggerHaptic('error');
-      setError(true);
-      setValue('');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <form onSubmit={submit} className="animate-fade" style={{ maxWidth: 360, margin: '40px auto', padding: '0 4px 110px', textAlign: 'center' }}>
-      <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-        <ShoppingCart size={34} color="#ffffff" />
-      </div>
-      <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>{t('title')}</h2>
-      <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>{t('pin_hint')}</p>
-      <input
-        type="password"
-        inputMode="numeric"
-        autoFocus
-        value={value}
-        onChange={(e) => { setValue(e.target.value.replace(/\D/g, '')); setError(false); }}
-        maxLength={8}
-        style={{ ...inputStyle, textAlign: 'center', fontSize: 24, letterSpacing: 8, borderColor: error ? '#ef4444' : '#cbd5e1' }}
-      />
-      {error && <ErrorBox text={t('pin_wrong')} />}
-      <button type="submit" disabled={!value || busy} style={{ ...primaryBtn, opacity: !value || busy ? 0.6 : 1, marginBottom: 10 }}>{t('enter')}</button>
-      <button type="button" onClick={onBack} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 15, cursor: 'pointer', padding: 10 }}>{t('back')}</button>
-    </form>
-  );
-}
-
-function ProfileStep({ t, onSave }) {
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('+998 ');
-  const valid = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 9;
-
-  return (
-    <form
-      onSubmit={(e) => { e.preventDefault(); if (valid) onSave({ name: name.trim(), phone: phone.replace(/\s+/g, ' ').trim() }); }}
-      className="animate-fade"
-      style={{ maxWidth: 360, margin: '40px auto', padding: '0 4px 110px' }}
-    >
-      <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-        <User size={30} color="#059669" />
-      </div>
-      <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6, textAlign: 'center' }}>{t('title')}</h2>
-      <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20, textAlign: 'center' }}>{t('profile_hint')}</p>
-      <label style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{t('your_name')}</label>
-      <input value={name} onChange={(e) => setName(e.target.value)} autoFocus style={{ ...inputStyle, marginTop: 6 }} placeholder="Rustam" />
-      <label style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{t('your_phone')}</label>
-      <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" inputMode="tel" style={{ ...inputStyle, marginTop: 6 }} />
-      <button type="submit" disabled={!valid} style={{ ...primaryBtn, opacity: valid ? 1 : 0.6 }}>{t('save')}</button>
-    </form>
   );
 }
 
@@ -496,7 +410,15 @@ function OrderRoute({ t, language, order, busy, error, onBack, onTogglePicked, o
             <button type="button" disabled={busy} onClick={onRelease} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: 8 }}>{t('release')}</button>
           </>
         )}
-        {(order.status === 'on_the_way' || order.status === 'handed_over') && (
+        {order.status === 'handed_over' && (
+          <>
+            <div style={{ fontSize: 14, color: '#1d4ed8', background: '#eff6ff', borderRadius: 12, padding: '12px 14px', textAlign: 'center', fontWeight: 700 }}>
+              {t('waiting_taxi')}
+            </div>
+            <button type="button" disabled={busy} onClick={() => onSetStatus('on_the_way')} style={{ ...secondaryBtn, opacity: busy ? 0.6 : 1 }}>{t('self_deliver')}</button>
+          </>
+        )}
+        {order.status === 'on_the_way' && (
           <button type="button" disabled={busy} onClick={() => onSetStatus('delivered')} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }}>{t('delivered')}</button>
         )}
       </div>

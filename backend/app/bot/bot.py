@@ -140,7 +140,7 @@ async def send_seller_order_notification(order_data: dict, store_name: str):
     address = f"{order_data.get('delivery_district', 'Yunusobod')}, {order_data.get('delivery_address', '')}"
     encoded_addr = address.replace(' ', '+')
     # Yandex Maps / Yandex Go routing URL
-    yandex_route_url = f"https://yandex.uz/maps/?rtext=41.3655,69.2885~{encoded_addr}&rtt=auto"
+    yandex_route_url = f"https://yandex.uz/maps/?rtext=41.36467,69.29089~{encoded_addr}&rtt=auto"
 
     text = (
         f"🔔 <b>YANGI BUYURTMA! #{order_data.get('order_number')}</b>\n\n"

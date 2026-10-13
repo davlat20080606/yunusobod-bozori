@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Search, X, Navigation, Loader, MapPin } from 'lucide-react';
 
 // Yunusobod Dehqon Bozori area
-const DEFAULT_CENTER = { lat: 41.3655, lng: 69.2885 };
+const DEFAULT_CENTER = { lat: 41.36467, lng: 69.29089 };
 // Tashkent bounding box for address search: west, north, east, south
 const TASHKENT_VIEWBOX = '69.10,41.45,69.45,41.20';
 const NOMINATIM = 'https://nominatim.openstreetmap.org';
@@ -34,7 +34,27 @@ function formatAddress(data) {
   return { main: main || details, details: main ? details : '' };
 }
 
-export default function MapPicker({ onAddressSelect, language, onClose }) {
+// Straight-line distance in km (haversine), same formula as the server
+export function distanceKm(a, b) {
+  const rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+function circlePolygon(center, radiusKm, steps = 96) {
+  const coords = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i / steps) * 2 * Math.PI;
+    const dLat = (radiusKm / 111.32) * Math.sin(angle);
+    const dLng = (radiusKm / (111.32 * Math.cos((center.lat * Math.PI) / 180))) * Math.cos(angle);
+    coords.push([center.lng + dLng, center.lat + dLat]);
+  }
+  return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] } };
+}
+
+export default function MapPicker({ onAddressSelect, language, onClose, bazaar = DEFAULT_CENTER, radiusKm = 3 }) {
   const t = (key) => TEXTS[key]?.[language] || TEXTS[key]?.uz || key;
 
   const mapElRef = useRef(null);
@@ -100,7 +120,15 @@ export default function MapPicker({ onAddressSelect, language, onClose }) {
       // Keep the attribution as a small (i) button, like map apps do
       map.once('load', () => {
         mapElRef.current?.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
+        // Delivery zone around the bazaar
+        map.addSource('zone', { type: 'geojson', data: circlePolygon(bazaar, radiusKm) });
+        map.addLayer({ id: 'zone-fill', type: 'fill', source: 'zone', paint: { 'fill-color': '#10b981', 'fill-opacity': 0.08 } });
+        map.addLayer({ id: 'zone-line', type: 'line', source: 'zone', paint: { 'line-color': '#059669', 'line-width': 2, 'line-dasharray': [3, 2] } });
       });
+      const bazaarPin = document.createElement('div');
+      bazaarPin.style.cssText = 'width:30px;height:30px;border-radius:50%;background:#059669;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:14px';
+      bazaarPin.textContent = '🏪';
+      new maplibregl.Marker({ element: bazaarPin }).setLngLat([bazaar.lng, bazaar.lat]).addTo(map);
 
       map.on('movestart', () => setDragging(true));
       map.on('moveend', () => {
@@ -221,7 +249,9 @@ export default function MapPicker({ onAddressSelect, language, onClose }) {
     mapRef.current?.flyTo({ center: [parseFloat(item.lon), parseFloat(item.lat)], zoom: 17, duration: 800 });
   };
 
-  const canConfirm = address && !addressLoading && !dragging;
+  const distance = distanceKm(bazaar, coords);
+  const outside = distance > radiusKm;
+  const canConfirm = address && !addressLoading && !dragging && !outside;
   const handleConfirm = () => {
     if (!canConfirm) return;
     onAddressSelect([address.main, address.details].filter(Boolean).join(', '), coords);
@@ -341,8 +371,19 @@ export default function MapPicker({ onAddressSelect, language, onClose }) {
             </div>
           )}
 
-          <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>
-            {t('deliveryPoint')}
+          {outside && !dragging && (
+            <div style={{ fontSize: 14, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '10px 12px', marginBottom: 10, fontWeight: 600 }}>
+              {language === 'ru'
+                ? `Этот адрес в ${distance.toFixed(1)} км от базара. Пока доставляем только в зелёном круге (${radiusKm} км).`
+                : (language === 'en'
+                  ? `This address is ${distance.toFixed(1)} km from the bazaar. For now we deliver only inside the green circle (${radiusKm} km).`
+                  : `Bu manzil bozordan ${distance.toFixed(1)} km uzoqda. Hozircha faqat yashil doira ichiga (${radiusKm} km) yetkazamiz.`)}
+            </div>
+          )}
+
+          <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+            <span>{t('deliveryPoint')}</span>
+            {!dragging && <span style={{ color: outside ? '#b91c1c' : '#047857', textTransform: 'none' }}>🏪 {distance.toFixed(1)} km</span>}
           </div>
           <div style={{ minHeight: 48, marginBottom: 14 }}>
             {dragging ? (

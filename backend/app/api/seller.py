@@ -11,8 +11,9 @@ from app.database import get_db
 from app.api.tg_auth import telegram_user
 from app.api.auth import (
     current_store, make_seller_token, normalize_phone,
-    check_not_locked, record_failure, check_admin
+    check_not_locked, record_failure
 )
+from app.bot.notify import notify_admin_application
 from app.models.schemas import (
     StoreModel, ProductModel, OrderModel, OrderItemModel, CategoryModel,
     ProductSchema, StoreSchema, UpdatePriceSchema, ToggleAvailabilitySchema,
@@ -56,6 +57,10 @@ async def seller_login(
     if not store or store.seller_pin != data.pin.strip():
         record_failure(request, f"seller:{phone}")
         raise HTTPException(status_code=401, detail="Telefon yoki PIN-kod noto'g'ri / Неверный телефон или PIN-код")
+    if store.status == "pending":
+        raise HTTPException(status_code=403, detail="Arizangiz bozorkomda ko'rib chiqilmoqda / Ваша заявка на рассмотрении у администрации")
+    if store.status != "approved":
+        raise HTTPException(status_code=403, detail="Rastangiz faol emas. Bozorkomga murojaat qiling / Раста не активна, обратитесь в администрацию")
 
     # Signing in inside Telegram turns on new-order messages for this stall
     tg_user = telegram_user(x_telegram_init_data)
@@ -71,8 +76,13 @@ async def seller_login(
     }
 
 
-@router.post("/register-store", dependencies=[Depends(check_admin)])
-async def register_store(data: StoreRegisterSchema, db: AsyncSession = Depends(get_db)):
+@router.post("/register-store")
+async def register_store(
+    data: StoreRegisterSchema,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Self-registration for magazinchi, mevachi, polizchi, go'shtchi; the bozorkom approves it."""
     if len(normalize_phone(data.owner_phone)) < 9:
         raise HTTPException(status_code=400, detail="Telefon raqamini to'liq kiriting / Введите номер телефона полностью")
     if await phone_taken(db, data.owner_phone):
@@ -99,16 +109,21 @@ async def register_store(data: StoreRegisterSchema, db: AsyncSession = Depends(g
         description_ru=data.description_ru or "Свежие отборные продукты напрямую с прилавка.",
         description_en="Fresh market produce directly from the stall.",
         is_open=True,
+        status="pending",
         rating=5.0,
         total_orders=0
     )
+    tg_user = telegram_user(x_telegram_init_data)
+    if tg_user:
+        new_store.telegram_chat_id = str(tg_user["id"])
     db.add(new_store)
     await db.commit()
     await db.refresh(new_store)
+    notify_admin_application(f"🏪 {new_store.name_uz} · {new_store.stall_number} · {new_store.owner_name} ({new_store.owner_phone})")
 
     return {
         "success": True,
-        "message": "Do'kon muvaffaqiyatli ro'yxatdan o'tdi! / Точка успешно зарегистрирована!",
+        "message": "Arizangiz bozorkomga yuborildi / Заявка отправлена в администрацию базара",
         "store": StoreSchema.from_orm(new_store)
     }
 

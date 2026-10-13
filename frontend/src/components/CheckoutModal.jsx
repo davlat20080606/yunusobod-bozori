@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { X, CheckCircle, Clock, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -31,6 +31,13 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
   const [error, setError] = useState('');
   const [showMap, setShowMap] = useState(false);
   const [deliveryCoords, setDeliveryCoords] = useState(null);
+  const [zone, setZone] = useState({ bazaar: { lat: 41.36467, lng: 69.29089 }, delivery_radius_km: 3 });
+  const radiusKm = zone.delivery_radius_km;
+
+  // The bozorkom can change the radius, so read it from the server
+  useEffect(() => {
+    if (isOpen) api.getConfig().then(setZone).catch(() => {});
+  }, [isOpen]);
 
   const itemsTotal = cart.reduce((sum, item) => sum + ((item.product?.price || 0) * (item.quantity || 1)), 0);
   const finalGrandTotal = (grandTotal !== undefined && grandTotal !== null) ? grandTotal : (itemsTotal + 15000);
@@ -40,8 +47,14 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!customerName.trim() || customerPhone.trim().length < 9 || !address.trim()) {
-      setError('Iltimos, ism, telefon va manzilni to\'liq kiriting!');
+      setError(language === 'ru' ? 'Пожалуйста, заполните имя, телефон и адрес' : "Iltimos, ism, telefon va manzilni to'liq kiriting!");
       triggerHaptic('error');
+      return;
+    }
+    if (!deliveryCoords) {
+      setError(language === 'ru' ? 'Отметьте дом на карте' : (language === 'en' ? 'Mark your home on the map' : 'Uyingizni xaritada belgilang'));
+      triggerHaptic('error');
+      setShowMap(true);
       return;
     }
 
@@ -169,23 +182,25 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
             </div>
 
             <div className="form-group">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <label className="form-label" style={{ margin: 0 }}>{t('checkout.address')} *</label>
-                <button
-                  type="button"
-                  onClick={() => setShowMap(true)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 4,
-                    background: 'linear-gradient(135deg, #059669, #10b981)',
-                    color: 'white', border: 'none', borderRadius: 8,
-                    padding: '5px 10px', fontSize: '0.75rem', fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  <MapPin size={13} />
-                  {language === 'ru' ? '🗺️ Карта' : (language === 'en' ? '🗺️ Map' : '🗺️ Xarita')}
-                </button>
-              </div>
+              <label className="form-label">{t('checkout.address')} *</label>
+              {/* The map point is required: it checks the 3 km zone and guides the porter and taxi */}
+              <button
+                type="button"
+                onClick={() => setShowMap(true)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left',
+                  padding: '12px 14px', borderRadius: 12, cursor: 'pointer', marginBottom: 8,
+                  border: deliveryCoords ? '1.5px solid #10b981' : '1.5px dashed #f59e0b',
+                  background: deliveryCoords ? '#f0fdf4' : '#fffbeb'
+                }}
+              >
+                <MapPin size={20} color={deliveryCoords ? '#059669' : '#d97706'} style={{ flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
+                  {deliveryCoords
+                    ? (language === 'ru' ? '✅ Точка на карте выбрана — изменить' : (language === 'en' ? '✅ Map point set — change' : "✅ Xaritada belgilandi — o'zgartirish"))
+                    : (language === 'ru' ? `Отметьте дом на карте (доставка до ${radiusKm} км от базара)` : (language === 'en' ? `Mark your home on the map (within ${radiusKm} km of the bazaar)` : `Uyingizni xaritada belgilang (bozordan ${radiusKm} km gacha)`))}
+                </span>
+              </button>
               <input 
                 type="text" 
                 className="form-input" 
@@ -206,6 +221,8 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                   setShowMap(false);
                 }}
                 onClose={() => setShowMap(false)}
+                bazaar={zone.bazaar}
+                radiusKm={radiusKm}
               />
             )}
 

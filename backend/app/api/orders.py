@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.database import get_db
-from app.api.porter import check_pin
+from app.api.auth import current_admin
+from app.services.config_store import get_setting, distance_km
 from app.api.tg_auth import telegram_user
 from app.bot.notify import notify_new_order, notify_status
 from app.models.schemas import OrderModel, OrderItemModel, ProductModel, StoreModel, OrderCreateSchema, OrderSchema, ReviewModel
@@ -32,6 +33,13 @@ async def create_order(
     if (slot.startswith("Express") and not 6 <= tashkent_hour < 19) or (slot.startswith("Evening") and tashkent_hour >= 19):
         raise HTTPException(status_code=409, detail="Bozor yopiq, boshqa vaqtni tanlang / Базар закрыт, выберите другое время доставки")
 
+    # Delivery only to homes near Yunusobod Dehqon Bozori; the bozorkom can widen the radius
+    radius = float(await get_setting(db, "delivery_radius_km"))
+    if data.delivery_lat is None or data.delivery_lng is None:
+        raise HTTPException(status_code=400, detail="Manzilni xaritada belgilang / Отметьте адрес на карте")
+    if distance_km(data.delivery_lat, data.delivery_lng) > radius:
+        raise HTTPException(status_code=409, detail=f"Hozircha faqat bozordan {radius:g} km ichida yetkazamiz / Пока доставляем только в радиусе {radius:g} км от базара")
+
     # Only trust the Telegram account that Telegram itself signed (used for status messages)
     tg_user = telegram_user(x_telegram_init_data)
 
@@ -49,7 +57,7 @@ async def create_order(
         store = await db.get(StoreModel, prod.store_id)
         if not prod.is_available:
             raise HTTPException(status_code=409, detail=f"«{prod.name_uz}» hozir yo'q / сейчас нет в наличии")
-        if not store or not store.is_open:
+        if not store or not store.is_open or store.status != "approved":
             raise HTTPException(status_code=409, detail=f"«{store.name_uz if store else prod.name_uz}» rastasi yopiq / раста закрыта")
 
         item_total = prod.price * item.quantity
@@ -128,7 +136,7 @@ async def get_order(order_number_or_id: str, db: AsyncSession = Depends(get_db))
     result.review_rating = review.rating if review else None
     return result
 
-@router.patch("/{order_id}/status", dependencies=[Depends(check_pin)])
+@router.patch("/{order_id}/status", dependencies=[Depends(current_admin)])
 async def update_order_status(
     order_id: int,
     status: str = Body(..., embed=True),
@@ -150,7 +158,7 @@ async def update_order_status(
 
     return {"success": True, "status": order.status, "message": "Buyurtma holati yangilandi"}
 
-@router.patch("/items/{item_id}/toggle-picked", dependencies=[Depends(check_pin)])
+@router.patch("/items/{item_id}/toggle-picked", dependencies=[Depends(current_admin)])
 async def toggle_item_picked(item_id: int, db: AsyncSession = Depends(get_db)):
     res = await db.execute(select(OrderItemModel).where(OrderItemModel.id == item_id))
     item = res.scalars().first()

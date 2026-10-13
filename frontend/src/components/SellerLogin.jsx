@@ -11,25 +11,26 @@ const T = {
   pin: { uz: 'PIN-kod', ru: 'PIN-код', en: 'PIN code' },
   enter: { uz: 'Kirish', ru: 'Войти', en: 'Sign in' },
   porter: { uz: '🛒 Men aravachiman (yuk tashuvchi) →', ru: '🛒 Я аравачи (носильщик) →', en: '🛒 I am a porter (aravachi) →' },
-  new_stall: { uz: "Yangi rasta qo'shish (ma'muriyat uchun)", ru: 'Новая раста (для администрации)', en: 'New stall (administration)' },
+  new_stall: { uz: "Sotuvchi sifatida ro'yxatdan o'tish", ru: 'Зарегистрироваться как продавец', en: 'Register as a seller' },
   back: { uz: 'Orqaga', ru: 'Назад', en: 'Back' },
   forgot: { uz: "PIN-kodni unutdingizmi? Bozor ma'muriyatiga murojaat qiling.", ru: 'Забыли PIN-код? Обратитесь в администрацию базара.', en: 'Forgot your PIN? Contact the bazaar administration.' },
-  reg_title: { uz: "Yangi rasta qo'shish", ru: 'Новая раста', en: 'New stall' },
-  reg_hint: { uz: "Faqat bozor ma'muriyati uchun. Sotuvchi keyin o'z telefoni va PIN-kodi bilan kiradi.", ru: 'Только для администрации базара. Продавец потом входит по своему телефону и PIN-коду.', en: 'For the bazaar administration only. The seller then signs in with their phone and PIN.' },
+  reg_title: { uz: "Sotuvchi arizasi", ru: 'Заявка продавца', en: 'Seller application' },
+  reg_hint: { uz: "Magazinchi, mevachi, polizchi, go'shtchi — hammasi shu ariza bilan. Bozorkom tasdiqlagach, rastangiz xaridorlarga ko'rinadi.", ru: 'Магазин, фрукты, бахча, мясо — для всех одна заявка. После одобрения базаркомом раста станет видна покупателям.', en: 'Shops, fruit, melon and meat sellers use the same form. The stall appears after the administration approves it.' },
   stall_name: { uz: 'Rasta nomi', ru: 'Название расты', en: 'Stall name' },
   stall_number: { uz: 'Rasta raqami (masalan: Rasta 5, Joy 2)', ru: 'Номер расты (например: Раста 5, место 2)', en: 'Stall number (e.g. Rasta 5, place 2)' },
   owner_name: { uz: 'Sotuvchi ismi', ru: 'Имя продавца', en: 'Seller name' },
-  category: { uz: "Bo'lim", ru: 'Раздел', en: 'Section' },
+  category: { uz: 'Siz kimsiz?', ru: 'Кто вы?', en: 'What do you sell?' },
   seller_pin: { uz: 'Sotuvchi uchun PIN (4–6 raqam)', ru: 'PIN для продавца (4–6 цифр)', en: 'Seller PIN (4–6 digits)' },
-  admin_pin: { uz: "Ma'muriyat PIN-kodi", ru: 'PIN администрации', en: 'Administration PIN' },
-  register: { uz: "Rastani qo'shish", ru: 'Добавить расту', en: 'Add stall' },
-  registered: { uz: "Rasta qo'shildi! Sotuvchi endi telefon va PIN bilan kirishi mumkin.", ru: 'Раста добавлена! Продавец может войти по телефону и PIN-коду.', en: 'Stall added! The seller can now sign in with phone and PIN.' },
+  register: { uz: 'Ariza yuborish', ru: 'Отправить заявку', en: 'Send application' },
+  registered: { uz: "Arizangiz bozorkomga yuborildi! Tasdiqlangach, shu telefon va PIN bilan kirasiz.", ru: 'Заявка отправлена базаркому! После одобрения входите по этому телефону и PIN.', en: 'Application sent! Sign in with this phone and PIN after approval.' },
 };
 
 const CATEGORIES = [
-  ['vegetables', '🍅 Sabzavotlar / Овощи'],
-  ['fruits', '🍇 Mevalar / Фрукты'],
-  ['meat', "🥩 Go'sht / Мясо"],
+  ['shop', '🏪 Magazinchi / Магазин'],
+  ['fruits', '🍇 Mevachi / Фрукты'],
+  ['poliz', '🍉 Polizchi / Бахча'],
+  ['meat', "🥩 Go'shtchi / Мясо"],
+  ['vegetables', '🍅 Sabzavotchi / Овощи'],
   ['bakery', '🥖 Non / Хлеб'],
   ['dry_fruits', '🥜 Quruq mevalar / Сухофрукты'],
   ['dairy', '🧀 Sut mahsulotlari / Молочка'],
@@ -72,7 +73,7 @@ export default function SellerLogin({ onSignedIn, onCancel, onOpenPorter }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
-  const [reg, setReg] = useState({ name_uz: '', stall_number: '', owner_name: '', owner_phone: '+998 ', category_slug: 'vegetables', pin: '', admin_pin: '' });
+  const [reg, setReg] = useState({ name_uz: '', stall_number: '', owner_name: '', owner_phone: '+998 ', category_slug: 'shop', pin: '' });
 
   const submitLogin = async (e) => {
     e.preventDefault();
@@ -98,12 +99,12 @@ export default function SellerLogin({ onSignedIn, onCancel, onOpenPorter }) {
     setError('');
     setDone('');
     try {
-      const { admin_pin, ...store } = reg;
-      await api.registerStore({ ...store, name_ru: store.name_uz }, admin_pin);
+      await api.registerStore({ ...reg, name_ru: reg.name_uz });
       triggerHaptic('success');
+      setPhone(reg.owner_phone);
+      setReg({ name_uz: '', stall_number: '', owner_name: '', owner_phone: '+998 ', category_slug: reg.category_slug, pin: '' });
+      setMode('login');
       setDone(t('registered'));
-      setPhone(store.owner_phone);
-      setReg({ name_uz: '', stall_number: '', owner_name: '', owner_phone: '+998 ', category_slug: reg.category_slug, pin: '', admin_pin });
     } catch (err) {
       triggerHaptic('error');
       setError(err.message);
@@ -125,7 +126,7 @@ export default function SellerLogin({ onSignedIn, onCancel, onOpenPorter }) {
   if (mode === 'register') {
     const set = (field) => (e) => setReg({ ...reg, [field]: field.endsWith('pin') ? e.target.value.replace(/\D/g, '') : e.target.value });
     const valid = reg.name_uz.trim().length >= 2 && reg.stall_number.trim() && reg.owner_name.trim().length >= 2
-      && reg.owner_phone.replace(/\D/g, '').length >= 9 && /^\d{4,6}$/.test(reg.pin) && reg.admin_pin;
+      && reg.owner_phone.replace(/\D/g, '').length >= 9 && /^\d{4,6}$/.test(reg.pin);
     return (
       <div style={page}>
         <form onSubmit={submitRegister} style={{ maxWidth: 400, margin: '0 auto' }}>
@@ -133,22 +134,24 @@ export default function SellerLogin({ onSignedIn, onCancel, onOpenPorter }) {
             <ArrowLeft size={18} /> {t('back')}
           </button>
           {header(t('reg_title'), t('reg_hint'))}
+          <label style={label}>{t('category')}</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+            {CATEGORIES.map(([slug, name]) => (
+              <button key={slug} type="button" onClick={() => setReg({ ...reg, category_slug: slug })} style={{ padding: '12px 8px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', color: '#ffffff', border: reg.category_slug === slug ? '2px solid #10b981' : '1.5px solid rgba(255,255,255,0.15)', background: reg.category_slug === slug ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)' }}>
+                {name.split(' / ')[language === 'ru' ? 1 : 0]}
+              </button>
+            ))}
+          </div>
           <label style={label}>{t('stall_name')}</label>
           <input style={input} value={reg.name_uz} onChange={set('name_uz')} maxLength={150} />
           <label style={label}>{t('stall_number')}</label>
           <input style={input} value={reg.stall_number} onChange={set('stall_number')} maxLength={50} />
-          <label style={label}>{t('category')}</label>
-          <select style={{ ...input, appearance: 'auto' }} value={reg.category_slug} onChange={set('category_slug')}>
-            {CATEGORIES.map(([slug, name]) => <option key={slug} value={slug} style={{ color: '#0f172a' }}>{name}</option>)}
-          </select>
           <label style={label}>{t('owner_name')}</label>
           <input style={input} value={reg.owner_name} onChange={set('owner_name')} maxLength={100} />
           <label style={label}>{t('phone')}</label>
           <input style={input} type="tel" inputMode="tel" value={reg.owner_phone} onChange={set('owner_phone')} maxLength={20} />
           <label style={label}>{t('seller_pin')}</label>
           <input style={input} inputMode="numeric" value={reg.pin} onChange={set('pin')} maxLength={6} />
-          <label style={label}>{t('admin_pin')}</label>
-          <input style={input} type="password" inputMode="numeric" value={reg.admin_pin} onChange={set('admin_pin')} maxLength={12} />
           {error && <Message type="error" text={error} />}
           {done && <Message type="ok" text={done} />}
           <button type="submit" disabled={!valid || busy} style={{ ...primary, opacity: !valid || busy ? 0.5 : 1 }}>{t('register')}</button>

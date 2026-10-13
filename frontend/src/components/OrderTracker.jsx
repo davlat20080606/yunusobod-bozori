@@ -4,7 +4,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { api } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 
-const BAZAAR = { lat: 41.3655, lng: 69.2885 };
+const BAZAAR = { lat: 41.36467, lng: 69.29089 };
 const MY_ORDERS_KEY = 'yunusobod_my_orders';
 const REFRESH_MS = 10000;
 
@@ -55,8 +55,8 @@ const STATUS = {
   },
   handed_over: {
     step: 2, emoji: '🤝',
-    title: { uz: 'Kuryerga topshirildi', ru: 'Передан курьеру', en: 'Handed to courier' },
-    sub: { uz: "Kuryer tez orada yo'lga chiqadi", ru: 'Курьер скоро выедет к вам', en: 'The courier is about to leave' },
+    title: { uz: 'Taksichiga topshirildi', ru: 'Передан таксисту', en: 'Handed to taxi' },
+    sub: { uz: "Taksichi tez orada yo'lga chiqadi", ru: 'Таксист скоро выедет к вам', en: 'The taxi is about to leave' },
   },
   on_the_way: {
     step: 2, emoji: '🚗',
@@ -377,6 +377,22 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             </div>
             {openOrder.porter_phone && isActive && (
               <a href={`tel:${openOrder.porter_phone.replace(/[^\d+]/g, '')}`} style={{ width: 44, height: 44, borderRadius: '50%', background: '#059669', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} aria-label={t('call')}>
+                <Phone size={20} />
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* Taxi driver who brings the order from the bazaar gate */}
+        {openOrder.taxi_name && (
+          <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>🚕</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>{openOrder.taxi_name}</div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>{lang === 'ru' ? 'Таксист' : (lang === 'en' ? 'Taxi driver' : 'Taksichi')}</div>
+            </div>
+            {openOrder.taxi_phone && isActive && (
+              <a href={`tel:${openOrder.taxi_phone.replace(/[^\d+]/g, '')}`} style={{ width: 44, height: 44, borderRadius: '50%', background: '#2563eb', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} aria-label={t('call')}>
                 <Phone size={20} />
               </a>
             )}

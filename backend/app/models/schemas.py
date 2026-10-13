@@ -43,6 +43,8 @@ class StoreModel(Base):
     description_ru = Column(Text, nullable=True)
     description_en = Column(Text, nullable=True)
     is_open = Column(Boolean, default=True)
+    # pending → approved by the bazaar administration (bozorkom) → visible to customers
+    status = Column(String(20), default="approved")
     rating = Column(Float, default=4.9)
     total_orders = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -124,6 +126,8 @@ class OrderModel(Base):
     porter_name = Column(String(100), nullable=True)
     porter_phone = Column(String(50), nullable=True)
     porter_accepted_at = Column(DateTime, nullable=True)
+    taxi_name = Column(String(100), nullable=True)
+    taxi_phone = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     items = relationship("OrderItemModel", back_populates="order", cascade="all, delete-orphan")
@@ -160,15 +164,39 @@ class ReviewModel(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
-class PorterModel(Base):
-    """Porters who opened their panel inside Telegram, so the bot can tell them about new orders."""
-    __tablename__ = "porters"
+class StaffModel(Base):
+    """Bazaar workers: aravachi (porter), taksichi (courier), pattachi (stall-fee collector)."""
+    __tablename__ = "staff"
 
     id = Column(Integer, primary_key=True, index=True)
-    tg_id = Column(String(50), unique=True, index=True, nullable=False)
-    name = Column(String(100), nullable=True)
-    phone = Column(String(50), nullable=True)
-    last_seen = Column(DateTime, default=datetime.utcnow)
+    role = Column(String(20), nullable=False)  # porter | taxi | pattachi
+    name = Column(String(100), nullable=False)
+    phone = Column(String(50), nullable=False, index=True)
+    pin = Column(String(10), nullable=False)
+    status = Column(String(20), default="pending")  # pending | approved | blocked
+    tg_id = Column(String(50), nullable=True)
+    car = Column(String(100), nullable=True)  # taxi drivers: car and plate number
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PattaPaymentModel(Base):
+    """One stall-fee (patta) payment per stall per day."""
+    __tablename__ = "patta_payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
+    day = Column(String(10), nullable=False, index=True)  # YYYY-MM-DD, Tashkent time
+    amount = Column(Float, nullable=False)
+    collector_id = Column(Integer, ForeignKey("staff.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SettingModel(Base):
+    """Values the bazaar administration can change without a new release."""
+    __tablename__ = "settings"
+
+    key = Column(String(50), primary_key=True)
+    value = Column(String(200), nullable=False)
 
 
 class MediaModel(Base):
@@ -247,6 +275,7 @@ class StoreSchema(BaseModel):
     total_orders: int
     products_count: Optional[int] = 0
     reviews_count: int = 0
+    status: str = "approved"
 
     class Config:
         from_attributes = True
@@ -313,6 +342,8 @@ class OrderSchema(BaseModel):
     notes: Optional[str] = None
     porter_name: Optional[str] = None
     porter_phone: Optional[str] = None
+    taxi_name: Optional[str] = None
+    taxi_phone: Optional[str] = None
     created_at: datetime
     items: List[OrderItemSchema] = []
     review_rating: Optional[int] = None
@@ -380,3 +411,16 @@ class StoreRegisterSchema(BaseModel):
 class ReviewCreateSchema(BaseModel):
     rating: int = Field(..., ge=1, le=5)
     comment: Optional[str] = Field(None, max_length=500)
+
+
+class StaffRegisterSchema(BaseModel):
+    role: str = Field(..., pattern=r"^(porter|taxi|pattachi)$")
+    name: str = Field(..., min_length=2, max_length=100)
+    phone: str = Field(..., max_length=50)
+    pin: str = Field(..., pattern=PIN_PATTERN)
+    car: Optional[str] = Field(None, max_length=100)
+
+
+class StaffLoginSchema(BaseModel):
+    phone: str = Field(..., max_length=50)
+    pin: str = Field(..., max_length=10)

@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/stores", tags=["stores"])
 
 @router.get("", response_model=List[StoreSchema])
 async def get_stores(category: Optional[str] = None, db: AsyncSession = Depends(get_db)):
-    query = select(StoreModel)
+    query = select(StoreModel).where(StoreModel.status == "approved")
     if category:
         query = query.where(StoreModel.category_slug == category)
     
@@ -39,7 +39,7 @@ async def get_categories(db: AsyncSession = Depends(get_db)):
 
 @router.get("/{slug}", response_model=StoreWithProductsSchema)
 async def get_store_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
-    query = select(StoreModel).where(StoreModel.slug == slug).options(
+    query = select(StoreModel).where(StoreModel.slug == slug, StoreModel.status == "approved").options(
         selectinload(StoreModel.products).selectinload(ProductModel.store)
     )
     result = await db.execute(query)

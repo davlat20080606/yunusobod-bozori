@@ -11,6 +11,8 @@ const NAMES = {
   dairy: { uz: 'Sut mahsulotlari', ru: 'Молочное', en: 'Dairy' },
   dry_fruits: { uz: 'Quruq mevalar', ru: 'Сухофрукты', en: 'Dried fruits' },
   combos: { uz: "To'plamlar", ru: 'Наборы', en: 'Sets' },
+  poliz: { uz: 'Poliz: qovun, tarvuz', ru: 'Бахча: дыни, арбузы', en: 'Melons' },
+  shop: { uz: 'Magazin', ru: 'Магазин', en: 'Grocery' },
 };
 
 const COUNT_WORD = { uz: 'mahsulot', ru: 'товаров', en: 'items' };

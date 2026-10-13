@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.models.schemas import StoreModel
+from app.models.schemas import StoreModel, StaffModel
 
 TOKEN_TTL_SECONDS = 30 * 24 * 3600
 
@@ -53,9 +53,11 @@ async def current_store(
     return store
 
 
-# Simple brute-force protection: 5 wrong PINs → 10 minutes pause (per phone and per device address)
+# Brute-force protection. Mobile operators put many people behind one address, so the strict
+# limit is per account (phone); the per-address limit is much higher and only stops mass guessing.
 _failures = defaultdict(list)
-MAX_FAILURES = 5
+MAX_FAILURES_PER_ACCOUNT = 5
+MAX_FAILURES_PER_ADDRESS = 40
 LOCK_SECONDS = 600
 
 
@@ -74,23 +76,66 @@ def client_ip(request: Request) -> str:
 
 
 def check_not_locked(request: Request, *keys: str):
-    ip = client_ip(request)
-    for key in (f"ip:{ip}", *keys):
-        if len(_recent(key)) >= MAX_FAILURES:
-            raise HTTPException(status_code=429, detail="Ko'p urinish. 10 daqiqadan keyin qayta urinib ko'ring / Слишком много попыток. Попробуйте через 10 минут")
+    too_many = HTTPException(status_code=429, detail="Ko'p urinish. 10 daqiqadan keyin qayta urinib ko'ring / Слишком много попыток. Попробуйте через 10 минут")
+    if len(_recent(f"ip:{client_ip(request)}")) >= MAX_FAILURES_PER_ADDRESS:
+        raise too_many
+    for key in keys:
+        if len(_recent(key)) >= MAX_FAILURES_PER_ACCOUNT:
+            raise too_many
 
 
 def record_failure(request: Request, *keys: str):
-    ip = client_ip(request)
-    for key in (f"ip:{ip}", *keys):
+    for key in (f"ip:{client_ip(request)}", *keys):
         _recent(key).append(time.time())
 
 
-def check_admin(request: Request, x_admin_pin: Optional[str] = Header(None)):
-    """Bazaar administration PIN (ADMIN_PIN in the server settings). Empty means the feature is off."""
-    check_not_locked(request)
+def _sign_kind(kind: str, obj_id: int, expires: int, secret_part: str) -> str:
+    msg = f"{kind}.{obj_id}.{expires}.{secret_part}".encode()
+    return hmac.new(_SECRET, msg, hashlib.sha256).hexdigest()[:40]
+
+
+def make_staff_token(staff: StaffModel) -> str:
+    expires = int(time.time()) + TOKEN_TTL_SECONDS
+    return f"{staff.id}.{expires}.{_sign_kind('staff', staff.id, expires, staff.pin)}"
+
+
+def staff_with_role(*roles: str):
+    """Dependency: the signed-in, approved worker with one of these roles."""
+    async def dependency(x_staff_token: Optional[str] = Header(None), db: AsyncSession = Depends(get_db)) -> StaffModel:
+        unauthorized = HTTPException(status_code=401, detail="Iltimos, qaytadan kiring / Пожалуйста, войдите снова")
+        try:
+            staff_id_s, expires_s, signature = (x_staff_token or "").split(".")
+            staff_id, expires = int(staff_id_s), int(expires_s)
+        except ValueError:
+            raise unauthorized
+        if expires < time.time():
+            raise unauthorized
+        staff = await db.get(StaffModel, staff_id)
+        if not staff or not hmac.compare_digest(signature, _sign_kind("staff", staff.id, expires, staff.pin)):
+            raise unauthorized
+        if staff.status != "approved":
+            raise HTTPException(status_code=403, detail="Hisobingiz faol emas / Ваш аккаунт не активен")
+        if roles and staff.role not in roles:
+            raise HTTPException(status_code=403, detail="Bu bo'lim siz uchun emas / Этот раздел не для вас")
+        return staff
+    return dependency
+
+
+def make_admin_token() -> str:
+    expires = int(time.time()) + TOKEN_TTL_SECONDS
+    return f"admin.{expires}.{_sign_kind('admin', 0, expires, settings.ADMIN_PIN)}"
+
+
+def current_admin(x_admin_token: Optional[str] = Header(None)):
+    """Bozorkom session; changing ADMIN_PIN signs everyone out."""
+    unauthorized = HTTPException(status_code=401, detail="Iltimos, qaytadan kiring / Пожалуйста, войдите снова")
     if not settings.ADMIN_PIN:
-        raise HTTPException(status_code=403, detail="Ma'muriyat PIN-kodi sozlanmagan / PIN администрации не настроен")
-    if not x_admin_pin or not hmac.compare_digest(x_admin_pin.strip(), settings.ADMIN_PIN):
-        record_failure(request)
-        raise HTTPException(status_code=403, detail="Ma'muriyat PIN-kodi noto'g'ri / Неверный PIN администрации")
+        raise unauthorized
+    try:
+        kind, expires_s, signature = (x_admin_token or "").split(".")
+        expires = int(expires_s)
+    except ValueError:
+        raise unauthorized
+    if kind != "admin" or expires < time.time() or not hmac.compare_digest(signature, _sign_kind("admin", 0, expires, settings.ADMIN_PIN)):
+        raise unauthorized
+    return True

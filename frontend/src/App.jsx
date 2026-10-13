@@ -22,6 +22,9 @@ import CheckoutModal from './components/CheckoutModal';
 import SellerPanel from './components/SellerPanel';
 import SellerLogin from './components/SellerLogin';
 import SellerHub from './components/SellerHub';
+import TaxiPanel from './components/TaxiPanel';
+import PattachiPanel from './components/PattachiPanel';
+import AdminPanel from './components/AdminPanel';
 import PorterPanel from './components/PorterPanel';
 import OrderTracker, { statusTitle, ACTIVE_STATUSES, rememberMyOrder } from './components/OrderTracker';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -37,7 +40,7 @@ export default function App() {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tab = urlParams.get('tab');
-      if (tab && ['market', 'catalog', 'saved', 'orders', 'seller', 'seller_cabinet', 'porter'].includes(tab)) return tab;
+      if (tab && ['market', 'catalog', 'saved', 'orders', 'seller', 'seller_cabinet', 'porter', 'taxi', 'pattachi', 'admin'].includes(tab)) return tab;
     } catch {}
     return 'market';
   });
@@ -403,7 +406,7 @@ export default function App() {
                   cartTotal={cartTotal}
                   onOpenCart={() => setCartDrawerOpen(true)}
                   onOpenSellerCabinet={() => setActiveTab('seller_cabinet')}
-                  onOpenPorter={() => setActiveTab('porter')}
+                  onOpenRole={(role) => { setActiveTab(role); window.scrollTo(0, 0); }}
                 />
               )}
 
@@ -430,6 +433,9 @@ export default function App() {
               {activeTab === 'porter' && (
                 <PorterPanel onBackToMarket={() => setActiveTab('seller')} />
               )}
+              {activeTab === 'taxi' && <TaxiPanel onBackToMarket={() => setActiveTab('seller')} />}
+              {activeTab === 'pattachi' && <PattachiPanel onBackToMarket={() => setActiveTab('seller')} />}
+              {activeTab === 'admin' && <AdminPanel onBackToMarket={() => setActiveTab('seller')} />}
 
               {/* VIEW B: ORDER TRACKER */}
               {activeTab === 'orders' && (
