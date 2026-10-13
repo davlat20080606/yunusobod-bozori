@@ -91,7 +91,7 @@ async def _new_order(order_id: int):
             f"🏪 {escape(store.stall_number)}\n\n{lines}\n\n"
             f"📦 Aravachi keladi — tayyorlab qo'ying / Аравачи скоро придёт — подготовьте товар"
         )
-        await _send(store.telegram_chat_id, seller_text, _webapp_button("🏪 Kabinet / Кабинет", "tab=seller"))
+        await _send(store.telegram_chat_id, seller_text, _webapp_button("🏪 Kabinet / Кабинет", "tab=seller_cabinet"))
 
 
 def _background(coro):

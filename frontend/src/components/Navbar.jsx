@@ -25,16 +25,11 @@ export default function Navbar({
   setSearchQuery,
   onOpenCatalogDrawer
 }) {
-  const { lang, setLang, t } = useLanguage();
+  const { t } = useLanguage();
 
   const handleTabChange = (tab) => {
     triggerHaptic('light');
     setActiveTab(tab);
-  };
-
-  const handleLangChange = (newLang) => {
-    triggerHaptic('selection');
-    setLang(newLang);
   };
 
   return (
@@ -114,24 +109,6 @@ export default function Navbar({
               <span className="med-action-label">{t('nav.saved')}</span>
             </button>
 
-            {/* Cart Button */}
-            <button 
-              type="button"
-              className="med-action-btn med-cart-btn"
-              onClick={() => {
-                triggerHaptic('medium');
-                onOpenCart();
-              }}
-            >
-              <div className="relative">
-                <ShoppingBag size={18} />
-                {cartItemsCount > 0 && (
-                  <span className="med-badge-count bg-emerald-600">{cartItemsCount}</span>
-                )}
-              </div>
-              <span className="med-action-label">{t('nav.cart')}</span>
-            </button>
-
             {/* My Orders / Orders Tracker */}
             <button 
               type="button"
@@ -151,20 +128,6 @@ export default function Navbar({
               <Lock size={16} />
               <span className="med-action-label">{t('nav.seller_mode')}</span>
             </button>
-
-            {/* Language Switcher */}
-            <div className="med-lang-pills">
-              {['uz', 'ru', 'en'].map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  className={`med-lang-pill ${lang === l ? 'active' : ''}`}
-                  onClick={() => handleLangChange(l)}
-                >
-                  {l.toUpperCase()}
-                </button>
-              ))}
-            </div>
 
           </div>
 

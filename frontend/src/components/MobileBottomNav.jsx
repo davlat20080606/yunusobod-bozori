@@ -95,7 +95,7 @@ export default function MobileBottomNav({
         {/* 5. Sotuvchi kabineti / Seller Panel */}
         <button
           type="button"
-          className={`med-nav-item ${activeTab === 'seller' ? 'active' : ''}`}
+          className={`med-nav-item ${['seller', 'seller_cabinet', 'porter'].includes(activeTab) ? 'active' : ''}`}
           onClick={() => handleNavClick('seller')}
         >
           <div className="med-nav-icon-box">

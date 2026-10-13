@@ -25,6 +25,7 @@ import ProductCard from './ProductCard';
 
 export default function ProductDetailView({ 
   product, 
+  store = null,
   onBack, 
   onAddToCart, 
   onSelectCategory,
@@ -93,15 +94,8 @@ export default function ProductDetailView({
 
   const stockAvailable = Math.round(product.stock_quantity || 45);
 
-  const stallWord = language === 'ru' ? 'Прилавок' : (language === 'en' ? 'Stall' : 'Rasta');
-  const storeLabel = product.store_name 
-    ? product.store_name 
-    : (product.store_id === 2 ? `KAREN AKA (${stallWord} #14)` 
-      : (product.store_id === 1 ? `DILSHOD OTA (${stallWord} #1)` 
-      : (product.store_id === 5 ? `BOTIR AKA (${stallWord} #8)` 
-      : (product.store_id === 4 ? `ZUXRA OPA (${stallWord} #7)` 
-      : (product.store_id === 6 ? `AKMAL (${stallWord} #9)` 
-      : `NODIRA OPA (${stallWord} #10)`)))));
+  // Real stall and seller from the database
+  const storeLabel = store ? `${getLocalized(store, 'name')} · ${store.stall_number}` : '';
 
   const CATEGORY_NAMES = {
     meat: { ru: 'Свежее мясо и деликатесы', uz: 'Yangi go\'sht va qazilar', en: 'Fresh Meats & Cuts' },
@@ -115,18 +109,6 @@ export default function ProductDetailView({
 
   const currentCategoryTitle = CATEGORY_NAMES[product.category_slug]?.[language] || 
     (product.category_slug ? product.category_slug.toUpperCase() : (language === 'ru' ? 'Каталог' : 'Katalog'));
-
-  const regionText = language === 'ru' 
-    ? 'Узбекистан (Ташкент / Ферганская долина)' 
-    : (language === 'en' ? 'Uzbekistan (Tashkent / Fergana Valley)' : 'O\'zbekiston (Toshkent / Vodiy)');
-
-  const qualityText = language === 'ru' 
-    ? '100% Халяль и Санитарный контроль' 
-    : (language === 'en' ? '100% Halal & Sanitary Inspection' : '100% Halol va Sanitariya Nazorati');
-
-  const storageText = language === 'ru' 
-    ? 'от +2°C до +6°C (В прохладном месте)' 
-    : (language === 'en' ? '+2°C to +6°C (Keep in cool place)' : '+2°C dan +6°C gacha (Sovuq joyda)');
 
   return (
     <div className="med-pdp-page animate-fade pb-16">
@@ -424,45 +406,6 @@ export default function ProductDetailView({
 
         </div>
 
-      </div>
-
-      {/* 3. Bottom Full-Width Specifications Card (Xususiyatlar) */}
-      <div className="med-pdp-specs-section">
-        <h3 className="med-pdp-specs-title">
-          {language === 'ru' ? 'Характеристики и свойства' : (language === 'en' ? 'Specifications' : 'Xususiyatlar')}
-        </h3>
-
-        <div className="med-pdp-specs-grid">
-          <div className="med-pdp-spec-cell">
-            <span className="med-pdp-cell-label">{language === 'ru' ? 'Категория' : (language === 'en' ? 'Category' : 'Kategoriya')}</span>
-            <span className="med-pdp-cell-val">{currentCategoryTitle}</span>
-          </div>
-
-          <div className="med-pdp-spec-cell">
-            <span className="med-pdp-cell-label">{language === 'ru' ? 'Единица фасовки' : (language === 'en' ? 'Unit' : 'O\'lchov birligi')}</span>
-            <span className="med-pdp-cell-val">{displayUnit}</span>
-          </div>
-
-          <div className="med-pdp-spec-cell">
-            <span className="med-pdp-cell-label">{language === 'ru' ? 'Регион сбора / ферма' : (language === 'en' ? 'Region / Origin' : 'Kelib chiqishi')}</span>
-            <span className="med-pdp-cell-val">{regionText}</span>
-          </div>
-
-          <div className="med-pdp-spec-cell">
-            <span className="med-pdp-cell-label">{language === 'ru' ? 'Контроль качества' : (language === 'en' ? 'Quality Inspection' : 'Sertifikat & Nazorat')}</span>
-            <span className="med-pdp-cell-val text-emerald-700 font-bold">{qualityText}</span>
-          </div>
-
-          <div className="med-pdp-spec-cell">
-            <span className="med-pdp-cell-label">{language === 'ru' ? 'Условия хранения' : (language === 'en' ? 'Storage condition' : 'Saqlash sharoiti')}</span>
-            <span className="med-pdp-cell-val">{storageText}</span>
-          </div>
-
-          <div className="med-pdp-spec-cell">
-            <span className="med-pdp-cell-label">{language === 'ru' ? 'Минимальный заказ' : (language === 'en' ? 'Minimum order' : 'Minimal buyurtma')}</span>
-            <span className="med-pdp-cell-val">{min} {displayUnit}</span>
-          </div>
-        </div>
       </div>
 
       {/* 4. Other Bazaar Recommendations */}

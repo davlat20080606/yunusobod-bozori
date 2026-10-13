@@ -19,6 +19,7 @@ import CartDrawer from './components/CartDrawer';
 import CheckoutModal from './components/CheckoutModal';
 import SellerPanel from './components/SellerPanel';
 import SellerLogin from './components/SellerLogin';
+import SellerHub from './components/SellerHub';
 import PorterPanel from './components/PorterPanel';
 import OrderTracker, { statusTitle, ACTIVE_STATUSES, rememberMyOrder } from './components/OrderTracker';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -34,7 +35,7 @@ export default function App() {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tab = urlParams.get('tab');
-      if (tab && ['market', 'catalog', 'saved', 'orders', 'seller', 'porter'].includes(tab)) return tab;
+      if (tab && ['market', 'catalog', 'saved', 'orders', 'seller', 'seller_cabinet', 'porter'].includes(tab)) return tab;
     } catch {}
     return 'market';
   });
@@ -365,6 +366,7 @@ export default function App() {
             /* FULL PRODUCT DETAIL VIEW (MEDBAZA / UZUM STYLE) */
             <ProductDetailView 
               product={selectedProduct}
+              store={stores.find((st) => st.id === selectedProduct.store_id) || null}
               onBack={() => setSelectedProduct(null)}
               onAddToCart={handleAddToCart}
               onSelectCategory={(slug) => {
@@ -379,28 +381,39 @@ export default function App() {
             />
           ) : (
             <>
-              {/* VIEW A: SELLER MANAGEMENT PANEL (PIN-protected) */}
-              {activeTab === 'seller' && !sellerUnlocked && (
-                <SellerLogin
-                  onSignedIn={() => setSellerUnlocked(true)}
-                  onCancel={() => setActiveTab('market')}
+              {/* VIEW A0: "Sotuvchi" page — cart, language, seller and porter entries */}
+              {activeTab === 'seller' && (
+                <SellerHub
+                  cartItemsCount={cartItemsCount}
+                  cartTotal={cartTotal}
+                  onOpenCart={() => setCartDrawerOpen(true)}
+                  onOpenSellerCabinet={() => setActiveTab('seller_cabinet')}
                   onOpenPorter={() => setActiveTab('porter')}
                 />
               )}
-              {activeTab === 'seller' && sellerUnlocked && (
+
+              {/* VIEW A: SELLER MANAGEMENT PANEL (PIN-protected) */}
+              {activeTab === 'seller_cabinet' && !sellerUnlocked && (
+                <SellerLogin
+                  onSignedIn={() => setSellerUnlocked(true)}
+                  onCancel={() => setActiveTab('seller')}
+                  onOpenPorter={() => setActiveTab('porter')}
+                />
+              )}
+              {activeTab === 'seller_cabinet' && sellerUnlocked && (
                 <SellerPanel 
                   onProductPriceUpdated={loadInitialData}
-                  onBackToMarket={() => setActiveTab('market')}
+                  onBackToMarket={() => setActiveTab('seller')}
                   onSignOut={() => {
                     setSellerUnlocked(false);
-                    setActiveTab('market');
+                    setActiveTab('seller');
                   }}
                 />
               )}
 
               {/* VIEW A2: ARAVACHI (BAZAAR PORTER) PANEL */}
               {activeTab === 'porter' && (
-                <PorterPanel onBackToMarket={() => setActiveTab('market')} />
+                <PorterPanel onBackToMarket={() => setActiveTab('seller')} />
               )}
 
               {/* VIEW B: ORDER TRACKER */}
