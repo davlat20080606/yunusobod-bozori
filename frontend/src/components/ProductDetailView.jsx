@@ -400,7 +400,6 @@ export default function ProductDetailView({
               <span className="text-emerald-700 underline font-extrabold cursor-pointer" onClick={() => store && onOpenStore && onOpenStore(store)}>
                 {storeLabel}
               </span>
-              <span className="text-slate-400 font-normal"> • SKU YB-{1000 + product.id}</span>
             </div>
             <div className="text-xs text-emerald-700 font-extrabold mt-1">
               ● {language === 'ru' ? 'В наличии' : (language === 'en' ? 'In Stock' : 'Mavjud')}
