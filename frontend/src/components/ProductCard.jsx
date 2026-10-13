@@ -110,7 +110,7 @@ export default function ProductCard({
     : null;
 
   // Real stall from the server (store_name_*, stall_number come with every product)
-  const storeName = language === 'ru' ? (product.store_name_ru || product.store_name_uz) : product.store_name_uz;
+  const storeName = (language === 'ru' ? product.store_name_ru : (language === 'en' ? product.store_name_en : null)) || product.store_name_uz;
   const storeLabel = product.stall_number
     ? `${storeName} • ${product.stall_number}`.toUpperCase()
     : (language === 'ru' ? 'ЮНУСАБАДСКИЙ БАЗАР' : (language === 'en' ? 'YUNUSABAD BAZAAR' : 'YUNUSOBOD BOZORI'));

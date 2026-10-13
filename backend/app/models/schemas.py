@@ -97,6 +97,11 @@ class ProductModel(Base):
         return store.name_ru if store else None
 
     @property
+    def store_name_en(self):
+        store = self._loaded_store()
+        return store.name_en if store else None
+
+    @property
     def stall_number(self):
         store = self._loaded_store()
         return store.stall_number if store else None
@@ -248,6 +253,7 @@ class ProductSchema(BaseModel):
     stock_quantity: float
     store_name_uz: Optional[str] = None
     store_name_ru: Optional[str] = None
+    store_name_en: Optional[str] = None
     stall_number: Optional[str] = None
 
     class Config:

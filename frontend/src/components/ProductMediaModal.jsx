@@ -95,7 +95,7 @@ export default function ProductMediaModal({
     : 0;
 
 
-  const storeName = language === 'ru' ? (product.store_name_ru || product.store_name_uz) : product.store_name_uz;
+  const storeName = (language === 'ru' ? product.store_name_ru : (language === 'en' ? product.store_name_en : null)) || product.store_name_uz;
   const storeLabel = product.stall_number ? `${storeName} (${product.stall_number})` : 'Yunusobod Dehqon Bozori';
 
   return (

@@ -23,6 +23,11 @@ export function LanguageProvider({ children }) {
     return saved && ['uz', 'ru', 'en'].includes(saved) ? saved : 'uz';
   });
 
+  // Tell the browser which language the page is really in
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   const setLang = (newLang) => {
     if (['uz', 'ru', 'en'].includes(newLang)) {
       setLangState(newLang);
