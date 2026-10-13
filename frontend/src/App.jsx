@@ -376,7 +376,17 @@ export default function App() {
               }}
               isSaved={savedProductIds.includes(selectedProduct.id)}
               onToggleSave={handleToggleSave}
-              relatedProducts={products.filter((p) => p.category_slug === selectedProduct.category_slug && p.id !== selectedProduct.id)}
+              sellerProducts={products
+                .filter((p) => p.store_id === selectedProduct.store_id && p.id !== selectedProduct.id)
+                .sort((a, b) => Number(b.is_available) - Number(a.is_available))}
+              relatedProducts={products.filter((p) => p.category_slug === selectedProduct.category_slug && p.store_id !== selectedProduct.store_id)}
+              savedProductIds={savedProductIds}
+              onOpenStore={(store) => {
+                setSelectedProduct(null);
+                setSelectedStore(store);
+                setActiveTab('market');
+                window.scrollTo(0, 0);
+              }}
               onSelectProduct={setSelectedProduct}
             />
           ) : (

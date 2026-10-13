@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.database import get_db
 from app.models.schemas import ProductModel, ProductSchema
@@ -15,7 +16,7 @@ async def get_products(
     featured_only: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
-    query = select(ProductModel).where(ProductModel.is_available == True)
+    query = select(ProductModel).where(ProductModel.is_available == True).options(selectinload(ProductModel.store))
 
     if category:
         query = query.where(ProductModel.category_slug == category)
@@ -40,7 +41,7 @@ async def get_products(
 
 @router.get("/{product_id}", response_model=ProductSchema)
 async def get_product(product_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(ProductModel).where(ProductModel.id == product_id))
+    result = await db.execute(select(ProductModel).where(ProductModel.id == product_id).options(selectinload(ProductModel.store)))
     prod = result.scalars().first()
     if not prod:
         raise HTTPException(status_code=404, detail="Mahsulot topilmadi / Товар не найден")

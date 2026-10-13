@@ -3,6 +3,7 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, LargeBinary
 from sqlalchemy.orm import relationship
+from sqlalchemy import inspect as sa_inspect
 from app.database import Base
 
 # ================= SQLAlchemy ORM Models =================
@@ -78,6 +79,25 @@ class ProductModel(Base):
 
     store = relationship("StoreModel", back_populates="products")
     order_items = relationship("OrderItemModel", back_populates="product")
+
+    def _loaded_store(self):
+        # Only use the stall if the query loaded it (async sessions cannot lazy-load)
+        return None if "store" in sa_inspect(self).unloaded else self.store
+
+    @property
+    def store_name_uz(self):
+        store = self._loaded_store()
+        return store.name_uz if store else None
+
+    @property
+    def store_name_ru(self):
+        store = self._loaded_store()
+        return store.name_ru if store else None
+
+    @property
+    def stall_number(self):
+        store = self._loaded_store()
+        return store.stall_number if store else None
 
 
 class OrderModel(Base):
@@ -186,6 +206,9 @@ class ProductSchema(BaseModel):
     is_featured: bool
     badge: Optional[str] = None
     stock_quantity: float
+    store_name_uz: Optional[str] = None
+    store_name_ru: Optional[str] = None
+    stall_number: Optional[str] = None
 
     class Config:
         from_attributes = True

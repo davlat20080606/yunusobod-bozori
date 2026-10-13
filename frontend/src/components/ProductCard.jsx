@@ -109,17 +109,11 @@ export default function ProductCard({
     ? Math.round(((product.old_price - product.price) / product.old_price) * 100)
     : null;
 
-  // Seller store name dynamically translated
-  const stallWord = language === 'ru' ? 'ПРИЛАВОК' : (language === 'en' ? 'STALL' : 'RASTA');
-  const storeLabel = product.store_name 
-    ? product.store_name.toUpperCase()
-    : (product.store_id === 2 ? `KAREN AKA • ${stallWord} #14` 
-      : (product.store_id === 1 ? `DILSHOD OTA • ${stallWord} #1` 
-      : (product.store_id === 5 ? `BOTIR AKA • ${stallWord} #8` 
-      : (product.store_id === 4 ? `ZUXRA OPA • ${stallWord} #7`
-      : (product.store_id === 6 ? `AKMAL • ${stallWord} #9`
-      : (product.store_id === 3 ? `NODIRA OPA • ${stallWord} #10`
-      : (language === 'ru' ? 'ЮНУСАБАДСКИЙ БАЗАР' : (language === 'en' ? 'YUNUSABAD BAZAAR' : 'YUNUSOBOD BOZORI'))))))));
+  // Real stall from the server (store_name_*, stall_number come with every product)
+  const storeName = language === 'ru' ? (product.store_name_ru || product.store_name_uz) : product.store_name_uz;
+  const storeLabel = product.stall_number
+    ? `${storeName} • ${product.stall_number}`.toUpperCase()
+    : (language === 'ru' ? 'ЮНУСАБАДСКИЙ БАЗАР' : (language === 'en' ? 'YUNUSABAD BAZAAR' : 'YUNUSOBOD BOZORI'));
 
 
   // Currency label based on selected language

@@ -94,17 +94,9 @@ export default function ProductMediaModal({
     ? Math.round((product.old_price - product.price) * quantity)
     : 0;
 
-  const ordersCount = 45 + (product.id * 7) % 80;
 
-  const stallWord = language === 'ru' ? 'Прилавок' : (language === 'en' ? 'Stall' : 'Rasta');
-  const storeLabel = product.store_name 
-    ? product.store_name 
-    : (product.store_id === 2 ? `Karen Aka (${stallWord} #14)` 
-      : (product.store_id === 1 ? `Dilshod Ota (${stallWord} #1)` 
-      : (product.store_id === 5 ? `Botir Aka (${stallWord} #8)` 
-      : (product.store_id === 4 ? `Zuxra Opa (${stallWord} #7)` 
-      : (product.store_id === 6 ? `Akmal (${stallWord} #9)` 
-      : `Nodira Opa (${stallWord} #10)`)))));
+  const storeName = language === 'ru' ? (product.store_name_ru || product.store_name_uz) : product.store_name_uz;
+  const storeLabel = product.stall_number ? `${storeName} (${product.stall_number})` : 'Yunusobod Dehqon Bozori';
 
   return (
     <div className="modal-center-backdrop" onClick={onClose}>
@@ -240,13 +232,6 @@ export default function ProductMediaModal({
 
             {/* Rating & Social Row */}
             <div className="med-uzum-meta-row">
-              <div className="flex items-center gap-1.5">
-              </div>
-
-              <span className="med-dot-sep">•</span>
-              <span className="text-xs text-slate-500 font-medium">
-                {ordersCount}+ {language === 'ru' ? 'заказов' : (language === 'en' ? 'sold' : 'xarid qilingan')}
-              </span>
 
               <div className="ml-auto flex items-center gap-2">
                 <button 

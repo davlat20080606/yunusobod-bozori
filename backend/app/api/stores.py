@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from sqlalchemy import select, func
 from typing import List, Optional
 from app.database import get_db
@@ -36,17 +37,15 @@ async def get_categories(db: AsyncSession = Depends(get_db)):
 
 @router.get("/{slug}", response_model=StoreWithProductsSchema)
 async def get_store_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
-    query = select(StoreModel).where(StoreModel.slug == slug)
+    query = select(StoreModel).where(StoreModel.slug == slug).options(
+        selectinload(StoreModel.products).selectinload(ProductModel.store)
+    )
     result = await db.execute(query)
     store = result.scalars().first()
     if not store:
         raise HTTPException(status_code=404, detail="Do'kon topilmadi / Магазин не найден")
-    
-    prod_query = select(ProductModel).where(ProductModel.store_id == store.id)
-    prod_result = await db.execute(prod_query)
-    products = prod_result.scalars().all()
 
     store_data = StoreWithProductsSchema.from_orm(store)
-    store_data.products = products
-    store_data.products_count = len(products)
+    store_data.products = [p for p in store_data.products if p.is_available]
+    store_data.products_count = len(store_data.products)
     return store_data

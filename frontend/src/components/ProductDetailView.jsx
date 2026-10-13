@@ -33,6 +33,9 @@ export default function ProductDetailView({
   isSaved = false,
   onToggleSave,
   relatedProducts = [],
+  sellerProducts = [],
+  savedProductIds = [],
+  onOpenStore,
   onSelectProduct
 }) {
   const { getLocalized, t, language } = useLanguage();
@@ -394,7 +397,7 @@ export default function ProductDetailView({
           <div className="med-pdp-seller-box">
             <div className="text-xs text-slate-700 font-bold">
               <span>{language === 'ru' ? 'Продавец:' : (language === 'en' ? 'Seller:' : 'Sotuvchi:')} </span>
-              <span className="text-emerald-700 underline font-extrabold cursor-pointer">
+              <span className="text-emerald-700 underline font-extrabold cursor-pointer" onClick={() => store && onOpenStore && onOpenStore(store)}>
                 {storeLabel}
               </span>
               <span className="text-slate-400 font-normal"> • SKU YB-{1000 + product.id}</span>
@@ -407,6 +410,48 @@ export default function ProductDetailView({
         </div>
 
       </div>
+
+      {/* 3. Everything else this seller sells (teacher's request: open a product → see the seller's other goods) */}
+      {store && sellerProducts.length > 0 && (
+        <div className="mt-10 pt-6 border-t border-slate-200/80">
+          <button
+            type="button"
+            onClick={() => onOpenStore && onOpenStore(store)}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: 14, marginBottom: 14, borderRadius: 18, border: '1.5px solid #d1fae5', background: '#f0fdf4', cursor: 'pointer', textAlign: 'left' }}
+          >
+            <img src={store.avatar_url} alt="" style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, background: '#e2e8f0' }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: '#047857', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                {language === 'ru' ? 'Продавец' : (language === 'en' ? 'Seller' : "Do'konchi")} · {store.stall_number}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{store.owner_name}</div>
+              <div style={{ fontSize: 13, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getLocalized(store, 'name')}</div>
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#047857', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {language === 'ru' ? 'Все товары →' : (language === 'en' ? 'All items →' : 'Hammasi →')}
+            </span>
+          </button>
+
+          <h2 className="med-section-title" style={{ marginBottom: 12 }}>
+            {language === 'ru'
+              ? `Другие товары продавца (${sellerProducts.length})`
+              : (language === 'en' ? `More from this seller (${sellerProducts.length})` : `Do'konchining boshqa mahsulotlari (${sellerProducts.length})`)}
+          </h2>
+          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, margin: '0 -12px', padding: '0 12px 8px', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
+            {sellerProducts.map((p) => (
+              <div key={p.id} style={{ width: 168, flexShrink: 0, scrollSnapAlign: 'start' }}>
+                <ProductCard
+                  product={p}
+                  onAddToCart={onAddToCart}
+                  onOpenMediaModal={() => { onSelectProduct && onSelectProduct(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  isSaved={savedProductIds.includes(p.id)}
+                  onToggleSave={onToggleSave}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 4. Other Bazaar Recommendations */}
       {relatedProducts.length > 0 && (
@@ -428,8 +473,8 @@ export default function ProductDetailView({
                 key={p.id}
                 product={p}
                 onAddToCart={onAddToCart}
-                onOpenMediaModal={() => onSelectProduct && onSelectProduct(p)}
-                isSaved={false}
+                onOpenMediaModal={() => { onSelectProduct && onSelectProduct(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                isSaved={savedProductIds.includes(p.id)}
                 onToggleSave={onToggleSave}
               />
             ))}
