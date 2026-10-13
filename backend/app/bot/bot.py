@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandStart
 from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo,
-    ReplyKeyboardMarkup, KeyboardButton
+    ReplyKeyboardRemove, MenuButtonWebApp
 )
 from app.config import settings
 
@@ -22,40 +22,25 @@ TEXTS = {
         "welcome": (
             "🇺🇿 <b>Yunusobod Dehqon Bozoriga xush kelibsiz!</b> 🍈\n\n"
             "Toshkentning eng saralangan va yangi mahsulotlari: sabzavotlar, mevalar, halol go'sht, issiq tandir non va quruq mevalar to'g'ridan-to'g'ri rastalardan uyingizga!\n\n"
-            "⚡️ <i>45 daqiqada tezyurar yetkazib berish</i>"
+            "⚡️ <i>45 daqiqada tezyurar yetkazib berish</i>\n\n"
+            "👇 Bozorni ochish uchun pastdagi <b>«🛒 Bozor»</b> tugmasini bosing"
         ),
-        "open_bazaar": "🛒 Bozorni ochish (Mini App)",
-        "seller_portal": "🏪 Sotuvchi Kabineti",
-        "porter_portal": "🛒 Aravachi Kabineti",
-        "my_orders": "📦 Zakazlarim",
-        "select_lang": "Tilni tanlang / Выберите язык:",
-        "bottom_btn": "🛒 Bozorni ochish (Mini App)"
     },
     "ru": {
         "welcome": (
             "🇷🇺 <b>Добро пожаловать на Юнусабадский Дехканский Базар!</b> 🍈\n\n"
             "Свежайшие отборные продукты прямо с прилавков базара: сахарные помидоры, ферганские персики, мясо, горячий тандыр-нон и сухофрукты с доставкой по Ташкенту!\n\n"
-            "⚡️ <i>Экспресс-доставка за 45-60 минут</i>"
+            "⚡️ <i>Экспресс-доставка за 45-60 минут</i>\n\n"
+            "👇 Чтобы открыть базар, нажмите кнопку <b>«🛒 Bozor»</b> внизу"
         ),
-        "open_bazaar": "🛒 Открыть базар (Mini App)",
-        "seller_portal": "🏪 Кабинет продавца",
-        "porter_portal": "🛒 Кабинет аравачи",
-        "my_orders": "📦 Мои заказы",
-        "select_lang": "Выберите язык / Tilni tanlang:",
-        "bottom_btn": "🛒 Открыть базар (Mini App)"
     },
     "en": {
         "welcome": (
             "🇬🇧 <b>Welcome to Yunusabad Farmers' Market!</b> 🍈\n\n"
             "Handpicked fresh produce directly from bazaar stalls: sweet tomatoes, seasonal fruits, halal meat, hot tandoor bread and dried nuts delivered to your doorstep!\n\n"
-            "⚡️ <i>Fast 45-min delivery across Tashkent</i>"
+            "⚡️ <i>Fast 45-min delivery across Tashkent</i>\n\n"
+            "👇 Tap the <b>«🛒 Bozor»</b> button below to open the market"
         ),
-        "open_bazaar": "🛒 Open Market (Mini App)",
-        "seller_portal": "🏪 Seller Portal",
-        "porter_portal": "🛒 Porter Portal",
-        "my_orders": "📦 My Orders",
-        "select_lang": "Select Language / Tilni tanlang:",
-        "bottom_btn": "🛒 Open Market (Mini App)"
     }
 }
 
@@ -70,49 +55,29 @@ def get_bot() -> Optional[Bot]:
     return bot
 
 def build_keyboard(lang: str = "uz"):
-    webapp_url = settings.WEBAPP_URL.strip()
-    t = TEXTS.get(lang, TEXTS["uz"])
+    """Only the language switcher: the bazaar opens from the chat's menu button, like modern Mini App bots."""
+    def label(code, text):
+        return f"✓ {text}" if code == lang else text
 
-    url_main = f"{webapp_url}?lang={lang}"
-    url_seller = f"{webapp_url}?tab=seller&lang={lang}"
-    url_orders = f"{webapp_url}?tab=orders&lang={lang}"
-    url_porter = f"{webapp_url}?tab=porter&lang={lang}"
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text=label("uz", "🇺🇿 O'zbekcha"), callback_data="lang_uz"),
+        InlineKeyboardButton(text=label("ru", "🇷🇺 Русский"), callback_data="lang_ru"),
+        InlineKeyboardButton(text=label("en", "🇬🇧 English"), callback_data="lang_en"),
+    ]])
 
-    inline_buttons = [
-        # Main WebApp button
-        [
-            InlineKeyboardButton(
-                text=t["open_bazaar"],
-                web_app=WebAppInfo(url=url_main)
-            )
-        ],
-        # Seller & Orders
-        [
-            InlineKeyboardButton(
-                text=t["seller_portal"],
-                web_app=WebAppInfo(url=url_seller)
-            ),
-            InlineKeyboardButton(
-                text=t["my_orders"],
-                web_app=WebAppInfo(url=url_orders)
-            )
-        ],
-        # Aravachi (bazaar porter)
-        [
-            InlineKeyboardButton(
-                text=t["porter_portal"],
-                web_app=WebAppInfo(url=url_porter)
-            )
-        ],
-        # Language Switcher Row
-        [
-            InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz"),
-            InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru"),
-            InlineKeyboardButton(text="🇬🇧 English", callback_data="lang_en")
-        ]
-    ]
 
-    return InlineKeyboardMarkup(inline_keyboard=inline_buttons)
+async def set_menu_button_for_chat(b: Bot, chat_id: int, lang: str):
+    """Open the Mini App in the language this person picked."""
+    if not settings.WEBAPP_URL.startswith("https://"):
+        return
+    try:
+        await b.set_chat_menu_button(
+            chat_id=chat_id,
+            menu_button=MenuButtonWebApp(text="🛒 Bozor", web_app=WebAppInfo(url=f"{settings.WEBAPP_URL}?lang={lang}"))
+        )
+    except Exception as e:
+        logger.info(f"Menu button notice: {e}")
+
 
 def setup_dispatcher() -> Dispatcher:
     global dp
@@ -120,40 +85,32 @@ def setup_dispatcher() -> Dispatcher:
 
     @dp.message(CommandStart())
     async def cmd_start(message: types.Message):
-        user_lang = "ru" if (message.from_user.language_code and "ru" in message.from_user.language_code) else "uz"
+        code = message.from_user.language_code or ""
+        user_lang = "ru" if "ru" in code else ("en" if code.startswith("en") else "uz")
         t = TEXTS[user_lang]
-        keyboard = build_keyboard(user_lang)
 
-        reply_keyboard = ReplyKeyboardMarkup(
-            keyboard=[
-                [
-                    KeyboardButton(
-                        text=t["bottom_btn"],
-                        web_app=WebAppInfo(url=f"{settings.WEBAPP_URL}?lang={user_lang}")
-                    )
-                ]
-            ],
-            resize_keyboard=True
-        )
+        # Remove the old big "Open bazaar" keyboard that earlier versions left at the bottom of the chat
+        try:
+            cleanup = await message.answer("…", reply_markup=ReplyKeyboardRemove())
+            await cleanup.delete()
+        except Exception:
+            pass
 
         try:
             await message.answer_photo(
                 photo=BOZOR_BANNER_URL,
                 caption=t["welcome"],
-                reply_markup=keyboard,
+                reply_markup=build_keyboard(user_lang),
                 parse_mode="HTML"
             )
         except Exception:
             await message.answer(
                 text=t["welcome"],
-                reply_markup=keyboard,
+                reply_markup=build_keyboard(user_lang),
                 parse_mode="HTML"
             )
 
-        await message.answer(
-            f"👇 {t['bottom_btn']}",
-            reply_markup=reply_keyboard
-        )
+        await set_menu_button_for_chat(message.bot, message.chat.id, user_lang)
 
     # Interactive Language Switch Callbacks
     @dp.callback_query(F.data.in_(["lang_uz", "lang_ru", "lang_en"]))
@@ -164,21 +121,14 @@ def setup_dispatcher() -> Dispatcher:
 
         try:
             if query.message.photo:
-                await query.message.edit_caption(
-                    caption=t["welcome"],
-                    reply_markup=keyboard,
-                    parse_mode="HTML"
-                )
+                await query.message.edit_caption(caption=t["welcome"], reply_markup=keyboard, parse_mode="HTML")
             else:
-                await query.message.edit_text(
-                    text=t["welcome"],
-                    reply_markup=keyboard,
-                    parse_mode="HTML"
-                )
+                await query.message.edit_text(text=t["welcome"], reply_markup=keyboard, parse_mode="HTML")
         except Exception as e:
             logger.info(f"Notice during lang edit: {e}")
 
-        await query.answer(f"✅ Til o'zgartirildi / Язык изменен: {selected_lang.upper()}")
+        await set_menu_button_for_chat(query.bot, query.message.chat.id, selected_lang)
+        await query.answer(f"✅ {selected_lang.upper()}")
 
     return dp
 
