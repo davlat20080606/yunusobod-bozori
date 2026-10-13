@@ -121,7 +121,7 @@ export default function PorterPanel({ onBackToMarket }) {
   const loadOrders = useCallback(async () => {
     if (!pin || !profile) return;
     try {
-      const data = await api.porterGetOrders(pin, profile.phone);
+      const data = await api.porterGetOrders(pin, profile.phone, profile.name);
       setOrders(data);
       setError('');
     } catch (err) {

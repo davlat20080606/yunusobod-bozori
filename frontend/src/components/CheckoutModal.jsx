@@ -18,7 +18,14 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
   const [district, setDistrict] = useState('Yunusobod');
   const [address, setAddress] = useState('');
   const [landmark, setLandmark] = useState('');
-  const [timeSlot, setTimeSlot] = useState('Express (45-60 min)');
+  // The bazaar works 06:00–20:00 Tashkent time (UTC+5): offer only slots that can still be delivered
+  const tashkentHour = ((new Date().getUTCHours() + 5) % 24) + new Date().getUTCMinutes() / 60;
+  const slots = [
+    { id: 'Express (45-60 min)', label: t('checkout.time_express'), open: tashkentHour >= 6 && tashkentHour < 19 },
+    { id: 'Evening (18:00-20:00)', label: t('checkout.time_evening'), open: tashkentHour < 19 },
+    { id: 'Morning (09:00-11:00)', label: t('checkout.time_morning'), open: true }
+  ];
+  const [timeSlot, setTimeSlot] = useState(() => slots.find((s) => s.open).id);
   const [paymentMethod, setPaymentMethod] = useState('click');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -207,11 +214,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
             <div className="form-group">
               <label className="form-label">{t('checkout.time_slot')}</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {[
-                  { id: 'Express (45-60 min)', label: t('checkout.time_express') },
-                  { id: 'Evening (18:00-20:00)', label: t('checkout.time_evening') },
-                  { id: 'Morning (09:00-11:00)', label: t('checkout.time_morning') }
-                ].map(slot => (
+                {slots.filter((slot) => slot.open).map(slot => (
                   <label 
                     key={slot.id}
                     style={{

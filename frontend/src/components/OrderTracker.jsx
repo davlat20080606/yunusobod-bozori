@@ -26,6 +26,8 @@ const T = {
   total: { uz: 'Jami', ru: 'Итого', en: 'Total' },
   copied: { uz: 'nusxa olindi', ru: 'скопировано', en: 'copied' },
   order_again: { uz: 'Yana buyurtma berish', ru: 'Заказать ещё', en: 'Order again' },
+  cancel: { uz: 'Buyurtmani bekor qilish', ru: 'Отменить заказ', en: 'Cancel order' },
+  cancel_confirm: { uz: 'Buyurtmani bekor qilasizmi?', ru: 'Отменить заказ?', en: 'Cancel this order?' },
   cash: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' },
 };
 
@@ -190,6 +192,8 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
   const [loading, setLoading] = useState(true);
   const [showItems, setShowItems] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     if (!initialOrderNumber) return;
@@ -242,6 +246,23 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
     if (lastStatusRef.current && lastStatusRef.current !== openOrder.status) triggerHaptic('success');
     lastStatusRef.current = openOrder.status;
   }, [openOrder?.status]);
+
+  const cancelOrder = async () => {
+    if (!openOrder || !window.confirm(t('cancel_confirm'))) return;
+    setCancelling(true);
+    setActionError('');
+    try {
+      const updated = await api.cancelOrder(openOrder.order_number);
+      setOrders((prev) => ({ ...prev, [updated.order_number]: updated }));
+      triggerHaptic('success');
+    } catch (err) {
+      triggerHaptic('error');
+      setActionError(err.message);
+      load([openOrder.order_number]);
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const copyNumber = () => {
     if (!openOrder || !navigator.clipboard) return;
@@ -392,6 +413,17 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             {t('order')} #{openOrder.order_number}{copied ? ` · ${t('copied')}` : ''}
           </button>
         </div>
+
+        {actionError && (
+          <div style={{ ...card, background: '#fef2f2', color: '#b91c1c', fontSize: 14, fontWeight: 600 }}>{actionError}</div>
+        )}
+
+        {/* Like delivery apps: cancel is possible only until someone starts collecting */}
+        {['pending', 'accepted'].includes(openOrder.status) && !openOrder.porter_name && (
+          <button type="button" onClick={cancelOrder} disabled={cancelling} style={{ width: '100%', height: 48, borderRadius: 16, border: '1.5px solid #fecaca', background: '#ffffff', color: '#dc2626', fontWeight: 700, fontSize: 15, cursor: 'pointer', opacity: cancelling ? 0.6 : 1 }}>
+            {t('cancel')}
+          </button>
+        )}
 
         {!isActive && (
           <button type="button" onClick={onBackToMarket} style={{ width: '100%', height: 52, borderRadius: 16, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 16, cursor: 'pointer' }}>

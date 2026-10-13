@@ -13,26 +13,26 @@ const BANNER_SLIDES = [
     title_ru: 'Свежие продукты и парное мясо с Юнусабадского Базара',
     title_en: 'Fresh Farm Produce & Tender Meat from Yunusabad Bazaar',
     desc_uz: "Xarid qilingan go'sht va sabzavotlar 45 daqiqada to'g'ridan-to'g'ri rastadan uyingizga!",
-    desc_ru: 'Отборная говядина, баранина, фрукты и овощи с гарантией 100% свежести.',
+    desc_ru: 'Говядина, баранина, фрукты и овощи прямо с прилавков базара — к вашей двери.',
     desc_en: 'Grass-fed lamb, fresh vegetables and sweet melons delivered right to your door.',
     image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200&auto=format&fit=crop&q=80',
     cta_category: 'meat',
-    tag: '-20%'
+    tag: ''
   },
   {
     id: 2,
-    badge: 'Haftalik Katta To\'plamlar',
-    badge_ru: 'Королевские семейные наборы',
-    badge_en: 'Mega Family Weekly Boxes',
-    title_uz: "Butun Oila Uchun 1 Haftalik Tayyor Go'sht & Oziq-ovqat",
-    title_ru: 'Большой Семейный Набор: 5 кг мяса, казы, овощи и патиры',
-    title_en: 'Mega Family Weekly Box: Prime Beef, Lamb, Fresh Veggies & Bread',
-    desc_uz: "Bozorga borib vaqt sarflamang, 25% chegirma va bepul yetkazib berish bilan oling!",
-    desc_ru: 'Экономьте до 25% и получайте бесплатную доставку при заказе сета!',
-    desc_en: 'Save up to 25% and get free express delivery on all weekly combo boxes.',
+    badge: 'Hammasi bitta buyurtmada',
+    badge_ru: 'Всё одним заказом',
+    badge_en: 'Everything in one order',
+    title_uz: "Go'sht, sabzavot va non — turli rastalardan bitta buyurtma",
+    title_ru: 'Мясо, овощи и хлеб с разных раст — одним заказом',
+    title_en: 'Meat, vegetables and bread from different stalls — one order',
+    desc_uz: "Aravachi hamma rastalarni aylanib, xaridlaringizni birga olib keladi.",
+    desc_ru: 'Аравачи обойдёт все расты и привезёт покупки вместе.',
+    desc_en: 'A bazaar porter visits every stall and brings it all together.',
     image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=1200&auto=format&fit=crop&q=80',
     cta_category: 'combos',
-    tag: '-25%'
+    tag: ''
   },
   {
     id: 3,
@@ -161,7 +161,7 @@ export default function HeroBanner({ onSelectCategory }) {
                 <span>{activeLang === 'ru' ? 'Смотреть каталог' : (activeLang === 'en' ? 'Shop Now' : 'Xarid qilish')}</span>
                 <ArrowRight size={15} />
               </button>
-              <span className="med-carousel-tag">{getSlideText(slide, 'tag')}</span>
+              {getSlideText(slide, 'tag') && <span className="med-carousel-tag">{getSlideText(slide, 'tag')}</span>}
             </div>
 
             {/* Seamless right-aligned indicator dots */}

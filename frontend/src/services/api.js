@@ -1,4 +1,50 @@
+import { getTelegramInitData } from './telegram';
+
 const API_BASE = '/api';
+const SELLER_SESSION_KEY = 'seller_session';
+
+export function getSellerSession() {
+  try {
+    return JSON.parse(localStorage.getItem(SELLER_SESSION_KEY) || 'null');
+  } catch {
+    return null;
+  }
+}
+
+export function setSellerSession(session) {
+  try {
+    if (session) localStorage.setItem(SELLER_SESSION_KEY, JSON.stringify(session));
+    else localStorage.removeItem(SELLER_SESSION_KEY);
+  } catch {}
+}
+
+function tgHeaders() {
+  const initData = getTelegramInitData();
+  return initData ? { 'x-telegram-init-data': initData } : {};
+}
+
+async function readError(res, fallback) {
+  const err = await res.json().catch(() => ({}));
+  const detail = Array.isArray(err.detail) ? (err.detail[0]?.msg || fallback) : err.detail;
+  const error = new Error(detail || fallback);
+  error.status = res.status;
+  return error;
+}
+
+// Seller requests carry the session token; an expired session signs the seller out
+async function sellerFetch(path, options = {}) {
+  const session = getSellerSession();
+  const headers = { ...(options.headers || {}) };
+  if (session?.token) headers['x-seller-token'] = session.token;
+  if (options.body && !(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  const res = await fetch(`${API_BASE}/seller${path}`, { ...options, headers });
+  if (res.status === 401) {
+    setSellerSession(null);
+    window.dispatchEvent(new Event('seller-signed-out'));
+  }
+  if (!res.ok) throw await readError(res, 'Request failed');
+  return res.json();
+}
 
 export const api = {
   // Stores & Categories
@@ -38,13 +84,16 @@ export const api = {
   async createOrder(orderData) {
     const res = await fetch(`${API_BASE}/orders`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...tgHeaders() },
       body: JSON.stringify(orderData)
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to place order');
-    }
+    if (!res.ok) throw await readError(res, 'Failed to place order');
+    return res.json();
+  },
+
+  async cancelOrder(orderNumber) {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}/cancel`, { method: 'POST' });
+    if (!res.ok) throw await readError(res, 'Failed to cancel order');
     return res.json();
   },
 
@@ -57,130 +106,70 @@ export const api = {
   },
 
   // Seller API
-  async sellerLogin(phone_or_slug, pin) {
+  async sellerLogin(phone, pin) {
     const res = await fetch(`${API_BASE}/seller/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone_or_slug, pin })
+      headers: { 'Content-Type': 'application/json', ...tgHeaders() },
+      body: JSON.stringify({ phone_or_slug: phone, pin })
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Login failed');
-    }
+    if (!res.ok) throw await readError(res, 'Login failed');
+    return res.json();
+  },
+
+  async registerStore(storeData, adminPin) {
+    const res = await fetch(`${API_BASE}/seller/register-store`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-pin': adminPin },
+      body: JSON.stringify(storeData)
+    });
+    if (!res.ok) throw await readError(res, 'Failed to register store');
     return res.json();
   },
 
   async uploadMedia(file) {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await fetch(`${API_BASE}/seller/upload-media`, {
-      method: 'POST',
-      body: formData
-    });
-    if (!res.ok) {
-      throw new Error('Media upload failed');
-    }
-    return res.json();
+    return sellerFetch('/upload-media', { method: 'POST', body: formData });
   },
 
-  async createProduct(storeId, productData) {
-    const res = await fetch(`${API_BASE}/seller/stores/${storeId}/products`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(productData)
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to create product');
-    }
-    return res.json();
+  async createProduct(productData) {
+    return sellerFetch('/stores/me/products', { method: 'POST', body: JSON.stringify(productData) });
   },
 
-  async updateStoreProfile(storeId, storeData) {
-    const res = await fetch(`${API_BASE}/seller/stores/${storeId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(storeData)
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to update store profile');
-    }
-    return res.json();
+  async updateStoreProfile(storeData) {
+    return sellerFetch('/stores/me', { method: 'PATCH', body: JSON.stringify(storeData) });
   },
 
-  async registerStore(storeData) {
-    const res = await fetch(`${API_BASE}/seller/register-store`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(storeData)
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to register store');
-    }
-    return res.json();
-  },
-
-  async getAvailableSellerStores() {
-    const res = await fetch(`${API_BASE}/seller/stores/list`);
-    if (!res.ok) throw new Error('Failed to fetch seller stores');
-    return res.json();
-  },
-
-  async getMyStoreDashboard(storeId) {
-    const res = await fetch(`${API_BASE}/seller/my-store/${storeId}`);
-    if (!res.ok) throw new Error('Failed to fetch store dashboard');
-    return res.json();
+  async getMyStoreDashboard() {
+    return sellerFetch('/my-store');
   },
 
   async updateProductPrice(productId, price, old_price = null) {
-    const res = await fetch(`${API_BASE}/seller/products/${productId}/price`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ price, old_price })
-    });
-    if (!res.ok) throw new Error('Failed to update price');
-    return res.json();
+    return sellerFetch(`/products/${productId}/price`, { method: 'PATCH', body: JSON.stringify({ price, old_price }) });
   },
 
   async toggleProductAvailability(productId, is_available) {
-    const res = await fetch(`${API_BASE}/seller/products/${productId}/availability`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_available })
-    });
-    return res.json();
+    return sellerFetch(`/products/${productId}/availability`, { method: 'PATCH', body: JSON.stringify({ is_available }) });
   },
 
-  async toggleStoreStatus(storeId) {
-    const res = await fetch(`${API_BASE}/seller/stores/${storeId}/toggle-status`, {
-      method: 'PATCH'
-    });
-    return res.json();
+  async toggleStoreStatus() {
+    return sellerFetch('/stores/me/toggle-status', { method: 'PATCH' });
   },
 
-  async getStoreOrders(storeId) {
-    const res = await fetch(`${API_BASE}/seller/orders/${storeId}`);
-    if (!res.ok) return [];
-    return res.json();
+  async getStoreOrders() {
+    return sellerFetch('/orders');
   },
 
   // Porter (aravachi) API
   async porterRequest(method, path, pin, porterPhone, body) {
-    const headers = { 'Content-Type': 'application/json', 'x-porter-pin': pin };
+    const headers = { 'Content-Type': 'application/json', 'x-porter-pin': pin, ...tgHeaders() };
     if (porterPhone) headers['x-porter-phone'] = porterPhone;
     const res = await fetch(`${API_BASE}/porter${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const error = new Error(err.detail || 'Request failed');
-      error.status = res.status;
-      throw error;
-    }
+    if (!res.ok) throw await readError(res, 'Request failed');
     return res.json();
   },
 
@@ -188,8 +177,8 @@ export const api = {
     return api.porterRequest('POST', '/login', pin, null, { pin });
   },
 
-  async porterGetOrders(pin, porterPhone) {
-    return api.porterRequest('GET', `/orders?porter_phone=${encodeURIComponent(porterPhone)}`, pin);
+  async porterGetOrders(pin, porterPhone, porterName = '') {
+    return api.porterRequest('GET', `/orders?porter_phone=${encodeURIComponent(porterPhone)}&porter_name=${encodeURIComponent(porterName)}`, pin);
   },
 
   async porterTakeOrder(pin, porterName, porterPhone, orderId) {

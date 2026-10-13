@@ -94,8 +94,6 @@ export default function ProductMediaModal({
     ? Math.round((product.old_price - product.price) * quantity)
     : 0;
 
-  const rating = product.rating || 4.8;
-  const reviewsCount = product.reviews_count || 24;
   const ordersCount = 45 + (product.id * 7) % 80;
 
   const stallWord = language === 'ru' ? 'Прилавок' : (language === 'en' ? 'Stall' : 'Rasta');
@@ -213,7 +211,7 @@ export default function ProductMediaModal({
               <div className="med-uzum-trust-row mt-2">
                 <RotateCcw size={16} className="text-emerald-600 flex-shrink-0" />
                 <span className="text-xs text-slate-700 font-medium">
-                  {language === 'ru' ? 'Гарантия возврата: не понравится — заменим или вернем деньги' : (language === 'en' ? 'Money back guarantee if not satisfied' : 'Sifat kafolati: yoqmasa almashtirib beramiz')}
+                  {language === 'ru' ? 'Аравачи сам выбирает товар у продавца прямо на базаре' : (language === 'en' ? 'A porter picks your items from the seller right at the bazaar' : "Aravachi mahsulotni bozorda sotuvchidan o'zi tanlab oladi")}
                 </span>
               </div>
             </div>
@@ -243,13 +241,6 @@ export default function ProductMediaModal({
             {/* Rating & Social Row */}
             <div className="med-uzum-meta-row">
               <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 text-amber-500 font-bold text-xs bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                  <Star size={12} className="fill-amber-400" />
-                  <span>{rating}</span>
-                </div>
-                <span className="text-xs text-slate-500 font-medium">
-                  ({reviewsCount} {language === 'ru' ? 'отзывов' : (language === 'en' ? 'reviews' : 'ta sharh')})
-                </span>
               </div>
 
               <span className="med-dot-sep">•</span>

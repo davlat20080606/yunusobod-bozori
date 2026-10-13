@@ -91,8 +91,6 @@ export default function ProductDetailView({
     ? Math.round(((product.old_price - product.price) / product.old_price) * 100)
     : null;
 
-  const rating = product.rating || (4.6 + ((product.id * 3) % 4) / 10).toFixed(1);
-  const reviewsCount = product.reviews_count || (8 + (product.id * 4) % 25);
   const stockAvailable = Math.round(product.stock_quantity || 45);
 
   const stallWord = language === 'ru' ? 'Прилавок' : (language === 'en' ? 'Stall' : 'Rasta');
@@ -260,14 +258,6 @@ export default function ProductDetailView({
 
           {/* Rating Row */}
           <div className="med-pdp-rating-row">
-            <div className="flex items-center gap-1 text-amber-500 font-bold text-xs bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
-              <Star size={13} className="fill-amber-400" />
-              <span>{rating}</span>
-            </div>
-            <span className="text-xs text-slate-500 font-medium">
-              ({reviewsCount} {language === 'ru' ? 'отзывов' : (language === 'en' ? 'reviews' : 'sharh')})
-            </span>
-
             <div className="ml-auto flex items-center gap-2">
               <button 
                 type="button" 
@@ -411,7 +401,7 @@ export default function ProductDetailView({
               <div className="med-pdp-benefit-item">
                 <ShieldCheck size={15} className="text-emerald-600 flex-shrink-0" />
                 <span>
-                  {language === 'ru' ? '100% Гарантия качества: не понравится — заменим или вернем деньги' : (language === 'en' ? '100% Money back guarantee if not satisfied' : 'Sifat kafolati: yoqmasa almashtirish yoki 100% pulni qaytarish')}
+                  {language === 'ru' ? 'Аравачи сам выбирает товар у продавца прямо на базаре' : (language === 'en' ? 'A porter picks your items from the seller right at the bazaar' : "Aravachi mahsulotni bozorda sotuvchidan o'zi tanlab oladi")}
                 </span>
               </div>
             </div>

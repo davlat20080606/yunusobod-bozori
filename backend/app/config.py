@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     WEBAPP_URL: str = os.getenv("WEBAPP_URL", "http://localhost:3000").strip()
     ADMIN_SECRET_KEY: str = "yunusobod_secret_2026"
     PORTER_PIN: str = "7777"
+    # Bazaar administration PIN for registering new stalls; empty = registration closed
+    ADMIN_PIN: str = ""
     # "polling" (local Mac), "webhook" (cloud) or "auto" (webhook when running on Render)
     BOT_MODE: str = "auto"
     
@@ -21,6 +23,7 @@ settings = Settings()
 settings.TELEGRAM_BOT_TOKEN = "".join(settings.TELEGRAM_BOT_TOKEN.replace("HTTP API:", "").split())
 settings.DATABASE_URL = settings.DATABASE_URL.strip()
 settings.PORTER_PIN = settings.PORTER_PIN.strip()
+settings.ADMIN_PIN = settings.ADMIN_PIN.strip()
 
 # Render gives every service a permanent public https address
 RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "").strip()

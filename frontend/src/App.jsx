@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from './i18n/LanguageContext';
-import { api } from './services/api';
+import { api, getSellerSession } from './services/api';
 import { initTelegramApp, triggerHaptic } from './services/telegram';
 
 import Navbar from './components/Navbar';
@@ -18,7 +18,7 @@ import ProductMediaModal from './components/ProductMediaModal';
 import CartDrawer from './components/CartDrawer';
 import CheckoutModal from './components/CheckoutModal';
 import SellerPanel from './components/SellerPanel';
-import SellerPinGate from './components/SellerPinGate';
+import SellerLogin from './components/SellerLogin';
 import PorterPanel from './components/PorterPanel';
 import OrderTracker, { statusTitle, ACTIVE_STATUSES, rememberMyOrder } from './components/OrderTracker';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -68,9 +68,9 @@ export default function App() {
   const [savedProductIds, setSavedProductIds] = useState(() => {
     try {
       const saved = localStorage.getItem('yunusobod_saved');
-      return saved ? JSON.parse(saved) : [5, 11]; // default heart on lamb & melon
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return [5, 11];
+      return [];
     }
   });
 
@@ -79,12 +79,24 @@ export default function App() {
   const [pickerNotes, setPickerNotes] = useState('');
   const [activeOrderNumber, setActiveOrderNumber] = useState(() => {
     try {
+      // Bot messages link straight to the order: ?tab=orders&order=YB-...
+      const fromLink = new URLSearchParams(window.location.search).get('order');
+      if (fromLink) {
+        localStorage.setItem('yunusobod_last_order', fromLink);
+        return fromLink;
+      }
       return localStorage.getItem('yunusobod_last_order') || '';
     } catch {
       return '';
     }
   });
-  const [sellerUnlocked, setSellerUnlocked] = useState(false);
+  // Sellers stay signed in on their phone until they sign out or the session expires
+  const [sellerUnlocked, setSellerUnlocked] = useState(() => Boolean(getSellerSession()?.token));
+  useEffect(() => {
+    const onSignedOut = () => setSellerUnlocked(false);
+    window.addEventListener('seller-signed-out', onSignedOut);
+    return () => window.removeEventListener('seller-signed-out', onSignedOut);
+  }, []);
   const [activeOrderStatus, setActiveOrderStatus] = useState('pending');
 
   // Initialize Telegram WebApp SDK
@@ -369,8 +381,8 @@ export default function App() {
             <>
               {/* VIEW A: SELLER MANAGEMENT PANEL (PIN-protected) */}
               {activeTab === 'seller' && !sellerUnlocked && (
-                <SellerPinGate
-                  onUnlock={() => setSellerUnlocked(true)}
+                <SellerLogin
+                  onSignedIn={() => setSellerUnlocked(true)}
                   onCancel={() => setActiveTab('market')}
                   onOpenPorter={() => setActiveTab('porter')}
                 />
@@ -378,7 +390,8 @@ export default function App() {
               {activeTab === 'seller' && sellerUnlocked && (
                 <SellerPanel 
                   onProductPriceUpdated={loadInitialData}
-                  onBackToMarket={() => {
+                  onBackToMarket={() => setActiveTab('market')}
+                  onSignOut={() => {
                     setSellerUnlocked(false);
                     setActiveTab('market');
                   }}

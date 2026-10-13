@@ -128,6 +128,17 @@ class OrderItemModel(Base):
     store = relationship("StoreModel", back_populates="order_items")
 
 
+class PorterModel(Base):
+    """Porters who opened their panel inside Telegram, so the bot can tell them about new orders."""
+    __tablename__ = "porters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tg_id = Column(String(50), unique=True, index=True, nullable=False)
+    name = Column(String(100), nullable=True)
+    phone = Column(String(50), nullable=True)
+    last_seen = Column(DateTime, default=datetime.utcnow)
+
+
 class MediaModel(Base):
     """Seller photos/videos kept in the database, so free cloud hosting does not lose them on restart."""
     __tablename__ = "media"
@@ -212,23 +223,23 @@ class StoreWithProductsSchema(StoreSchema):
 class OrderItemCreateSchema(BaseModel):
     product_id: int
     store_id: int
-    quantity: float
+    quantity: float = Field(..., gt=0, le=200)
 
 
 class OrderCreateSchema(BaseModel):
-    customer_name: str
-    customer_phone: str
-    customer_tg_id: Optional[str] = None
-    customer_tg_username: Optional[str] = None
-    delivery_address: str
-    delivery_district: str = "Yunusobod"
-    landmark: Optional[str] = None
-    delivery_lat: Optional[float] = None
-    delivery_lng: Optional[float] = None
-    delivery_time_slot: str = "Express (45-60 min)"
-    payment_method: str = "cash"
-    notes: Optional[str] = None
-    items: List[OrderItemCreateSchema]
+    customer_name: str = Field(..., min_length=2, max_length=100)
+    customer_phone: str = Field(..., min_length=9, max_length=50)
+    customer_tg_id: Optional[str] = Field(None, max_length=50)
+    customer_tg_username: Optional[str] = Field(None, max_length=100)
+    delivery_address: str = Field(..., min_length=3, max_length=300)
+    delivery_district: str = Field("Yunusobod", max_length=100)
+    landmark: Optional[str] = Field(None, max_length=200)
+    delivery_lat: Optional[float] = Field(None, ge=-90, le=90)
+    delivery_lng: Optional[float] = Field(None, ge=-180, le=180)
+    delivery_time_slot: str = Field("Express (45-60 min)", max_length=100)
+    payment_method: str = Field("click", pattern=r"^(cash|click|payme)$")
+    notes: Optional[str] = Field(None, max_length=1000)
+    items: List[OrderItemCreateSchema] = Field(..., min_length=1, max_length=60)
 
 
 class OrderItemSchema(BaseModel):
@@ -274,8 +285,8 @@ class OrderSchema(BaseModel):
 
 
 class UpdatePriceSchema(BaseModel):
-    price: float
-    old_price: Optional[float] = None
+    price: float = Field(..., gt=0, le=100_000_000)
+    old_price: Optional[float] = Field(None, ge=0, le=100_000_000)
 
 
 class ToggleAvailabilitySchema(BaseModel):
@@ -283,47 +294,47 @@ class ToggleAvailabilitySchema(BaseModel):
 
 
 class SellerLoginSchema(BaseModel):
-    phone_or_slug: str
-    pin: str
+    phone_or_slug: str = Field(..., max_length=100)
+    pin: str = Field(..., max_length=10)
+
+
+PIN_PATTERN = r"^\d{4,6}$"
 
 
 class ProductCreateSchema(BaseModel):
-    name_uz: str
-    name_ru: str
-    category_slug: str
-    price: float
-    unit: str = "kg"
-    min_weight: float = 0.5
-    step_weight: float = 0.5
-    image_url: Optional[str] = None
-    video_url: Optional[str] = None
-    description_uz: Optional[str] = None
-    description_ru: Optional[str] = None
-    badge: Optional[str] = "fresh"
-    stock_quantity: float = 50.0
+    name_uz: str = Field(..., min_length=2, max_length=150)
+    name_ru: str = Field("", max_length=150)
+    category_slug: str = Field(..., max_length=50)
+    price: float = Field(..., gt=0, le=100_000_000)
+    unit: str = Field("kg", max_length=20)
+    min_weight: float = Field(0.5, gt=0, le=1000)
+    step_weight: float = Field(0.5, gt=0, le=1000)
+    image_url: Optional[str] = Field(None, max_length=500)
+    video_url: Optional[str] = Field(None, max_length=500)
+    description_uz: Optional[str] = Field(None, max_length=2000)
+    description_ru: Optional[str] = Field(None, max_length=2000)
+    badge: Optional[str] = Field("fresh", max_length=50)
+    stock_quantity: float = Field(50.0, ge=0, le=100000)
 
 
 class StoreUpdateSchema(BaseModel):
-    name_uz: Optional[str] = None
-    name_ru: Optional[str] = None
-    owner_name: Optional[str] = None
-    owner_phone: Optional[str] = None
-    stall_number: Optional[str] = None
-    pin: Optional[str] = None
-    description_uz: Optional[str] = None
-    description_ru: Optional[str] = None
+    name_uz: Optional[str] = Field(None, min_length=2, max_length=150)
+    name_ru: Optional[str] = Field(None, max_length=150)
+    owner_name: Optional[str] = Field(None, min_length=2, max_length=100)
+    owner_phone: Optional[str] = Field(None, max_length=50)
+    stall_number: Optional[str] = Field(None, min_length=1, max_length=50)
+    pin: Optional[str] = Field(None, pattern=PIN_PATTERN)
+    description_uz: Optional[str] = Field(None, max_length=2000)
+    description_ru: Optional[str] = Field(None, max_length=2000)
 
 
 class StoreRegisterSchema(BaseModel):
-    name_uz: str
-    name_ru: str
-    stall_number: str
-    owner_name: str
-    owner_phone: str
-    category_slug: str
-    pin: str
-    description_uz: Optional[str] = None
-    description_ru: Optional[str] = None
-
-
-
+    name_uz: str = Field(..., min_length=2, max_length=150)
+    name_ru: str = Field("", max_length=150)
+    stall_number: str = Field(..., min_length=1, max_length=50)
+    owner_name: str = Field(..., min_length=2, max_length=100)
+    owner_phone: str = Field(..., max_length=50)
+    category_slug: str = Field(..., max_length=50)
+    pin: str = Field(..., pattern=PIN_PATTERN)
+    description_uz: Optional[str] = Field(None, max_length=2000)
+    description_ru: Optional[str] = Field(None, max_length=2000)

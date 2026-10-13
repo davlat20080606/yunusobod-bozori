@@ -1,20 +1,39 @@
 import random
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Body
+import re
+from fastapi import APIRouter, Depends, HTTPException, Body, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.database import get_db
 from app.api.porter import check_pin
+from app.api.tg_auth import telegram_user
+from app.bot.notify import notify_new_order, notify_status
 from app.models.schemas import OrderModel, OrderItemModel, ProductModel, StoreModel, OrderCreateSchema, OrderSchema
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
 @router.post("", response_model=OrderSchema)
-async def create_order(data: OrderCreateSchema, db: AsyncSession = Depends(get_db)):
+async def create_order(
+    data: OrderCreateSchema,
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
     if not data.items:
         raise HTTPException(status_code=400, detail="Buyurtmada mahsulotlar yo'q / Корзина пуста")
+    if len(re.sub(r"\D", "", data.customer_phone)) < 9:
+        raise HTTPException(status_code=400, detail="Telefon raqamini to'liq kiriting / Введите номер телефона полностью")
+
+    # The bazaar works 06:00–20:00 Tashkent time (UTC+5)
+    now = datetime.utcnow()
+    tashkent_hour = (now.hour + 5) % 24 + now.minute / 60
+    slot = data.delivery_time_slot
+    if (slot.startswith("Express") and not 6 <= tashkent_hour < 19) or (slot.startswith("Evening") and tashkent_hour >= 19):
+        raise HTTPException(status_code=409, detail="Bozor yopiq, boshqa vaqtni tanlang / Базар закрыт, выберите другое время доставки")
+
+    # Only trust the Telegram account that Telegram itself signed (used for status messages)
+    tg_user = telegram_user(x_telegram_init_data)
 
     rand_suffix = random.SystemRandom().randint(100000, 999999)
     order_number = f"YB-{datetime.now().strftime('%d%m')}-{rand_suffix}"
@@ -27,6 +46,11 @@ async def create_order(data: OrderCreateSchema, db: AsyncSession = Depends(get_d
         prod = prod_res.scalars().first()
         if not prod:
             raise HTTPException(status_code=404, detail=f"Mahsulot ID {item.product_id} topilmadi")
+        store = await db.get(StoreModel, prod.store_id)
+        if not prod.is_available:
+            raise HTTPException(status_code=409, detail=f"«{prod.name_uz}» hozir yo'q / сейчас нет в наличии")
+        if not store or not store.is_open:
+            raise HTTPException(status_code=409, detail=f"«{store.name_uz if store else prod.name_uz}» rastasi yopiq / раста закрыта")
 
         item_total = prod.price * item.quantity
         total_amount += item_total
@@ -48,8 +72,8 @@ async def create_order(data: OrderCreateSchema, db: AsyncSession = Depends(get_d
         order_number=order_number,
         customer_name=data.customer_name,
         customer_phone=data.customer_phone,
-        customer_tg_id=data.customer_tg_id,
-        customer_tg_username=data.customer_tg_username,
+        customer_tg_id=str(tg_user["id"]) if tg_user else None,
+        customer_tg_username=(tg_user or {}).get("username"),
         delivery_address=data.delivery_address,
         delivery_district=data.delivery_district,
         landmark=data.landmark,
@@ -85,6 +109,7 @@ async def create_order(data: OrderCreateSchema, db: AsyncSession = Depends(get_d
         select(OrderModel).where(OrderModel.id == new_order.id).options(selectinload(OrderModel.items))
     )
     full_order = full_order_res.scalars().first()
+    notify_new_order(full_order.id)
     return full_order
 
 @router.get("/{order_number_or_id}", response_model=OrderSchema)
@@ -118,6 +143,7 @@ async def update_order_status(
     order.status = status
     await db.commit()
     await db.refresh(order)
+    notify_status(order.id)
 
     return {"success": True, "status": order.status, "message": "Buyurtma holati yangilandi"}
 
@@ -133,3 +159,21 @@ async def toggle_item_picked(item_id: int, db: AsyncSession = Depends(get_db)):
     await db.refresh(item)
 
     return {"success": True, "is_picked": item.is_picked}
+
+
+@router.post("/{order_number}/cancel", response_model=OrderSchema)
+async def cancel_order(order_number: str, db: AsyncSession = Depends(get_db)):
+    """The customer can cancel until an aravachi has taken the order."""
+    res = await db.execute(
+        select(OrderModel).where(OrderModel.order_number == order_number.replace("#", "").strip().upper()).options(selectinload(OrderModel.items))
+    )
+    order = res.scalars().first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Buyurtma topilmadi / Заказ не найден")
+    if order.status not in ["pending", "accepted"] or order.porter_phone:
+        raise HTTPException(status_code=409, detail="Aravachi buyurtmani yig'ishni boshladi, bekor qilib bo'lmaydi / Аравачи уже собирает заказ, отменить нельзя")
+
+    order.status = "cancelled"
+    await db.commit()
+    notify_status(order.id)
+    return order

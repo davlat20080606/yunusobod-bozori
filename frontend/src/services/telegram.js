@@ -45,3 +45,8 @@ export function closeTelegramApp() {
 export function getTelegramUser() {
   return tg?.initDataUnsafe?.user || null;
 }
+
+// Signed launch data; the server checks it to know which Telegram account is using the app
+export function getTelegramInitData() {
+  return tg?.initData || '';
+}

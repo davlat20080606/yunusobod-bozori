@@ -1,13 +1,17 @@
 import re
+import hmac
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Header, Body
+from fastapi import APIRouter, Depends, HTTPException, Header, Body, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database import get_db
-from app.models.schemas import OrderModel, OrderItemModel, StoreModel
+from app.models.schemas import OrderModel, OrderItemModel, StoreModel, PorterModel
+from app.api.auth import check_not_locked, record_failure
+from app.api.tg_auth import telegram_user
+from app.bot.notify import notify_status
 
 router = APIRouter(prefix="/api/porter", tags=["porter"])
 
@@ -17,14 +21,22 @@ ACTIVE_STATUSES = ["picking", "handed_over", "on_the_way"]
 PORTER_NEXT_STATUSES = ["picking", "handed_over", "on_the_way", "delivered"]
 
 
-def check_pin(x_porter_pin: Optional[str] = Header(None)):
-    if x_porter_pin != settings.PORTER_PIN:
+def _pin_ok(request: Request, pin: Optional[str]) -> bool:
+    check_not_locked(request)
+    if pin and hmac.compare_digest(pin.strip(), settings.PORTER_PIN):
+        return True
+    record_failure(request)
+    return False
+
+
+def check_pin(request: Request, x_porter_pin: Optional[str] = Header(None)):
+    if not _pin_ok(request, x_porter_pin):
         raise HTTPException(status_code=401, detail="Noto'g'ri PIN-kod / Неверный PIN-код")
 
 
 @router.post("/login")
-async def porter_login(pin: str = Body(..., embed=True)):
-    if pin != settings.PORTER_PIN:
+async def porter_login(request: Request, pin: str = Body(..., embed=True)):
+    if not _pin_ok(request, pin):
         raise HTTPException(status_code=401, detail="Noto'g'ri PIN-kod / Неверный PIN-код")
     return {"success": True}
 
@@ -87,8 +99,25 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
 
 
 @router.get("/orders", dependencies=[Depends(check_pin)])
-async def list_porter_orders(porter_phone: str = "", db: AsyncSession = Depends(get_db)):
+async def list_porter_orders(
+    porter_phone: str = "",
+    porter_name: str = "",
+    x_telegram_init_data: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
     """New orders nobody has taken yet, plus the orders this porter is carrying."""
+    tg_user = telegram_user(x_telegram_init_data)
+    if tg_user:
+        tg_id = str(tg_user["id"])
+        porter = (await db.execute(select(PorterModel).where(PorterModel.tg_id == tg_id))).scalars().first()
+        if not porter:
+            porter = PorterModel(tg_id=tg_id)
+            db.add(porter)
+        porter.name = porter_name[:100] or porter.name
+        porter.phone = porter_phone[:50] or porter.phone
+        porter.last_seen = datetime.utcnow()
+        await db.commit()
+
     res = await db.execute(
         select(OrderModel)
         .where(OrderModel.status.in_(OPEN_STATUSES + ACTIVE_STATUSES))
@@ -135,6 +164,7 @@ async def take_order(
     order.porter_accepted_at = datetime.utcnow()
     order.status = "picking"
     await db.commit()
+    notify_status(order_id)
     return await serialize_order(await get_porter_order(order_id, db), db)
 
 
@@ -173,6 +203,7 @@ async def set_porter_status(
 
     order.status = status
     await db.commit()
+    notify_status(order_id)
     return await serialize_order(await get_porter_order(order_id, db), db)
 
 

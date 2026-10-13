@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../i18n/LanguageContext';
-import { api } from '../services/api';
+import { api, getSellerSession, setSellerSession } from '../services/api';
 import { Store, DollarSign, CheckCircle2, ToggleLeft, ToggleRight, RefreshCw, Package, Check, Save, PlusCircle, X, Image, Video, Sparkles, Upload, Lock, ShieldCheck, Camera, LogOut, Settings, Edit3 } from 'lucide-react';
 import { triggerHaptic } from '../services/telegram';
 import { formatUnit } from './ProductCard';
@@ -16,22 +16,14 @@ const PHOTO_PRESETS = [
   { name: '🧀 Qaymoq / Молочка', image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=600&auto=format&fit=crop&q=80', video: 'https://assets.mixkit.co/videos/preview/mixkit-pouring-fresh-milk-into-a-glass-41722-large.mp4' },
 ];
 
-export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
+export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onSignOut }) {
   const { getLocalized, t, language } = useLanguage();
-  const [stores, setStores] = useState([]);
   const [selectedStoreId, setSelectedStoreId] = useState(null);
   const [storeData, setStoreData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [editingPrices, setEditingPrices] = useState({});
   const [successMsg, setSuccessMsg] = useState('');
   const [incomingOrders, setIncomingOrders] = useState([]);
-
-  // Seller Authentication (PIN Security)
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('seller_auth_status') === 'true';
-  });
-  const [enteredPin, setEnteredPin] = useState('');
-  const [pinError, setPinError] = useState('');
 
   // Monetization Modals
   const [showSubModal, setShowSubModal] = useState(false);
@@ -68,43 +60,17 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
   const [videoUploading, setVideoUploading] = useState(false);
   const [addProductLoading, setAddProductLoading] = useState(false);
 
-  // New Store Registration Modal
-  const [showRegModal, setShowRegModal] = useState(false);
-  const [regForm, setRegForm] = useState({
-    name_uz: '',
-    name_ru: '',
-    stall_number: '',
-    owner_name: '',
-    owner_phone: '+998 ',
-    category_slug: 'meat',
-    pin: '1234'
-  });
-  const [regLoading, setRegLoading] = useState(false);
-
+  // The signed-in seller only ever sees their own stall
   useEffect(() => {
-    loadStores();
+    const session = getSellerSession();
+    if (session?.store?.id) selectStore(session.store.id);
   }, []);
-
-  const loadStores = async () => {
-    try {
-      const list = await api.getAvailableSellerStores();
-      setStores(list);
-      const karenStore = list.find(s => s.owner_name?.toLowerCase().includes('karen') || s.slug?.includes('karen'));
-      if (karenStore) {
-        selectStore(karenStore.id);
-      } else if (list.length > 0) {
-        selectStore(list[0].id);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   const selectStore = async (storeId) => {
     setSelectedStoreId(storeId);
     setLoading(true);
     try {
-      const data = await api.getMyStoreDashboard(storeId);
+      const data = await api.getMyStoreDashboard();
       setStoreData(data);
       
       // Pre-fill edit form
@@ -122,7 +88,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
       });
       setEditingPrices(initialPrices);
 
-      const orders = await api.getStoreOrders(storeId);
+      const orders = await api.getStoreOrders();
       setIncomingOrders(orders);
     } catch (e) {
       console.error(e);
@@ -131,35 +97,10 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
     }
   };
 
-  const handlePinSubmit = (e) => {
-    e.preventDefault();
-    const pin = enteredPin.trim();
-    
-    // Master admin pins or store-specific pins
-    const matchedStore = stores.find(s => s.pin === pin);
-    const isMasterPin = ['2222', '1234', '0000', '2026'].includes(pin);
-
-    if (matchedStore) {
-      triggerHaptic('success');
-      setIsAuthenticated(true);
-      localStorage.setItem('seller_auth_status', 'true');
-      selectStore(matchedStore.id);
-      setPinError('');
-    } else if (isMasterPin) {
-      triggerHaptic('success');
-      setIsAuthenticated(true);
-      localStorage.setItem('seller_auth_status', 'true');
-      setPinError('');
-    } else {
-      triggerHaptic('error');
-      setPinError('Noto\'g\'ri PIN-kod! (Неверный PIN-код)');
-    }
-  };
-
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('seller_auth_status');
-    if (onBackToMarket) onBackToMarket();
+    setSellerSession(null);
+    if (onSignOut) onSignOut();
+    else if (onBackToMarket) onBackToMarket();
   };
 
   // Direct Gallery / Camera Image Upload Handler
@@ -237,7 +178,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
   const handleToggleStoreStatus = async () => {
     triggerHaptic('medium');
     try {
-      const res = await api.toggleStoreStatus(selectedStoreId);
+      const res = await api.toggleStoreStatus();
       setStoreData(prev => ({
         ...prev,
         store: { ...prev.store, is_open: res.is_open }
@@ -261,11 +202,13 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
       };
       if (editStoreForm.pin) payload.pin = editStoreForm.pin;
 
-      const res = await api.updateStoreProfile(selectedStoreId, payload);
+      const res = await api.updateStoreProfile(payload);
       triggerHaptic('success');
       setShowEditStoreModal(false);
       setStoreData(prev => ({ ...prev, store: res.store }));
-      await loadStores();
+      // A new PIN comes with a new session token
+      const session = getSellerSession();
+      setSellerSession({ ...session, store: res.store, token: res.token || session?.token });
       setSuccessMsg(`✅ Ma'lumotlar saqlandi: ${res.store.owner_name} (${res.store.owner_phone})`);
       setTimeout(() => setSuccessMsg(''), 3500);
     } catch (err) {
@@ -280,7 +223,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
     if (!selectedStoreId) return;
     setAddProductLoading(true);
     try {
-      const res = await api.createProduct(selectedStoreId, {
+      const res = await api.createProduct({
         ...productForm,
         price: Number(productForm.price),
         min_weight: Number(productForm.min_weight),
@@ -299,25 +242,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
     }
   };
 
-  const handleRegisterStoreSubmit = async (e) => {
-    e.preventDefault();
-    setRegLoading(true);
-    try {
-      const res = await api.registerStore(regForm);
-      triggerHaptic('success');
-      setShowRegModal(false);
-      await loadStores();
-      selectStore(res.store.id);
-      setSuccessMsg(`🎉 ${res.store.name_uz} muvaffaqiyatli qo'shildi!`);
-      setTimeout(() => setSuccessMsg(''), 3000);
-    } catch (err) {
-      alert(err.message || 'Xatolik');
-    } finally {
-      setRegLoading(false);
-    }
-  };
-
-  // SELLER DASHBOARD (Unlocked via SellerPinGate)
+  // SELLER DASHBOARD (shown after SellerLogin)
 
   // 2. AUTHENTICATED SELLER DASHBOARD
   return (
@@ -344,38 +269,11 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
 
           {/* Quick Actions & Logout */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setShowRegModal(true)}
-              style={{
-                background: '#10b981',
-                color: '#ffffff',
-                border: 'none',
-                padding: '8px 14px',
-                borderRadius: '10px',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer'
-              }}
-            >
-              <PlusCircle size={16} />
-              <span>{t('seller.add_stall')}</span>
-            </button>
-
-            <select 
-              className="form-select"
-              value={selectedStoreId || ''}
-              onChange={(e) => selectStore(Number(e.target.value))}
-              style={{ background: '#334155', color: '#ffffff', borderColor: '#475569', minWidth: '220px' }}
-            >
-              {stores.map(s => (
-                <option key={s.id} value={s.id}>
-                  {s.stall_number} — {getLocalized(s, 'name')}
-                </option>
-              ))}
-            </select>
+            {storeData?.store && (
+              <span style={{ background: '#334155', color: '#ffffff', padding: '8px 12px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 700 }}>
+                {storeData.store.stall_number} — {getLocalized(storeData.store, 'name')}
+              </span>
+            )}
 
             <button 
               onClick={handleLogout}
@@ -1217,119 +1115,6 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket }) {
 
       {/* Register New Store Modal */}
       {/* Register New Store Modal */}
-      {showRegModal && createPortal(
-        <div style={{ position: 'fixed', inset: 0, background: '#ffffff', zIndex: 99999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '16px', overflowY: 'auto' }} onClick={() => setShowRegModal(false)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#ffffff', width: '100%', maxWidth: '480px', paddingTop: '10px' }}>
-            <div style={{ width: '40px', height: '4px', background: '#e2e8f0', borderRadius: '4px', margin: '0 auto 20px' }} />
-            <div className="modal-header" style={{ padding: '0 0 16px 0', background: 'transparent', borderBottom: 'none' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Store size={20} color="#064e3b" />
-                <h3>{language === 'ru' ? 'Добавить новый прилавок / магазин' : (language === 'en' ? 'Add new stall / store' : 'Yangi do\'kon / rasta qo\'shish')}</h3>
-              </div>
-              <button className="close-btn" onClick={() => setShowRegModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleRegisterStoreSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">{language === 'ru' ? 'Название прилавка *' : (language === 'en' ? 'Stall Name *' : 'Do\'kon / Rasta nomi *')}</label>
-                  <input 
-                    type="text" 
-                    className="form-input"
-                    placeholder={language === 'ru' ? 'Например: Жасур — Тандырное Мясо' : (language === 'en' ? 'E.g. Jasur — Tandir Meat' : 'Masalan: Jasur — Qashqadaryo Tandir Go\'shti')}
-                    value={regForm.name_uz}
-                    onChange={(e) => setRegForm({ ...regForm, name_uz: e.target.value, name_ru: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="form-group">
-                    <label className="form-label">{language === 'ru' ? 'Номер ряда & Места *' : (language === 'en' ? 'Stall & Place Number *' : 'Rasta & Joy raqami *')}</label>
-                    <input 
-                      type="text" 
-                      className="form-input"
-                      placeholder="Rasta 12, Joy №5"
-                      value={regForm.stall_number}
-                      onChange={(e) => setRegForm({ ...regForm, stall_number: e.target.value })}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">{language === 'ru' ? 'Категория *' : (language === 'en' ? 'Category *' : 'Kategoriya *')}</label>
-                    <select 
-                      className="form-select"
-                      value={regForm.category_slug}
-                      onChange={(e) => setRegForm({ ...regForm, category_slug: e.target.value })}
-                    >
-                      <option value="meat">{language === 'ru' ? '🥩 Мясо & Казы' : (language === 'en' ? '🥩 Meat & Kazi' : '🥩 Go\'sht & Qazi')}</option>
-                      <option value="vegetables">{language === 'ru' ? '🍅 Овощи' : (language === 'en' ? '🍅 Vegetables' : '🍅 Sabzavotlar')}</option>
-                      <option value="fruits">{language === 'ru' ? '🍇 Фрукты' : (language === 'en' ? '🍇 Fruits' : '🍇 Mevalar')}</option>
-                      <option value="bakery">{language === 'ru' ? '🥖 Хлеб & Самса' : (language === 'en' ? '🥖 Bread & Somsa' : '🥖 Non & Somsa')}</option>
-                      <option value="dry_fruits">{language === 'ru' ? '🥜 Сухофрукты & Орехи' : (language === 'en' ? '🥜 Dry fruits & Nuts' : '🥜 Quruq mevalar')}</option>
-                      <option value="dairy">{language === 'ru' ? '🧀 Молочка & Сливки' : (language === 'en' ? '🧀 Dairy & Cream' : '🧀 Sut & Qaymoq')}</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="form-group">
-                    <label className="form-label">{language === 'ru' ? 'Имя продавца *' : (language === 'en' ? 'Seller Name *' : 'Sotuvchi ismi *')}</label>
-                    <input 
-                      type="text" 
-                      className="form-input"
-                      placeholder={language === 'ru' ? 'Например: Жасур' : (language === 'en' ? 'E.g. Jasur' : 'Masalan: Jasur')}
-                      value={regForm.owner_name}
-                      onChange={(e) => setRegForm({ ...regForm, owner_name: e.target.value })}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">{language === 'ru' ? 'PIN-код (4 цифры) *' : (language === 'en' ? 'PIN-code (4 digits) *' : 'PIN-kod (4 raqam) *')}</label>
-                    <input 
-                      type="password" 
-                      maxLength="4"
-                      className="form-input"
-                      placeholder="1234"
-                      value={regForm.pin}
-                      onChange={(e) => setRegForm({ ...regForm, pin: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">{language === 'ru' ? 'Номер телефона *' : (language === 'en' ? 'Phone Number *' : 'Telefon raqam *')}</label>
-                  <input 
-                    type="tel" 
-                    className="form-input"
-                    placeholder="+998 90 123-45-67"
-                    value={regForm.owner_phone}
-                    onChange={(e) => setRegForm({ ...regForm, owner_phone: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button 
-                  type="submit" 
-                  className="add-cart-btn"
-                  disabled={regLoading}
-                  style={{ height: '46px' }}
-                >
-                  {regLoading ? (language === 'ru' ? 'Регистрация...' : (language === 'en' ? 'Registering...' : 'Qo\'shilmoqda...')) : (language === 'ru' ? '✅ Зарегистрировать магазин' : (language === 'en' ? '✅ Register store' : '✅ Do\'konni ro\'yxatdan o\'tkazish'))}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
     </div>
   );
 }

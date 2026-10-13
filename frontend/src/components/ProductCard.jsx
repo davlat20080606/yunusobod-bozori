@@ -121,9 +121,6 @@ export default function ProductCard({
       : (product.store_id === 3 ? `NODIRA OPA • ${stallWord} #10`
       : (language === 'ru' ? 'ЮНУСАБАДСКИЙ БАЗАР' : (language === 'en' ? 'YUNUSABAD BAZAAR' : 'YUNUSOBOD BOZORI'))))))));
 
-  // Mock rating
-  const rating = product.rating || (4.6 + ((product.id * 3) % 4) / 10).toFixed(1);
-  const reviewsCount = product.reviews_count || (8 + (product.id * 4) % 25);
 
   // Currency label based on selected language
   const currencyLabel = language === 'ru' ? 'сум' : (language === 'en' ? 'UZS' : 'so\'m');
@@ -218,11 +215,6 @@ export default function ProductCard({
 
         {/* Rating & Reviews */}
         <div className="med-rating-row">
-          <div className="med-star-wrap">
-            <Star size={13} className="fill-amber-400 text-amber-400" />
-            <span className="med-rating-score">{rating}</span>
-            <span className="med-reviews-count">({reviewsCount})</span>
-          </div>
           <span className="med-unit-tag">/ {displayUnit}</span>
         </div>
 

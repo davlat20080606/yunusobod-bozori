@@ -1,5 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+import secrets
 from sqlalchemy import select, inspect
+from app.config import settings
 from app.models.schemas import CategoryModel, StoreModel, ProductModel
 from app.database import Base, engine, async_session_factory
 
@@ -786,6 +788,15 @@ async def init_db_and_seed():
             else:
                 store_map[store_data["slug"]] = existing_stores[store_data["slug"]].id
         await session.commit()
+
+        # Demo PINs are published in the source code, so they must not work on the real server
+        if settings.APP_ENV == "production":
+            demo_pins = {d["slug"]: d.get("seller_pin") for d in STORES}
+            res = await session.execute(select(StoreModel).where(StoreModel.slug.in_(list(demo_pins))))
+            for store in res.scalars().all():
+                if store.seller_pin == demo_pins.get(store.slug):
+                    store.seller_pin = f"{secrets.randbelow(900000) + 100000}"
+            await session.commit()
 
         # Clean up legacy duplicate emoji records
         from sqlalchemy import delete
