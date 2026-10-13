@@ -89,7 +89,7 @@ export default function StoreDetailView({ store, products: propProducts, onBack,
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.8rem', color: '#cbd5e1', marginTop: '4px', flexWrap: 'wrap' }}>
               <span>👤 {store.owner_name}</span>
               <span>📞 {store.owner_phone}</span>
-              {store.total_orders > 0 && <span style={{ color: '#fbbf24', fontWeight: 700 }}>🛍 {store.total_orders}</span>}
+              {store.reviews_count > 0 && <span style={{ color: '#fbbf24', fontWeight: 700 }}>★ {store.rating.toFixed(1)} ({store.reviews_count})</span>}
             </div>
           </div>
         </div>

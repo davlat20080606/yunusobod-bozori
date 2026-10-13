@@ -192,7 +192,7 @@ PRODUCTS = [
         "min_weight": 1.0,
         "step_weight": 1.0,
         "image_url": "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-meat-skewers-sizzling-over-a-grill-42996-large.mp4",
+        "video_url": None,
         "is_featured": True,
         "badge": "premium",
         "stock_quantity": 25.0
@@ -211,8 +211,8 @@ PRODUCTS = [
         "unit": "to'plam (сет)",
         "min_weight": 1.0,
         "step_weight": 1.0,
-        "image_url": "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-meat-skewers-sizzling-over-a-grill-42996-large.mp4",
+        "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Central_Asian_Plov_Centre_in_Tashkent.jpg/960px-Central_Asian_Plov_Centre_in_Tashkent.jpg",
+        "video_url": None,
         "is_featured": True,
         "badge": "tea_house",
         "stock_quantity": 30.0
@@ -232,7 +232,7 @@ PRODUCTS = [
         "min_weight": 1.0,
         "step_weight": 1.0,
         "image_url": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-meat-skewers-sizzling-over-a-grill-42996-large.mp4",
+        "video_url": None,
         "is_featured": True,
         "badge": "top_rated",
         "stock_quantity": 20.0
@@ -251,7 +251,7 @@ PRODUCTS = [
         "unit": "to'plam (сет)",
         "min_weight": 1.0,
         "step_weight": 1.0,
-        "image_url": "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ed/Uzbekistan_style_plov_in_Japan.jpg/960px-Uzbekistan_style_plov_in_Japan.jpg",
         "video_url": None,
         "is_featured": True,
         "badge": "premium",
@@ -294,7 +294,7 @@ PRODUCTS = [
         "min_weight": 0.5,
         "step_weight": 0.5,
         "image_url": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-slicing-a-ripe-red-tomato-41712-large.mp4",
+        "video_url": None,
         "is_featured": True,
         "badge": "top_seller",
         "stock_quantity": 80.0
@@ -314,7 +314,7 @@ PRODUCTS = [
         "min_weight": 0.5,
         "step_weight": 0.5,
         "image_url": "https://images.unsplash.com/photo-1604977042946-1eecc30f269e?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-chopping-vegetables-for-a-salad-41706-large.mp4",
+        "video_url": None,
         "is_featured": True,
         "badge": "fresh",
         "stock_quantity": 60.0
@@ -334,7 +334,7 @@ PRODUCTS = [
         "min_weight": 1.0,
         "step_weight": 1.0,
         "image_url": "https://images.unsplash.com/photo-1618375569909-3c8616cf7733?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-hands-washing-fresh-green-spinach-leaves-41702-large.mp4",
+        "video_url": None,
         "is_featured": False,
         "badge": "fresh",
         "stock_quantity": 100.0
@@ -354,7 +354,7 @@ PRODUCTS = [
         "min_weight": 1.0,
         "step_weight": 1.0,
         "image_url": "https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-close-up-of-sliced-carrots-falling-on-a-wooden-board-41716-large.mp4",
+        "video_url": None,
         "is_featured": False,
         "badge": "organic",
         "stock_quantity": 150.0
@@ -376,7 +376,7 @@ PRODUCTS = [
         "min_weight": 0.5,
         "step_weight": 0.5,
         "image_url": "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-meat-skewers-sizzling-over-a-grill-42996-large.mp4",
+        "video_url": None,
         "is_featured": True,
         "badge": "top_rated",
         "stock_quantity": 40.0
@@ -396,7 +396,7 @@ PRODUCTS = [
         "min_weight": 0.5,
         "step_weight": 0.5,
         "image_url": "https://images.unsplash.com/photo-1588168333986-5078d3ae3976?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-raw-meat-steak-being-seasoned-42994-large.mp4",
+        "video_url": None,
         "is_featured": True,
         "badge": "fresh",
         "stock_quantity": 50.0
@@ -415,8 +415,8 @@ PRODUCTS = [
         "unit": "dona",
         "min_weight": 1.0,
         "step_weight": 1.0,
-        "image_url": "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-chef-slicing-cooked-meat-on-a-cutting-board-42998-large.mp4",
+        "image_url": "https://upload.wikimedia.org/wikipedia/commons/5/5b/%27Horse_meat_sausages%27_in_Chorsu_Bazaar.jpg",
+        "video_url": None,
         "is_featured": True,
         "badge": "premium",
         "stock_quantity": 25.0
@@ -438,7 +438,7 @@ PRODUCTS = [
         "min_weight": 1.0,
         "step_weight": 1.0,
         "image_url": "https://images.unsplash.com/photo-1549931319-a545dcf3bc73?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-freshly-baked-bread-steaming-in-a-bakery-43004-large.mp4",
+        "video_url": None,
         "is_featured": True,
         "badge": "fresh_hot",
         "stock_quantity": 80.0
@@ -457,8 +457,8 @@ PRODUCTS = [
         "unit": "dona",
         "min_weight": 1.0,
         "step_weight": 1.0,
-           "image_url": "https://images.unsplash.com/photo-1595855759920-86582396756a?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-knife-cutting-open-a-juicy-sweet-melon-41724-large.mp4",
+           "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Samsa_of_Khiva.jpg/960px-Samsa_of_Khiva.jpg",
+        "video_url": None,
         "is_featured": True,
         "badge": "sweet",
         "stock_quantity": 30.0
@@ -477,8 +477,8 @@ PRODUCTS = [
         "unit": "kg",
         "min_weight": 0.5,
         "step_weight": 0.5,
-        "image_url": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-biting-into-a-fresh-juicy-peach-41720-large.mp4",
+        "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Autumn_Red_peaches.jpg/960px-Autumn_Red_peaches.jpg",
+        "video_url": None,
         "is_featured": True,
         "badge": "fresh",
         "stock_quantity": 45.0
@@ -498,7 +498,7 @@ PRODUCTS = [
         "min_weight": 0.5,
         "step_weight": 0.5,
         "image_url": "https://images.unsplash.com/photo-1537640538966-79f369143f8f?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-close-up-of-washing-black-grapes-under-water-41722-large.mp4",
+        "video_url": None,
         "is_featured": False,
         "badge": "fresh",
         "stock_quantity": 50.0
@@ -517,8 +517,8 @@ PRODUCTS = [
         "unit": "kg",
         "min_weight": 0.5,
         "step_weight": 0.5,
-        "image_url": "https://images.unsplash.com/photo-1541344999736-83eca872f240?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-cutting-open-a-ripe-red-pomegranate-41728-large.mp4",
+        "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/Pomegranate_fruit_-_whole_and_piece_with_arils.jpg/960px-Pomegranate_fruit_-_whole_and_piece_with_arils.jpg",
+        "video_url": None,
         "is_featured": True,
         "badge": "fresh",
         "stock_quantity": 40.0
@@ -603,8 +603,8 @@ PRODUCTS = [
         "unit": "kg",
         "min_weight": 0.25,
         "step_weight": 0.25,
-        "image_url": "https://images.unsplash.com/photo-1596560548464-f010549b84d7?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-pouring-dried-fruits-and-nuts-into-a-bowl-41730-large.mp4",
+        "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5d/Sunmaid-Raisin-Pile.jpg/960px-Sunmaid-Raisin-Pile.jpg",
+        "video_url": None,
         "is_featured": True,
         "badge": "premium",
         "stock_quantity": 50.0
@@ -623,8 +623,8 @@ PRODUCTS = [
         "unit": "kg",
         "min_weight": 0.25,
         "step_weight": 0.25,
-        "image_url": "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-cracking-open-a-walnut-shell-41732-large.mp4",
+        "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fe/White_walnut_kernels.jpg/960px-White_walnut_kernels.jpg",
+        "video_url": None,
         "is_featured": False,
         "badge": "organic",
         "stock_quantity": 40.0
@@ -663,7 +663,7 @@ PRODUCTS = [
         "unit": "kg",
         "min_weight": 0.25,
         "step_weight": 0.25,
-        "image_url": "https://images.unsplash.com/photo-1596560548464-f010549b84d7?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Turkey_dried_apricots.jpg/960px-Turkey_dried_apricots.jpg",
         "video_url": None,
         "is_featured": True,
         "badge": "organic",
@@ -686,7 +686,7 @@ PRODUCTS = [
         "min_weight": 0.25,
         "step_weight": 0.25,
         "image_url": "https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-spreading-fresh-butter-or-clotted-cream-on-bread-41734-large.mp4",
+        "video_url": None,
         "is_featured": True,
         "badge": "organic",
         "stock_quantity": 25.0
@@ -705,8 +705,8 @@ PRODUCTS = [
         "unit": "kg",
         "min_weight": 0.5,
         "step_weight": 0.5,
-        "image_url": "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&auto=format&fit=crop&q=80",
-        "video_url": "https://assets.mixkit.co/videos/preview/mixkit-pouring-fresh-thick-yogurt-into-a-bowl-41736-large.mp4",
+        "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/Labneh_%285196911587%29.jpg/960px-Labneh_%285196911587%29.jpg",
+        "video_url": None,
         "is_featured": False,
         "badge": "fresh",
         "stock_quantity": 30.0
@@ -753,6 +753,53 @@ PRODUCTS = [
     }
 ]
 
+
+# Photos that were wrong in the first release (asparagus for somsa, tomato for peach, ...).
+# Replaced only where the seller has not uploaded their own photo.
+IMAGE_FIXES = {
+    "Go'shtli Tandir Somsa (Varaqi)": {
+        "old": "https://images.unsplash.com/photo-1595855759920-86582396756a?w=600&auto=format&fit=crop&q=80",
+        "new": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Samsa_of_Khiva.jpg/960px-Samsa_of_Khiva.jpg"
+    },
+    "Farg'ona Anjir Shaftolisi": {
+        "old": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&auto=format&fit=crop&q=80",
+        "new": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Autumn_Red_peaches.jpg/960px-Autumn_Red_peaches.jpg"
+    },
+    "Samarqand Qora 'Soyaki' Mayizi": {
+        "old": "https://images.unsplash.com/photo-1596560548464-f010549b84d7?w=600&auto=format&fit=crop&q=80",
+        "new": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5d/Sunmaid-Raisin-Pile.jpg/960px-Sunmaid-Raisin-Pile.jpg"
+    },
+    "Tog' Yong'og'i Mag'zi (Oq & Yog'li)": {
+        "old": "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?w=600&auto=format&fit=crop&q=80",
+        "new": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fe/White_walnut_kernels.jpg/960px-White_walnut_kernels.jpg"
+    },
+    "Oftobda Quritilgan Asal O'rik (Turshak)": {
+        "old": "https://images.unsplash.com/photo-1596560548464-f010549b84d7?w=600&auto=format&fit=crop&q=80",
+        "new": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Turkey_dried_apricots.jpg/960px-Turkey_dried_apricots.jpg"
+    },
+    "Quva Qizil Shirin Anori": {
+        "old": "https://images.unsplash.com/photo-1541344999736-83eca872f240?w=600&auto=format&fit=crop&q=80",
+        "new": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/Pomegranate_fruit_-_whole_and_piece_with_arils.jpg/960px-Pomegranate_fruit_-_whole_and_piece_with_arils.jpg"
+    },
+    "Qo'lda Tayyorlangan Qazi (Ot go'shti)": {
+        "old": "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+        "new": "https://upload.wikimedia.org/wikipedia/commons/5/5b/%27Horse_meat_sausages%27_in_Chorsu_Bazaar.jpg"
+    },
+    "Haqiqiy Choyxona Oshi Seti (10-15 kishilik Maxsus To'plam)": {
+        "old": "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+        "new": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Central_Asian_Plov_Centre_in_Tashkent.jpg/960px-Central_Asian_Plov_Centre_in_Tashkent.jpg"
+    },
+    "Shohona Palov & Qazi VIP To'plami (5-7 kishilik)": {
+        "old": "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+        "new": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ed/Uzbekistan_style_plov_in_Japan.jpg/960px-Uzbekistan_style_plov_in_Japan.jpg"
+    },
+    "Toza Suzma / Chaqqa (Sho'r & Mayin)": {
+        "old": "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&auto=format&fit=crop&q=80",
+        "new": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/Labneh_%285196911587%29.jpg/960px-Labneh_%285196911587%29.jpg"
+    }
+}
+
+
 async def init_db_and_seed():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -779,7 +826,8 @@ async def init_db_and_seed():
         existing_stores = {s.slug: s for s in store_res.scalars().all()}
         store_map = {s.slug: s.id for s in existing_stores.values()}
 
-        for store_data in STORES:
+        # Demo stalls only go into an empty database; real stalls are added by the administration
+        for store_data in (STORES if not existing_stores else []):
             if store_data["slug"] not in existing_stores:
                 store = StoreModel(**store_data)
                 session.add(store)
@@ -787,6 +835,16 @@ async def init_db_and_seed():
                 store_map[store.slug] = store.id
             else:
                 store_map[store_data["slug"]] = existing_stores[store_data["slug"]].id
+        await session.commit()
+
+        # Correct wrong demo photos and drop dead demo video links (sellers' own uploads are kept)
+        for name, fix in IMAGE_FIXES.items():
+            res = await session.execute(select(ProductModel).where(ProductModel.name_uz == name, ProductModel.image_url == fix["old"]))
+            for prod in res.scalars().all():
+                prod.image_url = fix["new"]
+        res = await session.execute(select(ProductModel).where(ProductModel.video_url.like("https://assets.mixkit.co/%")))
+        for prod in res.scalars().all():
+            prod.video_url = None
         await session.commit()
 
         # Demo PINs are published in the source code, so they must not work on the real server
@@ -798,44 +856,20 @@ async def init_db_and_seed():
                     store.seller_pin = f"{secrets.randbelow(900000) + 100000}"
             await session.commit()
 
-        # Clean up legacy duplicate emoji records
-        from sqlalchemy import delete
-        await session.execute(
-            delete(ProductModel).where(
-                (ProductModel.name_uz.like("👑%")) | 
-                (ProductModel.name_uz.like("🍲%")) | 
-                (ProductModel.name_uz.like("🍢%")) | 
-                (ProductModel.name_uz.like("🥗%"))
-            )
-        )
-        await session.commit()
-
         # 3. Sync Products
         prod_res = await session.execute(select(ProductModel))
         existing_prods = {p.name_uz: p for p in prod_res.scalars().all()}
 
-        for prod_data in PRODUCTS:
+        for prod_data in (PRODUCTS if not existing_prods else []):
             p_data = dict(prod_data)
             store_slug = p_data.pop("store_slug")
             store_id = store_map.get(store_slug, 1)
             p_data["store_id"] = store_id
 
+            # Demo products are only created once; after that the seller owns prices, photos and stock
             if p_data["name_uz"] not in existing_prods:
                 prod = ProductModel(**p_data)
                 session.add(prod)
-            else:
-                ep = existing_prods[p_data["name_uz"]]
-                ep.name_ru = p_data["name_ru"]
-                ep.name_en = p_data["name_en"]
-                ep.price = p_data["price"]
-                ep.old_price = p_data.get("old_price")
-                ep.badge = p_data.get("badge")
-                if ep.video_url and "mixkit.co" in ep.video_url:
-                    ep.video_url = None
-                elif p_data.get("video_url") and "mixkit.co" not in p_data["video_url"]:
-                    ep.video_url = p_data["video_url"]
-                if p_data.get("image_url"):
-                    ep.image_url = p_data["image_url"]
 
         await session.commit()
 

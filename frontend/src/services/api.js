@@ -97,6 +97,22 @@ export const api = {
     return res.json();
   },
 
+  async getReviews() {
+    const res = await fetch(`${API_BASE}/reviews?limit=10`);
+    if (!res.ok) throw await readError(res, 'Failed to load reviews');
+    return res.json();
+  },
+
+  async reviewOrder(orderNumber, rating, comment) {
+    const res = await fetch(`${API_BASE}/reviews/${encodeURIComponent(orderNumber)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating, comment })
+    });
+    if (!res.ok) throw await readError(res, 'Failed to send review');
+    return res.json();
+  },
+
   async getOrder(orderNumber) {
     if (!orderNumber) throw new Error('Order number required');
     const cleanNum = String(orderNumber).replace(/^#/, '').trim();

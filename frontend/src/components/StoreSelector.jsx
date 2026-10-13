@@ -66,7 +66,13 @@ export default function StoreSelector({ stores, onSelectStore }) {
 
               <div className="med-store-footer">
                 <div className="med-store-rating">
-                  {store.total_orders > 0 && <span className="text-slate-500">🛍 {store.total_orders}</span>}
+                  {store.reviews_count > 0 && (
+                    <>
+                      <Star size={14} className="fill-amber-400 text-amber-400" />
+                      <span className="font-bold text-slate-900">{store.rating.toFixed(1)}</span>
+                      <span className="text-slate-400">({store.reviews_count})</span>
+                    </>
+                  )}
                 </div>
 
                 <div className="med-enter-store-btn">

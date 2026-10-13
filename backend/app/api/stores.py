@@ -4,6 +4,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import select, func
 from typing import List, Optional
 from app.database import get_db
+from app.api.reviews import store_ratings, apply_rating
 from app.models.schemas import StoreModel, ProductModel, StoreSchema, StoreWithProductsSchema, CategoryModel, CategorySchema
 
 router = APIRouter(prefix="/api/stores", tags=["stores"])
@@ -17,7 +18,8 @@ async def get_stores(category: Optional[str] = None, db: AsyncSession = Depends(
     result = await db.execute(query)
     stores = result.scalars().all()
 
-    # Count products per store
+    # Count products per store; rating comes from real customer reviews
+    ratings = await store_ratings(db)
     response = []
     for s in stores:
         count_res = await db.execute(
@@ -26,7 +28,7 @@ async def get_stores(category: Optional[str] = None, db: AsyncSession = Depends(
         prod_count = count_res.scalar() or 0
         s_dict = StoreSchema.from_orm(s)
         s_dict.products_count = prod_count
-        response.append(s_dict)
+        response.append(apply_rating(s_dict, ratings))
     
     return response
 
@@ -48,4 +50,5 @@ async def get_store_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
     store_data = StoreWithProductsSchema.from_orm(store)
     store_data.products = [p for p in store_data.products if p.is_available]
     store_data.products_count = len(store_data.products)
+    apply_rating(store_data, await store_ratings(db))
     return store_data

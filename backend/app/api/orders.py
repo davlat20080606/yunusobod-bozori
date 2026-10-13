@@ -10,7 +10,7 @@ from app.database import get_db
 from app.api.porter import check_pin
 from app.api.tg_auth import telegram_user
 from app.bot.notify import notify_new_order, notify_status
-from app.models.schemas import OrderModel, OrderItemModel, ProductModel, StoreModel, OrderCreateSchema, OrderSchema
+from app.models.schemas import OrderModel, OrderItemModel, ProductModel, StoreModel, OrderCreateSchema, OrderSchema, ReviewModel
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
@@ -123,7 +123,10 @@ async def get_order(order_number_or_id: str, db: AsyncSession = Depends(get_db))
 
     if not order:
         raise HTTPException(status_code=404, detail="Buyurtma topilmadi / Заказ не найден")
-    return order
+    result = OrderSchema.from_orm(order)
+    review = (await db.execute(select(ReviewModel).where(ReviewModel.order_id == order.id))).scalars().first()
+    result.review_rating = review.rating if review else None
+    return result
 
 @router.patch("/{order_id}/status", dependencies=[Depends(check_pin)])
 async def update_order_status(

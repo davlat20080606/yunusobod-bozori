@@ -8,12 +8,12 @@ import { formatUnit } from './ProductCard';
 import { ClickLogo, PaymeLogo } from './PaymentLogos';
 
 const PHOTO_PRESETS = [
-  { name: '🥩 Go\'sht / Мясо', image: 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=600&auto=format&fit=crop&q=80', video: 'https://assets.mixkit.co/videos/preview/mixkit-meat-skewers-sizzling-over-a-grill-42996-large.mp4' },
-  { name: '🍅 Pomidor / Овощи', image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&auto=format&fit=crop&q=80', video: 'https://assets.mixkit.co/videos/preview/mixkit-slicing-a-ripe-red-tomato-41712-large.mp4' },
-  { name: '🍈 Qovun / Фрукты', image: 'https://images.unsplash.com/photo-1595855759920-86582396756a?w=600&auto=format&fit=crop&q=80', video: 'https://assets.mixkit.co/videos/preview/mixkit-hands-cutting-a-cantaloupe-melon-into-slices-41714-large.mp4' },
-  { name: '🥖 Non / Выпечка', image: 'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=600&auto=format&fit=crop&q=80', video: 'https://assets.mixkit.co/videos/preview/mixkit-steam-rising-from-freshly-baked-bread-41724-large.mp4' },
-  { name: '🥜 Quruq meva / Орехи', image: 'https://images.unsplash.com/photo-1599599810769-bcde5a160d32?w=600&auto=format&fit=crop&q=80', video: 'https://assets.mixkit.co/videos/preview/mixkit-pouring-mixed-nuts-into-a-wooden-bowl-41720-large.mp4' },
-  { name: '🧀 Qaymoq / Молочка', image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=600&auto=format&fit=crop&q=80', video: 'https://assets.mixkit.co/videos/preview/mixkit-pouring-fresh-milk-into-a-glass-41722-large.mp4' },
+  { name: '🥩 Go\'sht / Мясо', image: 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=600&auto=format&fit=crop&q=80', video: '' },
+  { name: '🍅 Pomidor / Овощи', image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&auto=format&fit=crop&q=80', video: '' },
+  { name: '🍈 Qovun / Фрукты', image: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/Melon_product.jpg/960px-Melon_product.jpg', video: '' },
+  { name: '🥖 Non / Выпечка', image: 'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=600&auto=format&fit=crop&q=80', video: '' },
+  { name: '🥜 Quruq meva / Орехи', image: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fe/White_walnut_kernels.jpg/960px-White_walnut_kernels.jpg', video: '' },
+  { name: '🧀 Qaymoq / Молочка', image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=600&auto=format&fit=crop&q=80', video: '' },
 ];
 
 export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onSignOut }) {

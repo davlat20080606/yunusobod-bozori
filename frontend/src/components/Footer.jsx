@@ -3,6 +3,40 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Phone, Clock, MapPin, Send, ShieldCheck, ShoppingBag, Sparkles } from 'lucide-react';
 import { ClickLogo, PaymeLogo, UzcardBadge, HumoBadge } from './PaymentLogos';
 
+// Photos under CC BY / CC BY-SA must name their authors
+const PHOTO_CREDITS = [
+  {
+    "what": "Go'shtli Tandir Somsa (Varaqi)",
+    "author": "Davide Mauro",
+    "license": "CC BY-SA 4.0",
+    "url": "https://commons.wikimedia.org/wiki/File:Samsa_of_Khiva.jpg"
+  },
+  {
+    "what": "Quva Qizil Shirin Anori",
+    "author": "Ivar Leidus",
+    "license": "CC BY-SA 4.0",
+    "url": "https://commons.wikimedia.org/wiki/File:Pomegranate_fruit_-_whole_and_piece_with_arils.jpg"
+  },
+  {
+    "what": "Haqiqiy Choyxona Oshi Seti (10-15 kishilik Maxsus To'plam)",
+    "author": "Adam Harangozó",
+    "license": "CC BY-SA 4.0",
+    "url": "https://commons.wikimedia.org/wiki/File:Central_Asian_Plov_Centre_in_Tashkent.jpg"
+  },
+  {
+    "what": "Shohona Palov & Qazi VIP To'plami (5-7 kishilik)",
+    "author": "赤猫法師",
+    "license": "CC BY-SA 4.0",
+    "url": "https://commons.wikimedia.org/wiki/File:Uzbekistan_style_plov_in_Japan.jpg"
+  },
+  {
+    "what": "Toza Suzma / Chaqqa (Sho'r & Mayin)",
+    "author": "Leslie Seaton from Seattle, WA, USA",
+    "license": "CC BY 2.0",
+    "url": "https://commons.wikimedia.org/wiki/File:Labneh_(5196911587).jpg"
+  }
+];
+
 export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateSeller, onNavigateOrders, onNavigatePorter }) {
   const { t, language } = useLanguage();
 
@@ -138,6 +172,17 @@ export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateS
         </div>
 
         {/* Bottom Bar: Copyright & Location */}
+        <details style={{ margin: '0 0 12px', fontSize: 11, color: '#94a3b8' }}>
+          <summary style={{ cursor: 'pointer' }}>{language === 'ru' ? 'Авторы фотографий' : (language === 'en' ? 'Photo credits' : 'Rasm mualliflari')}</summary>
+          <ul style={{ margin: '6px 0 0', paddingLeft: 16, lineHeight: 1.6 }}>
+            {PHOTO_CREDITS.map((c) => (
+              <li key={c.url}>
+                {c.what}: <a href={c.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>{c.author}</a>, {c.license} (Wikimedia Commons)
+              </li>
+            ))}
+          </ul>
+        </details>
+
         <div className="med-footer-bottom">
           <p className="med-footer-copyright">
             {t('footer.copyright')}

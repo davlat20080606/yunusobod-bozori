@@ -5,7 +5,9 @@ import { initTelegramApp, triggerHaptic } from './services/telegram';
 
 import Navbar from './components/Navbar';
 import HeroBanner from './components/HeroBanner';
-import CategoryPills from './components/CategoryPills';
+import CategoryGrid from './components/CategoryGrid';
+import InfoTicker from './components/InfoTicker';
+import ReviewsSection from './components/ReviewsSection';
 import DiscountsSection from './components/DiscountsSection';
 import CategorizedSections from './components/CategorizedSections';
 import CatalogView from './components/CatalogView';
@@ -150,7 +152,10 @@ export default function App() {
     };
     const check = () => api.getOrder(activeOrderNumber)
       .then((order) => {
-        if (!order || !ACTIVE_STATUSES.includes(order.status)) clear();
+        // An order from yesterday is not "live" any more, even if nobody pressed Delivered
+        const created = order?.created_at ? new Date(/Z|[+-]\d\d:?\d\d$/.test(order.created_at) ? order.created_at : `${order.created_at}Z`) : null;
+        const tooOld = created && Date.now() - created.getTime() > 12 * 3600 * 1000;
+        if (!order || !ACTIVE_STATUSES.includes(order.status) || tooOld) clear();
         else setActiveOrderStatus(order.status);
       })
       .catch(clear);
@@ -496,15 +501,17 @@ export default function App() {
                         }}
                       />
 
-                      {/* 2. Category Quick Squircle Strip (Bo'limlar) */}
-                      <CategoryPills 
+                      {/* 2. Running line with real bazaar facts */}
+                      <InfoTicker />
+
+                      {/* 3. Big photo cards for bazaar sections */}
+                      <CategoryGrid
                         categories={categories}
-                        activeCategory={activeCategory}
+                        products={products}
                         onSelectCategory={(slug) => {
                           setActiveCategory(slug);
                           setActiveTab('catalog');
                         }}
-                        products={products}
                       />
 
                       {/* 3. Categorized Sections with Themed Banners (MoboSELL / Uzum layout) */}
@@ -526,6 +533,9 @@ export default function App() {
                           window.scrollTo(0, 0);
                         }}
                       />
+
+                      {/* 5. Real customer reviews (shown after the first one) */}
+                      <ReviewsSection />
 
                     </div>
                   )}

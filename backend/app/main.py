@@ -18,7 +18,8 @@ from app.config import settings, USE_WEBHOOK
 from app.database import engine, Base, get_db
 from app.models.schemas import MediaModel
 from app.services.seed_data import init_db_and_seed
-from app.api import stores, products, seller, orders, stats, porter
+from app.services import maintenance
+from app.api import stores, products, seller, orders, stats, porter, reviews
 from app.bot.bot import setup_dispatcher, get_bot
 
 logging.basicConfig(level=logging.INFO)
@@ -63,6 +64,9 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Database seeded with authentic Yunusobod stores & fresh products.")
     except Exception as e:
         logger.error(f"Seeding notice: {e}")
+
+    # Close orders nobody took in time, so customers are not stuck with a "live" order
+    maintenance_task = asyncio.create_task(maintenance.run_forever())
 
     # 2. Start Telegram Bot polling in background
     bot = get_bot()
@@ -116,6 +120,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Teardown
+    maintenance_task.cancel()
     if bot_task:
         bot_task.cancel()
     bot = get_bot()
@@ -150,6 +155,7 @@ app.include_router(seller.router)
 app.include_router(orders.router)
 app.include_router(stats.router)
 app.include_router(porter.router)
+app.include_router(reviews.router)
 
 bot_status = {"bot": "not started"}
 

@@ -148,6 +148,18 @@ class OrderItemModel(Base):
     store = relationship("StoreModel", back_populates="order_items")
 
 
+class ReviewModel(Base):
+    """A customer's rating of a delivered order; it counts for every stall in that order."""
+    __tablename__ = "reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), unique=True, nullable=False)
+    rating = Column(Integer, nullable=False)
+    comment = Column(Text, nullable=True)
+    customer_name = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class PorterModel(Base):
     """Porters who opened their panel inside Telegram, so the bot can tell them about new orders."""
     __tablename__ = "porters"
@@ -234,6 +246,7 @@ class StoreSchema(BaseModel):
     rating: float
     total_orders: int
     products_count: Optional[int] = 0
+    reviews_count: int = 0
 
     class Config:
         from_attributes = True
@@ -302,6 +315,7 @@ class OrderSchema(BaseModel):
     porter_phone: Optional[str] = None
     created_at: datetime
     items: List[OrderItemSchema] = []
+    review_rating: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -361,3 +375,8 @@ class StoreRegisterSchema(BaseModel):
     pin: str = Field(..., pattern=PIN_PATTERN)
     description_uz: Optional[str] = Field(None, max_length=2000)
     description_ru: Optional[str] = Field(None, max_length=2000)
+
+
+class ReviewCreateSchema(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = Field(None, max_length=500)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowLeft, Phone, Copy, Check, ChevronDown, ChevronRight, MapPin, Clock, CreditCard, Package } from 'lucide-react';
+import { ArrowLeft, Phone, Copy, Check, ChevronDown, ChevronRight, MapPin, Clock, CreditCard, Package, Star } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { api } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
@@ -27,6 +27,11 @@ const T = {
   copied: { uz: 'nusxa olindi', ru: 'скопировано', en: 'copied' },
   order_again: { uz: 'Yana buyurtma berish', ru: 'Заказать ещё', en: 'Order again' },
   cancel: { uz: 'Buyurtmani bekor qilish', ru: 'Отменить заказ', en: 'Cancel order' },
+  rate_title: { uz: 'Buyurtmani baholang', ru: 'Оцените заказ', en: 'Rate your order' },
+  rate_hint: { uz: "Bahoyingiz rastalar reytingiga qo'shiladi", ru: 'Ваша оценка войдёт в рейтинг раст', en: 'Your rating counts toward the stalls' },
+  rate_comment: { uz: 'Izoh (ixtiyoriy)', ru: 'Комментарий (необязательно)', en: 'Comment (optional)' },
+  rate_send: { uz: 'Yuborish', ru: 'Отправить', en: 'Send' },
+  rate_thanks: { uz: 'Bahoyingiz uchun rahmat!', ru: 'Спасибо за оценку!', en: 'Thanks for your rating!' },
   cancel_confirm: { uz: 'Buyurtmani bekor qilasizmi?', ru: 'Отменить заказ?', en: 'Cancel this order?' },
   cash: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' },
 };
@@ -194,6 +199,9 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
   const [copied, setCopied] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState('');
+  const [sendingReview, setSendingReview] = useState(false);
 
   useEffect(() => {
     if (!initialOrderNumber) return;
@@ -261,6 +269,22 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
       load([openOrder.order_number]);
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const sendReview = async () => {
+    if (!openOrder || !stars) return;
+    setSendingReview(true);
+    setActionError('');
+    try {
+      await api.reviewOrder(openOrder.order_number, stars, comment.trim() || null);
+      triggerHaptic('success');
+      setOrders((prev) => ({ ...prev, [openOrder.order_number]: { ...prev[openOrder.order_number], review_rating: stars } }));
+    } catch (err) {
+      triggerHaptic('error');
+      setActionError(err.message);
+    } finally {
+      setSendingReview(false);
     }
   };
 
@@ -413,6 +437,40 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             {t('order')} #{openOrder.order_number}{copied ? ` · ${t('copied')}` : ''}
           </button>
         </div>
+
+        {/* Real reviews: rate the order once it has been delivered */}
+        {openOrder.status === 'delivered' && (
+          <div style={{ ...card, textAlign: 'center' }}>
+            {openOrder.review_rating ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginBottom: 6 }}>
+                  {[1, 2, 3, 4, 5].map((i) => <Star key={i} size={26} color="#f59e0b" fill={i <= openOrder.review_rating ? '#f59e0b' : 'none'} />)}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#047857' }}>{t('rate_thanks')}</div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>{t('rate_title')}</div>
+                <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>{t('rate_hint')}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 12 }}>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <button key={i} type="button" onClick={() => { triggerHaptic('selection'); setStars(i); }} aria-label={`${i}`} style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer' }}>
+                      <Star size={36} color="#f59e0b" fill={i <= stars ? '#f59e0b' : 'none'} />
+                    </button>
+                  ))}
+                </div>
+                {stars > 0 && (
+                  <>
+                    <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={500} rows={3} placeholder={t('rate_comment')} style={{ width: '100%', boxSizing: 'border-box', borderRadius: 12, border: '1.5px solid #e2e8f0', padding: 12, fontSize: 15, fontFamily: 'inherit', resize: 'none', marginBottom: 10 }} />
+                    <button type="button" onClick={sendReview} disabled={sendingReview} style={{ width: '100%', height: 48, borderRadius: 14, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer', opacity: sendingReview ? 0.6 : 1 }}>
+                      {t('rate_send')}
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {actionError && (
           <div style={{ ...card, background: '#fef2f2', color: '#b91c1c', fontSize: 14, fontWeight: 600 }}>{actionError}</div>
