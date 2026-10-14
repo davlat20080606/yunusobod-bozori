@@ -3,6 +3,7 @@ import { ShoppingCart, Phone, MapPin, CheckCircle2, Circle, ChevronLeft, LogOut,
 import { useLanguage } from '../i18n/LanguageContext';
 import { api, staffSession } from '../services/api';
 import StaffLogin from './StaffLogin';
+import { formatUnit } from './ProductCard';
 import { triggerHaptic } from '../services/telegram';
 
 const T = {
@@ -84,9 +85,9 @@ const inputStyle = {
   boxSizing: 'border-box'
 };
 
-function formatQty(item) {
+function formatQty(item, language) {
   const qty = Number(item.quantity);
-  return `${Number.isInteger(qty) ? qty : qty.toFixed(1)} ${item.unit}`;
+  return `${Number.isInteger(qty) ? qty : qty.toFixed(1)} ${formatUnit(item.unit, language)}`;
 }
 
 export default function PorterPanel({ onBackToMarket }) {
@@ -369,7 +370,7 @@ function OrderRoute({ t, language, order, busy, error, onBack, onTogglePicked, o
               >
                 {item.is_picked ? <CheckCircle2 size={24} color="#16a34a" style={{ flexShrink: 0 }} /> : <Circle size={24} color="#94a3b8" style={{ flexShrink: 0 }} />}
                 <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#0f172a', textDecoration: item.is_picked ? 'line-through' : 'none' }}>{item.product_name}</span>
-                <span style={{ fontSize: 15, fontWeight: 800, color: '#047857', whiteSpace: 'nowrap' }}>{formatQty(item)}</span>
+                <span style={{ fontSize: 15, fontWeight: 800, color: '#047857', whiteSpace: 'nowrap' }}>{formatQty(item, language)}</span>
               </button>
             ))}
           </div>

@@ -1,5 +1,6 @@
 """Telegram messages about orders: customer status updates, new-order alerts for porters and sellers."""
 import asyncio
+import re
 import logging
 from datetime import datetime, timedelta
 from html import escape
@@ -91,7 +92,8 @@ async def _new_order(order_id: int):
     for store in store_rows:
         if not store.telegram_chat_id:
             continue
-        lines = "\n".join(f"• {escape(i.product_name)} — {i.quantity:g} {escape(i.unit)}" for i in stores[store.id])
+        # "to'plam (сет)" -> "to'plam": the part in brackets is a leftover Russian word
+        lines = "\n".join(f"• {escape(i.product_name)} — {i.quantity:g} {escape(re.sub(r'\s*\(.*?\)', '', i.unit or ''))}" for i in stores[store.id])
         seller_text = (
             f"🔔 <b>Yangi buyurtma · Новый заказ</b> #{order.order_number}\n"
             f"🏪 {escape(store.stall_number)}\n\n{lines}\n\n"

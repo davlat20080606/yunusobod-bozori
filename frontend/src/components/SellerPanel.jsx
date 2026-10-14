@@ -790,7 +790,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
                     <strong>Sizning mahsulotlaringiz:</strong>
                     {order.items.map(item => (
                       <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                        <span>• {item.product_name} ({item.quantity} {item.unit})</span>
+                        <span>• {item.product_name} ({item.quantity} {formatUnit(item.unit, language)})</span>
                         <span style={{ fontWeight: 700 }}>{item.total_price.toLocaleString()} UZS</span>
                       </div>
                     ))}

@@ -318,7 +318,7 @@ export default function App() {
 
       {/* 2. MAIN APP CONTENT CONTAINER */}
       {/* ACTIVE ORDER LIVE TRACKER BANNER */}
-      {activeOrderNumber && activeTab !== 'orders' && !selectedProduct && (
+      {activeOrderNumber && ['market', 'catalog', 'saved'].includes(activeTab) && !selectedProduct && (
         <div className="bozor-container" style={{ paddingTop: '8px', paddingBottom: '0' }}>
           <div 
             onClick={() => {

@@ -3,6 +3,7 @@ import { ArrowLeft, Phone, Copy, Check, ChevronDown, ChevronRight, MapPin, Clock
 import { useLanguage } from '../i18n/LanguageContext';
 import { api } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
+import { formatUnit } from './ProductCard';
 
 const BAZAAR = { lat: 41.36467, lng: 69.29089 };
 const MY_ORDERS_KEY = 'yunusobod_my_orders';
@@ -419,7 +420,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
                     {item.is_picked && <Check size={14} color="#ffffff" />}
                   </div>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#0f172a' }}>{item.product_name}</span>
-                  <span style={{ fontSize: 13, color: '#64748b', whiteSpace: 'nowrap' }}>{Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(1)} {item.unit}</span>
+                  <span style={{ fontSize: 13, color: '#64748b', whiteSpace: 'nowrap' }}>{Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(1)} {formatUnit(item.unit, language)}</span>
                   <span style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap' }}>{Math.round(item.total_price).toLocaleString()}</span>
                 </div>
               ))}
