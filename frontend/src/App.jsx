@@ -15,7 +15,7 @@ import SavedView from './components/SavedView';
 import StoreSelector from './components/StoreSelector';
 import StoreDetailView from './components/StoreDetailView';
 import ProductCard from './components/ProductCard';
-import ProductDetailView from './components/ProductDetailView';
+import ProductSheet from './components/ProductSheet';
 import ProductMediaModal from './components/ProductMediaModal';
 import CartDrawer from './components/CartDrawer';
 import CheckoutModal from './components/CheckoutModal';
@@ -109,7 +109,7 @@ export default function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
     document.scrollingElement?.scrollTo?.(0, 0);
-  }, [activeTab, selectedProduct?.id, selectedStore?.id, activeCategory]);
+  }, [activeTab, selectedStore?.id, activeCategory]);
 
   // Initialize Telegram WebApp SDK
   useEffect(() => {
@@ -278,6 +278,14 @@ export default function App() {
     quantityOf: (productId) => cart.find((item) => item.product.id === productId)?.quantity || 0,
     add: handleAddToCart,
     update: handleUpdateCartQuantity,
+    // Put exactly this amount in the cart (product sheet "Add" / "Done")
+    set: (product, quantity) => setCart((prev) => {
+      if (quantity <= 0) return prev.filter((item) => item.product.id !== product.id);
+      if (prev.some((item) => item.product.id === product.id)) {
+        return prev.map((item) => (item.product.id === product.id ? { ...item, quantity } : item));
+      }
+      return [...prev, { product, quantity }];
+    }),
   };
 
   return (
@@ -386,34 +394,7 @@ export default function App() {
       <main className="flex-1 w-full">
         <div className="bozor-container">
           
-          {selectedProduct ? (
-            /* FULL PRODUCT DETAIL VIEW (MEDBAZA / UZUM STYLE) */
-            <ProductDetailView 
-              product={selectedProduct}
-              store={stores.find((st) => st.id === selectedProduct.store_id) || null}
-              onBack={() => setSelectedProduct(null)}
-              onAddToCart={handleAddToCart}
-              onSelectCategory={(slug) => {
-                setSelectedProduct(null);
-                setActiveCategory(slug);
-                setActiveTab('catalog');
-              }}
-              isSaved={savedProductIds.includes(selectedProduct.id)}
-              onToggleSave={handleToggleSave}
-              sellerProducts={products
-                .filter((p) => p.store_id === selectedProduct.store_id && p.id !== selectedProduct.id)
-                .sort((a, b) => Number(b.is_available) - Number(a.is_available))}
-              relatedProducts={products.filter((p) => p.category_slug === selectedProduct.category_slug && p.store_id !== selectedProduct.store_id)}
-              savedProductIds={savedProductIds}
-              onOpenStore={(store) => {
-                setSelectedProduct(null);
-                setSelectedStore(store);
-                setActiveTab('market');
-                window.scrollTo(0, 0);
-              }}
-              onSelectProduct={setSelectedProduct}
-            />
-          ) : (
+          {(
             <>
               {/* VIEW A0: "Sotuvchi" page — cart, language, seller and porter entries */}
               {activeTab === 'seller' && (
@@ -570,35 +551,20 @@ export default function App() {
         onNavigateOrders={() => setActiveTab('orders')}
       />
 
-      {/* Floating Quick Checkout Bar when Cart has Items */}
-      {cartItemsCount > 0 && !cartDrawerOpen && !checkoutModalOpen && (
-        <div 
-          className="floating-cart-bar animate-fade"
-          onClick={() => {
-            triggerHaptic('medium');
-            setCartDrawerOpen(true);
-          }}
+      {/* Floating cart pill (Yandex Go style) */}
+      {cartItemsCount > 0 && !cartDrawerOpen && !checkoutModalOpen && !selectedProduct && (
+        <button
+          type="button"
+          className="animate-fade"
+          onClick={() => { triggerHaptic('medium'); setCartDrawerOpen(true); }}
+          style={{ position: 'fixed', right: 14, bottom: 'calc(84px + env(safe-area-inset-bottom))', zIndex: 60, height: 56, padding: '0 20px', borderRadius: 28, border: 'none', background: '#059669', color: '#ffffff', fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 6px 20px rgba(5,150,105,0.4)', cursor: 'pointer' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className="floating-cart-badge">
-              <ShoppingBag size={15} />
-              <span>{cartItemsCount}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#ffffff', lineHeight: 1.2 }}>
-                {cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0).toLocaleString()} UZS
-              </span>
-              <span style={{ fontSize: '0.7rem', color: '#a7f3d0', fontWeight: 600 }}>
-                {t('cart.title')}
-              </span>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.82rem', fontWeight: 800, color: '#ffffff' }}>
-            <span>{t('cart.checkout_btn')}</span>
-            <ChevronRight size={16} />
-          </div>
-        </div>
+          {Math.round(cartTotal).toLocaleString()} {language === 'ru' ? 'сум' : (language === 'en' ? 'UZS' : "so'm")}
+          <span style={{ position: 'relative', display: 'flex' }}>
+            <ShoppingBag size={22} />
+            <span style={{ position: 'absolute', top: -7, right: -9, minWidth: 18, height: 18, padding: '0 4px', boxSizing: 'border-box', borderRadius: 9, background: '#ffffff', color: '#047857', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartItemsCount}</span>
+          </span>
+        </button>
       )}
 
       {/* 3. MOBILE BOTTOM NAV (Floating Blur Bar) */}
@@ -633,6 +599,8 @@ export default function App() {
         }}
         pickerNotes={pickerNotes}
         setPickerNotes={setPickerNotes}
+        products={products}
+        onOpenProduct={setSelectedProduct}
       />
 
       {/* 5. CHECKOUT MODAL */}
@@ -657,6 +625,26 @@ export default function App() {
           setActiveTab('orders');
         }}
       />
+
+      {/* Product sheet (Yandex Go style) */}
+      {selectedProduct && (
+        <ProductSheet
+          product={selectedProduct}
+          store={stores.find((st) => st.id === selectedProduct.store_id) || null}
+          sellerProducts={products.filter((p) => p.store_id === selectedProduct.store_id && p.id !== selectedProduct.id)}
+          isSaved={savedProductIds.includes(selectedProduct.id)}
+          savedProductIds={savedProductIds}
+          onToggleSave={handleToggleSave}
+          onClose={() => setSelectedProduct(null)}
+          onSelectProduct={setSelectedProduct}
+          onOpenStore={(store) => {
+            setSelectedProduct(null);
+            setCartDrawerOpen(false);
+            setSelectedStore(store);
+            setActiveTab('market');
+          }}
+        />
+      )}
 
       {/* 6. PRODUCT DETAILS (UZUM MARKET STYLE) MODAL */}
       <ProductMediaModal 

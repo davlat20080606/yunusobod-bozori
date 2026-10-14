@@ -53,10 +53,6 @@ export default function ProductCard({
   const currencyLabel = language === 'ru' ? 'сум' : (language === 'en' ? 'UZS' : "so'm");
   const qtyLabel = (q) => `${Number.isInteger(q) ? q : q.toFixed(1)} ${displayUnit}`;
 
-  const discountPercent = product.old_price && product.old_price > product.price
-    ? Math.round(((product.old_price - product.price) / product.old_price) * 100)
-    : null;
-
   // One "+" like Yandex Lavka: the first tap adds the minimum, then the button becomes "− 1 kg +"
   const add = (e) => {
     e.stopPropagation();
@@ -79,50 +75,49 @@ export default function ProductCard({
 
   const unavailable = product.is_available === false;
 
+  const discountSum = product.old_price && product.old_price > product.price ? Math.round(product.old_price - product.price) : null;
+  const circle = { width: 40, height: 40, borderRadius: '50%', border: 'none', background: '#ffffff', boxShadow: '0 2px 8px rgba(15,23,42,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#0f172a' };
+
   return (
-    <article className="med-product-card" onClick={open} style={{ display: 'flex', flexDirection: 'column', background: '#ffffff', borderRadius: 20, overflow: 'hidden', cursor: 'pointer', height: '100%', boxShadow: '0 1px 3px rgba(15,23,42,0.06)' }}>
-      {/* Photo */}
-      <div style={{ position: 'relative', aspectRatio: '1 / 1', background: '#f1f5f9', overflow: 'hidden', flexShrink: 0 }}>
-        <img src={product.image_url} alt={getLocalized(product, 'name')} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: unavailable ? 0.5 : 1 }} />
-        {discountPercent && (
-          <span style={{ position: 'absolute', top: 8, left: 8, padding: '3px 8px', borderRadius: 999, background: '#f97316', color: '#ffffff', fontSize: 12, fontWeight: 800 }}>−{discountPercent}%</span>
+    <article className="med-product-card" onClick={open} style={{ display: 'flex', flexDirection: 'column', background: 'transparent', border: 'none', boxShadow: 'none', cursor: 'pointer', height: '100%' }}>
+      {/* Photo with the add control on it (Yandex Go style) */}
+      <div style={{ position: 'relative', aspectRatio: '1 / 1', background: '#f1f5f9', borderRadius: 22, overflow: 'hidden', flexShrink: 0 }}>
+        <img src={product.image_url} alt={getLocalized(product, 'name')} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: unavailable ? 0.45 : 1 }} />
+        {discountSum && (
+          <span style={{ position: 'absolute', top: 8, left: 8, padding: '3px 8px', borderRadius: 8, background: '#059669', color: '#ffffff', fontSize: 12, fontWeight: 800 }}>−{discountSum.toLocaleString()} {currencyLabel}</span>
         )}
-        <button type="button" onClick={toggleSave} aria-label="save" style={{ position: 'absolute', top: 8, right: 8, width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-          <Heart size={17} className={isSaved ? 'fill-rose-500 text-rose-500' : ''} color={isSaved ? '#f43f5e' : '#64748b'} fill={isSaved ? '#f43f5e' : 'none'} />
+        <button type="button" onClick={toggleSave} aria-label="save" style={{ position: 'absolute', top: 6, right: 6, width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <Heart size={16} color={isSaved ? '#f43f5e' : '#64748b'} fill={isSaved ? '#f43f5e' : 'none'} />
         </button>
+
+        {!unavailable && (inCart ? (
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', left: 8, right: 8, bottom: 8, height: 40, borderRadius: 20, background: '#ffffff', boxShadow: '0 2px 8px rgba(15,23,42,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <button type="button" onClick={remove} aria-label="minus" style={{ width: 40, height: 40, border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Minus size={18} /></button>
+            <span style={{ fontWeight: 800, fontSize: 14 }}>{qtyLabel(inCart)}</span>
+            <button type="button" onClick={add} aria-label="plus" style={{ width: 40, height: 40, border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Plus size={18} /></button>
+          </div>
+        ) : (
+          <button type="button" onClick={add} aria-label="add" style={{ ...circle, position: 'absolute', right: 8, bottom: 8 }}><Plus size={20} /></button>
+        ))}
+        {unavailable && (
+          <span style={{ position: 'absolute', left: 8, bottom: 8, padding: '4px 10px', borderRadius: 999, background: '#ffffff', fontSize: 12, fontWeight: 700, color: '#64748b' }}>
+            {language === 'ru' ? 'Нет в наличии' : (language === 'en' ? 'Out of stock' : "Hozir yo'q")}
+          </span>
+        )}
       </div>
 
       {/* Price, name, weight */}
-      <div style={{ padding: '10px 10px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '8px 4px 4px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 17, fontWeight: 800, color: '#0f172a' }}>{Math.round(product.price).toLocaleString()} {currencyLabel}</span>
-          {discountPercent && <span style={{ fontSize: 12, color: '#94a3b8', textDecoration: 'line-through' }}>{Math.round(product.old_price).toLocaleString()}</span>}
+          <span style={{ fontSize: 17, fontWeight: 800, color: discountSum ? '#047857' : '#0f172a' }}>{Math.round(product.price).toLocaleString()} {currencyLabel}</span>
+          {discountSum && <span style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through' }}>{Math.round(product.old_price).toLocaleString()}</span>}
         </div>
-        <div style={{ fontSize: 14, color: '#0f172a', lineHeight: 1.3, marginTop: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <div style={{ fontSize: 15, color: '#0f172a', lineHeight: 1.3, marginTop: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {getLocalized(product, 'name')}
         </div>
-        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+        <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 2 }}>
           {qtyLabel(min)}{product.stall_number ? ` · ${product.stall_number}` : ''}
         </div>
-      </div>
-
-      {/* One big button */}
-      <div style={{ padding: 10 }}>
-        {unavailable ? (
-          <div style={{ height: 44, borderRadius: 14, background: '#f1f5f9', color: '#94a3b8', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {language === 'ru' ? 'Нет в наличии' : (language === 'en' ? 'Out of stock' : "Hozir yo'q")}
-          </div>
-        ) : inCart ? (
-          <div onClick={(e) => e.stopPropagation()} style={{ height: 44, borderRadius: 14, background: '#059669', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <button type="button" onClick={remove} aria-label="minus" style={{ width: 44, height: 44, border: 'none', background: 'none', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Minus size={18} /></button>
-            <span style={{ fontWeight: 800, fontSize: 15 }}>{qtyLabel(inCart)}</span>
-            <button type="button" onClick={add} aria-label="plus" style={{ width: 44, height: 44, border: 'none', background: 'none', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Plus size={18} /></button>
-          </div>
-        ) : (
-          <button type="button" onClick={add} style={{ width: '100%', height: 44, borderRadius: 14, border: 'none', background: '#f1f5f9', color: '#0f172a', fontWeight: 800, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
-            <Plus size={18} /> {language === 'ru' ? 'В корзину' : (language === 'en' ? 'Add' : "Qo'shish")}
-          </button>
-        )}
       </div>
     </article>
   );

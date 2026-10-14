@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowLeft, Search, X, Navigation, Loader, MapPin } from 'lucide-react';
+import { ArrowLeft, Search, X, Navigation, Loader, MapPin, ChevronRight } from 'lucide-react';
 import { formatAddress } from '../services/location';
 
 // Yunusobod Dehqon Bozori area
@@ -10,7 +10,10 @@ const NOMINATIM = 'https://nominatim.openstreetmap.org';
 
 const TEXTS = {
   search: { uz: "Ko'cha yoki uy qidirish", ru: 'Поиск улицы или дома', en: 'Search street or building' },
-  confirm: { uz: 'Shu yerga yetkazing', ru: 'Доставить сюда', en: 'Deliver here' },
+  confirm: { uz: 'Shu yerga', ru: 'Доставить сюда', en: 'Deliver here' },
+  change: { uz: "Manzilni o'zgartirish", ru: 'Изменить адрес', en: 'Change address' },
+  title: { uz: 'Yetkazish manzili', ru: 'Адрес доставки', en: 'Delivery location' },
+  hint: { uz: 'Pinni surib uyingizni belgilang', ru: 'Передвиньте метку к вашему дому', en: 'You can move the pin to your home' },
   loading: { uz: 'Manzil aniqlanmoqda…', ru: 'Определяем адрес…', en: 'Finding address…' },
   moving: { uz: 'Xaritani suring — pin markazda', ru: 'Двигайте карту — точка в центре', en: 'Move the map — pin stays centered' },
   noAddress: { uz: 'Manzil topilmadi, boshqa nuqtani tanlang', ru: 'Адрес не найден, выберите другую точку', en: 'Address not found, try another point' },
@@ -54,6 +57,7 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
   const geocodeTimerRef = useRef(null);
   const geocodeIdRef = useRef(0);
   const searchTimerRef = useRef(null);
+  const searchRef = useRef(null);
 
   const [coords, setCoords] = useState(DEFAULT_CENTER);
   const [address, setAddress] = useState(null);
@@ -287,9 +291,6 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
 
       {/* Top bar: back + search */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 600, padding: '12px 12px 0', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <button type="button" onClick={onClose} style={roundBtn} aria-label="back">
-          <ArrowLeft size={20} />
-        </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8, height: 44, padding: '0 14px',
@@ -298,6 +299,7 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
             <Search size={18} color="#64748b" style={{ flexShrink: 0 }} />
             <input
               value={query}
+              ref={searchRef}
               onFocus={() => setSearchOpen(true)}
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder={t('search')}
@@ -340,7 +342,10 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
 
       {/* Bottom sheet */}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 600 }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 12px 12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 12px 12px' }}>
+          <button type="button" onClick={onClose} style={{ ...roundBtn, width: 48, height: 48 }} aria-label="back">
+            <ArrowLeft size={22} />
+          </button>
           <button type="button" onClick={() => locate(false)} disabled={gpsLoading} style={{ ...roundBtn, width: 48, height: 48 }} aria-label="my location">
             {gpsLoading
               ? <Loader size={20} color="#2563eb" style={{ animation: 'mp-spin 1s linear infinite' }} />
@@ -371,42 +376,41 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
             </div>
           )}
 
-          <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
-            <span>{t('deliveryPoint')}</span>
-            {!dragging && <span style={{ color: outside ? '#b91c1c' : '#047857', textTransform: 'none' }}>🏪 {distance.toFixed(1)} km</span>}
-          </div>
-          <div style={{ minHeight: 48, marginBottom: 14 }}>
-            {dragging ? (
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#94a3b8' }}>{t('moving')}</div>
-            ) : addressLoading ? (
-              <>
-                <div style={{ height: 18, width: '70%', borderRadius: 6, background: '#e2e8f0', marginBottom: 8, animation: 'mp-pulse 1.2s ease-in-out infinite' }} />
-                <div style={{ height: 12, width: '45%', borderRadius: 6, background: '#f1f5f9', animation: 'mp-pulse 1.2s ease-in-out infinite' }} />
-              </>
-            ) : address ? (
-              <>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>{address.main}</div>
-                {address.details && <div style={{ fontSize: 14, color: '#64748b', marginTop: 2 }}>{address.details}</div>}
-              </>
-            ) : (
-              <div style={{ fontSize: 15, color: '#b91c1c', fontWeight: 600 }}>{t('noAddress')}</div>
-            )}
+          <h2 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 4px' }}>{t('title')}</h2>
+          <div style={{ fontSize: 14, color: '#64748b', marginBottom: 10 }}>
+            {!dragging && <span style={{ color: outside ? '#b91c1c' : '#047857', fontWeight: 700 }}>🏪 {distance.toFixed(1)} km · </span>}
+            {t('hint')}
           </div>
 
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={!canConfirm}
-            style={{
-              width: '100%', height: 52, borderRadius: 14, border: 'none',
-              background: canConfirm ? '#059669' : '#cbd5e1',
-              color: '#ffffff', fontWeight: 800, fontSize: 16,
-              cursor: canConfirm ? 'pointer' : 'not-allowed',
-              transition: 'background 0.15s ease'
-            }}
-          >
-            {t('confirm')}
+          <button type="button" onClick={() => searchRef.current?.focus()} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', border: 'none', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9', background: 'none', textAlign: 'left', cursor: 'pointer', minHeight: 64, marginBottom: 14 }}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              {dragging ? (
+                <span style={{ fontSize: 17, fontWeight: 700, color: '#94a3b8' }}>{t('moving')}</span>
+              ) : addressLoading ? (
+                <>
+                  <span style={{ display: 'block', height: 18, width: '70%', borderRadius: 6, background: '#e2e8f0', marginBottom: 8, animation: 'mp-pulse 1.2s ease-in-out infinite' }} />
+                  <span style={{ display: 'block', height: 12, width: '45%', borderRadius: 6, background: '#f1f5f9', animation: 'mp-pulse 1.2s ease-in-out infinite' }} />
+                </>
+              ) : address ? (
+                <>
+                  <span style={{ display: 'block', fontSize: 17, fontWeight: 700, color: '#0f172a', lineHeight: 1.3 }}>{address.main}</span>
+                  <span style={{ display: 'block', fontSize: 14, color: '#64748b', marginTop: 2 }}>{address.details || 'Toshkent'}</span>
+                </>
+              ) : (
+                <span style={{ fontSize: 15, color: '#b91c1c', fontWeight: 600 }}>{t('noAddress')}</span>
+              )}
+            </span>
+            <ChevronRight size={20} color="#94a3b8" />
           </button>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" onClick={handleConfirm} disabled={!canConfirm} style={{ flex: 1, height: 56, borderRadius: 18, border: 'none', background: canConfirm ? '#f1f5f9' : '#f8fafc', color: canConfirm ? '#0f172a' : '#cbd5e1', fontWeight: 800, fontSize: 16, cursor: canConfirm ? 'pointer' : 'not-allowed' }}>
+              {t('confirm')}
+            </button>
+            <button type="button" onClick={() => searchRef.current?.focus()} style={{ flex: 1, height: 56, borderRadius: 18, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 16, cursor: 'pointer' }}>
+              {t('change')}
+            </button>
+          </div>
         </div>
       </div>
 

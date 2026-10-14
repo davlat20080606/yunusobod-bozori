@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { X, CheckCircle, Clock, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Home, MessageCircle, Phone, DoorOpen } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { triggerHaptic, getTelegramUser, requestPhone } from '../services/telegram';
 import { api } from '../services/api';
@@ -22,6 +22,9 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
   const [floor, setFloor] = useState('');
   const [apartment, setApartment] = useState('');
   const [landmark, setLandmark] = useState('');
+  const [doorPhone, setDoorPhone] = useState('');
+  const [leaveAtDoor, setLeaveAtDoor] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState('');
@@ -63,6 +66,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
     if (p.floor !== undefined) setFloor(p.floor || '');
     if (p.apartment !== undefined) setApartment(p.apartment || '');
     if (p.landmark !== undefined) setLandmark(p.landmark || '');
+    if (p.doorPhone !== undefined) setDoorPhone(p.doorPhone || '');
   };
 
   const locateMe = async () => {
@@ -153,13 +157,17 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
         entrance && `${language === 'ru' ? 'подъезд' : 'podyezd'} ${entrance}`,
         floor && `${language === 'ru' ? 'этаж' : 'qavat'} ${floor}`,
         apartment && `${language === 'ru' ? 'кв.' : 'xonadon'} ${apartment}`,
+        doorPhone && `${language === 'ru' ? 'домофон' : 'domofon'} ${doorPhone}`,
       ].filter(Boolean).join(', '),
       landmark: landmark.trim() || null,
       delivery_time_slot: timeSlot,
       payment_method: paymentMethod,
       delivery_lat: deliveryCoords?.lat ?? null,
       delivery_lng: deliveryCoords?.lng ?? null,
-      notes: notes || pickerNotes,
+      notes: [
+        notes || pickerNotes,
+        leaveAtDoor && (language === 'ru' ? 'Оставить у двери' : "Eshik oldiga qoldirish"),
+      ].filter(Boolean).join(' · ') || null,
       items: cart.map(i => ({
         product_id: i.product.id,
         store_id: i.product.store_id,
@@ -176,7 +184,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
       }
 
       triggerHaptic('success');
-      if (place) rememberAddress({ ...place, entrance, floor, apartment, landmark }).catch(() => {});
+      if (place) rememberAddress({ ...place, entrance, floor, apartment, landmark, doorPhone }).catch(() => {});
       confetti({
         particleCount: 80,
         spread: 60,
@@ -196,270 +204,203 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
     }
   };
 
-  return (
-    <div className="modal-center-backdrop" onClick={onClose}>
-      <div className="modal-center-card animate-scale" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <MapPin size={20} color="#064e3b" />
-            <h3>{t('checkout.title')}</h3>
-          </div>
-          <button className="close-btn" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
+  const lang = language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz');
+  const tr = (uz, ru, en) => (lang === 'ru' ? ru : (lang === 'en' ? en : uz));
+  const cur = tr("so'm", 'сум', 'UZS');
+  const oldItemsTotal = cart.reduce((sum, item) => sum + ((item.product.old_price && item.product.old_price > item.product.price ? item.product.old_price : item.product.price) * item.quantity), 0);
+  const deliveryFee = finalGrandTotal - itemsTotal;
+  const slotInfo = {
+    'Express (45-60 min)': [tr('Tezkor', 'Быстро', 'Express'), tr('45–60 daq', '45–60 мин', '45–60 min')],
+    'Evening (18:00-20:00)': [tr('Bugun kechqurun', 'Сегодня вечером', 'This evening'), '18:00–20:00'],
+    'Morning (09:00-11:00)': [tr('Ertaga ertalab', 'Завтра утром', 'Tomorrow'), '09:00–11:00'],
+  };
+  const section = { background: '#ffffff', borderRadius: 26, padding: '18px 16px', marginBottom: 10 };
+  const h = { fontSize: 24, fontWeight: 800, margin: '0 0 10px' };
+  const row = { width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', border: 'none', borderBottom: '1px solid #f1f5f9', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 16, color: '#0f172a' };
+  const line = { width: '100%', boxSizing: 'border-box', border: 'none', borderBottom: '1px solid #e2e8f0', padding: '14px 0', fontSize: 16, outline: 'none', background: 'transparent' };
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-          <div className="modal-body">
-            {error && (
-              <div style={{ padding: '10px 14px', background: '#fee2e2', color: '#b91c1c', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '14px' }}>
-                ⚠️ {error}
-              </div>
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 8800, background: '#f1f5f9', display: 'flex', flexDirection: 'column' }} className="animate-fade">
+      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', background: '#ffffff' }}>
+        <button type="button" onClick={onClose} aria-label="back" style={{ width: 44, height: 44, border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><ArrowLeft size={24} /></button>
+        <div style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: 700, marginRight: 44 }}>{tr('Buyurtmani rasmiylashtirish', 'Оформление заказа', 'Placing an order')}</div>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 16px' }}>
+
+          {/* Delivery time */}
+          <div style={{ ...section, borderRadius: '0 0 26px 26px' }}>
+            <div style={{ display: 'flex', gap: 10, overflowX: 'auto' }}>
+              {slots.filter((slot) => slot.open).map((slot) => {
+                const [name, time] = slotInfo[slot.id] || [slot.label, ''];
+                const active = timeSlot === slot.id;
+                return (
+                  <button key={slot.id} type="button" onClick={() => { triggerHaptic('selection'); setTimeSlot(slot.id); }} style={{ flexShrink: 0, padding: '10px 16px', borderRadius: 18, border: active ? '2px solid #0f172a' : '1.5px solid #e2e8f0', background: '#ffffff', textAlign: 'left', cursor: 'pointer' }}>
+                    <span style={{ display: 'block', fontSize: 16, fontWeight: 800 }}>{name}</span>
+                    <span style={{ display: 'block', fontSize: 13, color: '#64748b' }}>{time}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Where to */}
+          <div style={section}>
+            <h3 style={h}>{tr('Qayerga', 'Куда', 'Where to')}</h3>
+            {place ? (
+              <>
+                <button type="button" onClick={() => setShowMap(true)} style={row}>
+                  <Home size={22} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600 }}>{place.main}</span>
+                    <span style={{ display: 'block', fontSize: 13, color: placeDistance > radiusKm ? '#b91c1c' : '#64748b' }}>
+                      {placeDistance > radiusKm
+                        ? tr(`${placeDistance.toFixed(1)} km — hozircha faqat ${radiusKm} km ichida yetkazamiz`, `${placeDistance.toFixed(1)} км — пока доставляем до ${radiusKm} км`, `${placeDistance.toFixed(1)} km — we deliver within ${radiusKm} km`)
+                        : `${place.details || 'Toshkent'} · 🏪 ${placeDistance.toFixed(1)} km`}
+                    </span>
+                  </span>
+                  <ChevronRight size={20} color="#94a3b8" />
+                </button>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20 }}>
+                  {[
+                    [entrance, setEntrance, tr('Podyezd', 'Подъезд', 'Entrance'), 'numeric', 6],
+                    [floor, setFloor, tr('Qavat', 'Этаж', 'Floor'), 'numeric', 6],
+                    [apartment, setApartment, tr('Xonadon', 'Квартира', 'Apartment'), 'numeric', 6],
+                    [doorPhone, setDoorPhone, tr('Domofon', 'Домофон', 'Door phone'), 'text', 10],
+                  ].map(([value, setter, label, mode, max]) => (
+                    <label key={label} style={{ display: 'block', borderBottom: '1px solid #e2e8f0', padding: value ? '6px 0 8px' : '14px 0' }}>
+                      {/* Keep the label visible once filled, like Yandex Go */}
+                      {value && <span style={{ display: 'block', fontSize: 12, color: '#94a3b8' }}>{label}</span>}
+                      <input inputMode={mode} maxLength={max} placeholder={label} value={value} onChange={(e) => setter(e.target.value)} style={{ width: '100%', border: 'none', outline: 'none', fontSize: 16, padding: 0, background: 'transparent' }} />
+                    </label>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                {savedAddresses.map((a, idx) => (
+                  <button key={idx} type="button" onClick={() => { triggerHaptic('selection'); applyPlace(a); }} style={row}>
+                    <Home size={22} />
+                    <span style={{ flex: 1, minWidth: 0, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.main}{a.apartment ? `, ${tr('xonadon', 'кв.', 'apt')} ${a.apartment}` : ''}</span>
+                    <ChevronRight size={20} color="#94a3b8" />
+                  </button>
+                ))}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
+                  <button type="button" onClick={locateMe} disabled={locating} style={{ height: 56, borderRadius: 18, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer', opacity: locating ? 0.7 : 1 }}>
+                    📍 {locating ? tr('Aniqlanmoqda…', 'Определяем…', 'Locating…') : tr('Joylashuvim', 'Где я', 'My location')}
+                  </button>
+                  <button type="button" onClick={() => setShowMap(true)} style={{ height: 56, borderRadius: 18, border: 'none', background: '#f1f5f9', color: '#0f172a', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
+                    🗺 {tr('Xaritadan', 'На карте', 'On the map')}
+                  </button>
+                </div>
+                <div style={{ fontSize: 13, color: locateError ? '#b45309' : '#64748b', marginTop: 8 }}>
+                  {locateError || tr(`Bozordan ${radiusKm} km gacha yetkazamiz`, `Доставляем до ${radiusKm} км от базара`, `We deliver within ${radiusKm} km of the bazaar`)}
+                </div>
+              </>
             )}
 
-            {/* Registered in the bot: show who orders instead of asking again */}
+            {/* Courier note */}
+            <button type="button" onClick={() => setNoteOpen((v) => !v)} style={row}>
+              <MessageCircle size={22} color="#64748b" />
+              <span style={{ flex: 1, color: landmark ? '#0f172a' : '#94a3b8' }}>{landmark || tr('Kuryerga izoh, mo\'ljal', 'Комментарий для курьера', 'Instructions for courier')}</span>
+              <ChevronRight size={20} color="#94a3b8" />
+            </button>
+            {noteOpen && (
+              <textarea value={landmark} onChange={(e) => setLandmark(e.target.value)} rows={2} maxLength={150} autoFocus placeholder={tr('Masalan: Makro yonida, sariq darvoza', 'Например: рядом с Макро, жёлтые ворота', 'E.g. next to Makro, yellow gate')} style={{ width: '100%', boxSizing: 'border-box', borderRadius: 14, border: '1.5px solid #e2e8f0', padding: 12, fontSize: 15, fontFamily: 'inherit', resize: 'none', margin: '8px 0' }} />
+            )}
+
+            {/* Recipient */}
             {registered && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12, background: '#f0fdf4', border: '1.5px solid #bbf7d0', marginBottom: 14 }}>
-                <span style={{ fontSize: 22 }}>👤</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{profile.name}</div>
-                  <div style={{ fontSize: '0.85rem', color: '#475569' }}>{profile.phone}</div>
-                </div>
-                <span style={{ fontSize: '0.72rem', color: '#64748b', textAlign: 'right' }}>
-                  {language === 'ru' ? 'Изменить: /profile в боте' : (language === 'en' ? 'Change: /profile in the bot' : "O'zgartirish: botda /profile")}
+              <div style={{ ...row, cursor: 'default' }}>
+                <Phone size={22} color="#64748b" />
+                <span style={{ flex: 1 }}>
+                  <span style={{ display: 'block', fontSize: 13, color: '#64748b' }}>{tr('Qabul qiluvchi', 'Получатель', "Recipient's phone number")}</span>
+                  <span style={{ display: 'block' }}>{profile.phone} · {profile.name}</span>
                 </span>
               </div>
             )}
-
-            {/* Inside Telegram but not registered yet: one tap shares the phone */}
             {askPhoneInApp && (
-              <button type="button" onClick={sharePhone} disabled={phoneRequesting} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 12, border: 'none', background: '#2563eb', color: '#ffffff', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', marginBottom: 14, opacity: phoneRequesting ? 0.7 : 1 }}>
-                📱 {phoneRequesting
-                  ? (language === 'ru' ? 'Получаем номер…' : (language === 'en' ? 'Getting your number…' : 'Raqam olinmoqda…'))
-                  : (language === 'ru' ? 'Отправить номер телефона' : (language === 'en' ? 'Share phone number' : 'Telefon raqamni yuborish'))}
+              <button type="button" onClick={sharePhone} disabled={phoneRequesting} style={{ width: '100%', height: 52, margin: '12px 0 4px', borderRadius: 16, border: 'none', background: '#2563eb', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
+                📱 {phoneRequesting ? tr('Raqam olinmoqda…', 'Получаем номер…', 'Getting your number…') : tr('Telefon raqamni yuborish', 'Отправить номер телефона', 'Share phone number')}
               </button>
             )}
-
-            {/* Name & Phone: only outside Telegram (website in a browser) */}
             {profile && !profile.in_telegram && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div className="form-group">
-                <label className="form-label">{t('checkout.name')} *</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  placeholder={t('checkout.name_placeholder')}
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  required
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20 }}>
+                <input style={line} placeholder={t('checkout.name_placeholder')} value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                <input style={line} type="tel" placeholder="+998 90 123-45-67" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
               </div>
-
-              <div className="form-group">
-                <label className="form-label">{t('checkout.phone')} *</label>
-                <input 
-                  type="tel" 
-                  className="form-input" 
-                  placeholder="+998 90 123-45-67"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
             )}
 
+            {/* Leave at the door */}
+            <label style={{ ...row, borderBottom: 'none' }}>
+              <DoorOpen size={22} color="#64748b" />
+              <span style={{ flex: 1 }}>{tr("Eshik oldiga qoldirish", 'Оставить у двери', 'Leave at the door')}</span>
+              <input type="checkbox" checked={leaveAtDoor} onChange={(e) => setLeaveAtDoor(e.target.checked)} style={{ display: 'none' }} />
+              <span style={{ width: 52, height: 32, borderRadius: 16, background: leaveAtDoor ? '#059669' : '#e2e8f0', position: 'relative', transition: 'background 0.15s' }}>
+                <span style={{ position: 'absolute', top: 3, left: leaveAtDoor ? 23 : 3, width: 26, height: 26, borderRadius: '50%', background: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: 'left 0.15s' }} />
+              </span>
+            </label>
+          </div>
 
-            <div className="form-group">
-              <label className="form-label">{t('checkout.address')} *</label>
-
-              {/* Saved addresses: next order is one tap */}
-              {savedAddresses.length > 0 && !place && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
-                  {savedAddresses.map((a, idx) => (
-                    <button key={idx} type="button" onClick={() => { triggerHaptic('selection'); applyPlace(a); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, border: '1.5px solid #e2e8f0', background: '#ffffff', cursor: 'pointer', textAlign: 'left' }}>
-                      <span style={{ fontSize: 18 }}>{idx === 0 ? '🏠' : '📍'}</span>
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.main}</span>
-                        <span style={{ display: 'block', fontSize: '0.78rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {[a.apartment && `${language === 'ru' ? 'кв.' : 'xonadon'} ${a.apartment}`, a.details].filter(Boolean).join(' · ')}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* One tap: GPS or the map */}
-              {!place && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <button type="button" onClick={locateMe} disabled={locating} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '14px 8px', borderRadius: 14, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', opacity: locating ? 0.7 : 1 }}>
-                    <span style={{ fontSize: 22 }}>{locating ? '⏳' : '📍'}</span>
-                    {locating
-                      ? (language === 'ru' ? 'Определяем…' : (language === 'en' ? 'Locating…' : 'Aniqlanmoqda…'))
-                      : (language === 'ru' ? 'Моё местоположение' : (language === 'en' ? 'My location' : 'Joylashuvimni aniqlash'))}
-                  </button>
-                  <button type="button" onClick={() => setShowMap(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '14px 8px', borderRadius: 14, border: '1.5px solid #10b981', background: '#f0fdf4', color: '#047857', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer' }}>
-                    <span style={{ fontSize: 22 }}>🗺</span>
-                    {language === 'ru' ? 'Выбрать на карте' : (language === 'en' ? 'Pick on map' : 'Xaritadan tanlash')}
-                  </button>
-                </div>
-              )}
-              {!place && (
-                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 6 }}>
-                  {language === 'ru' ? `Доставляем до ${radiusKm} км от базара` : (language === 'en' ? `We deliver within ${radiusKm} km of the bazaar` : `Bozordan ${radiusKm} km gacha yetkazamiz`)}
-                </div>
-              )}
-              {locateError && <div style={{ fontSize: '0.82rem', color: '#b45309', marginTop: 6 }}>{locateError}</div>}
-
-              {/* Chosen address */}
-              {place && (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 12, border: `1.5px solid ${placeDistance > radiusKm ? '#fecaca' : '#bbf7d0'}`, background: placeDistance > radiusKm ? '#fef2f2' : '#f0fdf4', marginBottom: 10 }}>
-                    <span style={{ fontSize: 18 }}>{placeDistance > radiusKm ? '⚠️' : '✅'}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>{place.main}</div>
-                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                        {[place.details, `🏪 ${placeDistance.toFixed(1)} km`].filter(Boolean).join(' · ')}
-                      </div>
-                      {placeDistance > radiusKm && (
-                        <div style={{ fontSize: '0.8rem', color: '#b91c1c', fontWeight: 700, marginTop: 4 }}>
-                          {language === 'ru' ? `Дальше ${radiusKm} км — пока не доставляем` : (language === 'en' ? `Farther than ${radiusKm} km — not delivered yet` : `${radiusKm} km'dan uzoq — hozircha yetkazmaymiz`)}
-                        </div>
-                      )}
-                    </div>
-                    <button type="button" onClick={() => setShowMap(true)} style={{ border: 'none', background: 'none', color: '#047857', fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer', padding: 0, flexShrink: 0 }}>
-                      {language === 'ru' ? 'Изменить' : (language === 'en' ? 'Change' : "O'zgartirish")}
-                    </button>
-                  </div>
-
-                  {/* Only short numbers to type */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, marginBottom: 8 }}>
-                    {[
-                      [entrance, setEntrance, language === 'ru' ? 'Подъезд' : (language === 'en' ? 'Entrance' : 'Podyezd')],
-                      [floor, setFloor, language === 'ru' ? 'Этаж' : (language === 'en' ? 'Floor' : 'Qavat')],
-                      [apartment, setApartment, language === 'ru' ? 'Квартира' : (language === 'en' ? 'Apt.' : 'Xonadon')],
-                    ].map(([value, setter, label]) => (
-                      <input key={label} className="form-input" inputMode="numeric" placeholder={label} value={value} maxLength={6} onChange={(e) => setter(e.target.value.replace(/[^\dA-Za-zА-Яа-я]/g, ''))} style={{ textAlign: 'center' }} />
-                    ))}
-                  </div>
-                  <input
-                    className="form-input"
-                    placeholder={language === 'ru' ? 'Ориентир (необязательно): например, рядом с Макро' : (language === 'en' ? 'Landmark (optional): e.g. next to Makro' : "Mo'ljal (ixtiyoriy): masalan, Makro yonida")}
-                    value={landmark}
-                    maxLength={150}
-                    onChange={(e) => setLandmark(e.target.value)}
-                  />
-                </>
-              )}
-            </div>
-
-            {/* Map Picker Modal */}
-            {showMap && (
-              <MapPicker
-                language={language}
-                onAddressSelect={(addr, coords, details) => {
-                  applyPlace({ main: details?.main || addr, details: details?.details || '', district: details?.district || 'Yunusobod', ...coords });
-                  setShowMap(false);
-                }}
-                onClose={() => setShowMap(false)}
-                bazaar={zone.bazaar}
-                radiusKm={radiusKm}
-              />
-            )}
-
-
-            {/* Delivery Time Slot */}
-            <div className="form-group">
-              <label className="form-label">{t('checkout.time_slot')}</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {slots.filter((slot) => slot.open).map(slot => (
-                  <label 
-                    key={slot.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: `1.5px solid ${timeSlot === slot.id ? '#10b981' : '#e2e8f0'}`,
-                      background: timeSlot === slot.id ? '#ecfdf5' : '#ffffff',
-                      cursor: 'pointer',
-                      fontSize: '0.88rem',
-                      fontWeight: 600
-                    }}
-                  >
-                    <input 
-                      type="radio" 
-                      name="timeSlot" 
-                      checked={timeSlot === slot.id}
-                      onChange={() => setTimeSlot(slot.id)}
-                    />
-                    <span>{slot.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Payment Method */}
-            <div className="form-group">
-              <label className="form-label">{t('checkout.payment')}</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                {[
-                  { id: 'click', label: 'Click', icon: CreditCard },
-                  { id: 'payme', label: 'Payme', icon: CreditCard },
-                ].map(pay => (
-                  <button
-                    key={pay.id}
-                    type="button"
-                    onClick={() => setPaymentMethod(pay.id)}
-                    style={{
-                      padding: '10px 6px',
-                      borderRadius: '10px',
-                      border: `1.5px solid ${paymentMethod === pay.id ? '#16a34a' : '#e2e8f0'}`,
-                      background: paymentMethod === pay.id ? '#f0fdf4' : '#ffffff',
-                      fontSize: '0.82rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      minHeight: '44px',
-                      boxShadow: paymentMethod === pay.id ? '0 2px 6px rgba(22, 163, 74, 0.15)' : 'none',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    {pay.id === 'click' ? (
-                      <ClickLogo height={16} color="blue" />
-                    ) : pay.id === 'payme' ? (
-                      <PaymeLogo height={16} variant="color" />
-                    ) : (
-                      pay.label
-                    )}
-                  </button>
-                ))}
-              </div>
-
+          {/* Payment */}
+          <div style={section}>
+            <h3 style={h}>{tr("To'lov", 'Оплата', 'Payment')}</h3>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {[['click', <ClickLogo key="c" height={20} color="blue" />], ['payme', <PaymeLogo key="p" height={20} variant="color" />]].map(([id, logo]) => (
+                <button key={id} type="button" onClick={() => { triggerHaptic('selection'); setPaymentMethod(id); }} style={{ flex: 1, height: 80, borderRadius: 18, border: paymentMethod === id ? '2px solid #0f172a' : '1.5px solid transparent', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  {logo}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="modal-footer">
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '1.1rem', fontWeight: 800, color: '#064e3b' }}>
-              <span>{t('cart.grand_total')}</span>
-              <span>{(finalGrandTotal || 0).toLocaleString()} UZS</span>
-            </div>
-
-            <button 
-              type="submit" 
-              className="add-cart-btn"
-              disabled={loading}
-              style={{ height: '48px', fontSize: '0.95rem' }}
-            >
-              {loading ? t('checkout.processing') : `🛍️ ${t('checkout.submit')}`}
-            </button>
+          {/* Price details */}
+          <div style={section}>
+            <h3 style={h}>{tr('Narx tafsiloti', 'Детали цены', 'Price details')}</h3>
+            {[
+              [tr('Savatdagi mahsulotlar', 'Товары в корзине', 'Items in the cart'), `${Math.round(oldItemsTotal).toLocaleString()} ${cur}`],
+              oldItemsTotal > itemsTotal ? [tr('Chegirma', 'Скидка', 'Discount'), `−${Math.round(oldItemsTotal - itemsTotal).toLocaleString()} ${cur}`, '#047857'] : null,
+              [tr('Yetkazish', 'Доставка', 'Delivery'), `${Math.round(deliveryFee).toLocaleString()} ${cur}`],
+            ].filter(Boolean).map(([label, value, color]) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, padding: '6px 0' }}>
+                <span>{label}</span><span style={{ color: color || '#0f172a' }}>{value}</span>
+              </div>
+            ))}
           </div>
-        </form>
-      </div>
+
+          {error && (
+            <div style={{ margin: '0 12px', padding: '12px 14px', background: '#fee2e2', color: '#b91c1c', borderRadius: 14, fontSize: 14, fontWeight: 600 }}>⚠️ {error}</div>
+          )}
+        </div>
+
+        {/* Total + big button */}
+        <div style={{ background: '#ffffff', padding: '12px 16px calc(14px + env(safe-area-inset-bottom))', borderRadius: '26px 26px 0 0', boxShadow: '0 -4px 16px rgba(15,23,42,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 24, fontWeight: 800 }}>{tr('Jami', 'Итого', 'Total')}</span>
+            <span>
+              {oldItemsTotal > itemsTotal && <s style={{ color: '#94a3b8', fontSize: 16, marginRight: 8 }}>{Math.round(oldItemsTotal + deliveryFee).toLocaleString()}</s>}
+              <b style={{ fontSize: 24, color: '#047857' }}>{Math.round(finalGrandTotal).toLocaleString()} {cur}</b>
+            </span>
+          </div>
+          <button type="submit" disabled={loading} style={{ width: '100%', height: 58, borderRadius: 18, border: 'none', background: '#059669', color: '#ffffff', fontSize: 18, fontWeight: 800, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+            {loading ? '…' : tr('Buyurtma berish', 'Заказать', 'Place order')}
+          </button>
+        </div>
+      </form>
+
+      {showMap && (
+        <MapPicker
+          language={language}
+          onAddressSelect={(addr, coords, details) => {
+            applyPlace({ main: details?.main || addr, details: details?.details || '', district: details?.district || 'Yunusobod', ...coords });
+            setShowMap(false);
+          }}
+          onClose={() => setShowMap(false)}
+          bazaar={zone.bazaar}
+          radiusKm={radiusKm}
+        />
+      )}
     </div>
   );
 }
