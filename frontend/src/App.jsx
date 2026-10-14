@@ -465,6 +465,7 @@ export default function App() {
                   products={products}
                   activeCategory={activeCategory}
                   onSelectCategory={setActiveCategory}
+                  onGoHome={handleGoHome}
                   onAddToCart={handleAddToCart}
                   onOpenMediaModal={setSelectedProduct}
                   savedProductIds={savedProductIds}

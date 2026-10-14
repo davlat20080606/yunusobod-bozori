@@ -23,7 +23,8 @@ export default function CatalogView({
   onAddToCart,
   onOpenMediaModal,
   savedProductIds,
-  onToggleSave
+  onToggleSave,
+  onGoHome
 }) {
   const { getLocalized, language } = useLanguage();
 
@@ -51,7 +52,7 @@ export default function CatalogView({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <button 
           type="button" 
-          onClick={() => onSelectCategory('')}
+          onClick={() => (onGoHome ? onGoHome() : onSelectCategory(''))}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
