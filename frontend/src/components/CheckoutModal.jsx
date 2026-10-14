@@ -46,7 +46,11 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen) loadAddresses().then(setSavedAddresses).catch(() => {});
+    // Like Yandex Go: the last address is already chosen, the user only checks it
+    if (isOpen) loadAddresses().then((list) => {
+      setSavedAddresses(list);
+      if (list[0] && !place) applyPlace(list[0]);
+    }).catch(() => {});
   }, [isOpen]);
 
   const deliveryCoords = place ? { lat: place.lat, lng: place.lng } : null;

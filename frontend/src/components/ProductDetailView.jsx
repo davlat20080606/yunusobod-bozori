@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useCart } from '../context/CartContext';
 import { 
   ChevronRight, 
   ArrowLeft, 
@@ -39,8 +40,7 @@ export default function ProductDetailView({
   onSelectProduct
 }) {
   const { getLocalized, t, language } = useLanguage();
-  const [quantity, setQuantity] = useState(product?.min_weight || 1.0);
-  const [isAdded, setIsAdded] = useState(false);
+  const cartApi = useCart();
   const [activeMedia, setActiveMedia] = useState('photo');
   const [videoError, setVideoError] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
@@ -48,10 +48,8 @@ export default function ProductDetailView({
 
   useEffect(() => {
     if (product) {
-      setQuantity(product.min_weight || 1.0);
       setActiveMedia('photo');
       setVideoError(false);
-      setIsAdded(false);
     }
   }, [product]);
 
@@ -62,23 +60,12 @@ export default function ProductDetailView({
   const displayUnit = formatUnit(product.unit, language);
   const currencyLabel = language === 'ru' ? 'сум' : (language === 'en' ? 'UZS' : 'so\'m');
 
-  const handleIncrement = () => {
-    triggerHaptic('light');
-    setQuantity((prev) => +(prev + step).toFixed(2));
-  };
-
-  const handleDecrement = () => {
-    if (quantity > min) {
-      triggerHaptic('light');
-      setQuantity((prev) => +(prev - step).toFixed(2));
-    }
-  };
+  const inCart = cartApi ? cartApi.quantityOf(product.id) : 0;
 
   const handleAdd = () => {
     triggerHaptic('medium');
-    onAddToCart(product, quantity);
-    setIsAdded(true);
-    setTimeout(() => setIsAdded(false), 1500);
+    if (cartApi) cartApi.add(product, min);
+    else onAddToCart(product, min);
   };
 
   const handleShare = () => {
@@ -90,7 +77,8 @@ export default function ProductDetailView({
     }
   };
 
-  const totalItemPrice = Math.round(product.price * quantity);
+  const shownQty = inCart || min;
+  const totalItemPrice = Math.round(product.price * shownQty);
   const discountPercent = product.old_price && product.old_price > product.price
     ? Math.round(((product.old_price - product.price) / product.old_price) * 100)
     : null;
@@ -309,7 +297,7 @@ export default function ProductDetailView({
               {product.old_price && (
                 <div className="flex items-center gap-2 mt-1">
                   <span className="med-pdp-old-price">
-                    {(product.old_price * quantity).toLocaleString()} {currencyLabel}
+                    {Math.round(product.old_price * shownQty).toLocaleString()} {currencyLabel}
                   </span>
                   <span className="med-pdp-discount-chip">
                     −{discountPercent}%
@@ -318,52 +306,21 @@ export default function ProductDetailView({
               )}
             </div>
 
-            {/* Quantity Stepper (Miqdor) */}
-            <div className="med-pdp-qty-wrap">
-              <label className="med-pdp-qty-label">
-                {language === 'ru' ? 'Количество / Вес' : (language === 'en' ? 'Quantity' : 'Miqdor')}
-              </label>
-              
-              <div className="med-pdp-stepper-box">
-                <button 
-                  type="button" 
-                  onClick={handleDecrement}
-                  disabled={quantity <= min}
-                  className="med-pdp-step-btn"
-                >
-                  <Minus size={14} />
-                </button>
-                <span className="med-pdp-step-val">
-                  {quantity} {displayUnit}
+            {/* One control like Yandex Lavka: add, then − qty + right here */}
+            {inCart ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 54, borderRadius: 16, background: '#059669', color: '#ffffff', margin: '12px 0' }}>
+                <button type="button" onClick={() => { triggerHaptic('light'); cartApi.update(product.id, -1); }} aria-label="minus" style={{ width: 56, height: 54, border: 'none', background: 'none', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Minus size={20} /></button>
+                <span style={{ textAlign: 'center', lineHeight: 1.2 }}>
+                  <span style={{ display: 'block', fontWeight: 800, fontSize: 17 }}>{Number.isInteger(inCart) ? inCart : inCart.toFixed(1)} {displayUnit}</span>
+                  <span style={{ display: 'block', fontSize: 12, color: '#d1fae5' }}>{language === 'ru' ? 'в корзине' : (language === 'en' ? 'in cart' : 'savatda')}</span>
                 </span>
-                <button 
-                  type="button" 
-                  onClick={handleIncrement}
-                  className="med-pdp-step-btn"
-                >
-                  <Plus size={14} />
-                </button>
+                <button type="button" onClick={() => { triggerHaptic('light'); cartApi.update(product.id, 1); }} aria-label="plus" style={{ width: 56, height: 54, border: 'none', background: 'none', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Plus size={20} /></button>
               </div>
-            </div>
-
-            {/* Add to Cart Button (Savatga qo'shish) */}
-            <button 
-              type="button"
-              onClick={handleAdd}
-              className={`med-pdp-add-btn ${isAdded ? 'added' : ''}`}
-            >
-              {isAdded ? (
-                <>
-                  <CheckCircle2 size={18} />
-                  <span>{language === 'ru' ? 'Добавлено в корзину!' : (language === 'en' ? 'Added to Cart!' : 'Savatga qo\'shildi!')}</span>
-                </>
-              ) : (
-                <>
-                  <ShoppingCart size={18} />
-                  <span>{language === 'ru' ? 'Добавить в корзину' : (language === 'en' ? 'Add to Cart' : 'Savatga qo\'shish')}</span>
-                </>
-              )}
-            </button>
+            ) : (
+              <button type="button" onClick={handleAdd} style={{ width: '100%', height: 54, borderRadius: 16, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, margin: '12px 0', cursor: 'pointer' }}>
+                <Plus size={20} /> {language === 'ru' ? 'В корзину' : (language === 'en' ? 'Add to cart' : "Savatga qo'shish")} · {min} {displayUnit}
+              </button>
+            )}
 
             {/* Bullet Points Benefits (Matching MedBaza) */}
             <div className="med-pdp-benefits-list">

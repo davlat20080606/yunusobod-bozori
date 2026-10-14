@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { ShoppingCart, Check, Plus, Minus, Heart, Star, Play, ShieldCheck } from 'lucide-react';
+import { Plus, Minus, Heart } from 'lucide-react';
+import { useCart } from '../context/CartContext';
 import { triggerHaptic } from '../services/telegram';
 
 export function formatUnit(unit, language) {
@@ -42,224 +43,87 @@ export default function ProductCard({
   isSaved = false,
   onToggleSave
 }) {
-  const { getLocalized, t, language } = useLanguage();
-  const [quantity, setQuantity] = useState(product.min_weight || 1.0);
-  const [isAdded, setIsAdded] = useState(false);
+  const { getLocalized, language } = useLanguage();
+  const cartApi = useCart();
 
   const step = product.step_weight || 0.5;
-  const min = product.min_weight || 0.5;
+  const min = product.min_weight || step;
   const displayUnit = formatUnit(product.unit, language);
+  const inCart = cartApi ? cartApi.quantityOf(product.id) : 0;
+  const currencyLabel = language === 'ru' ? 'сум' : (language === 'en' ? 'UZS' : "so'm");
+  const qtyLabel = (q) => `${Number.isInteger(q) ? q : q.toFixed(1)} ${displayUnit}`;
 
-  const handleIncrement = (e) => {
-    e.stopPropagation();
-    triggerHaptic('light');
-    setQuantity((prev) => +(prev + step).toFixed(2));
-  };
-
-  const handleDecrement = (e) => {
-    e.stopPropagation();
-    if (quantity > min) {
-      triggerHaptic('light');
-      setQuantity((prev) => +(prev - step).toFixed(2));
-    }
-  };
-
-  const handleAdd = (e) => {
-    e.stopPropagation();
-    triggerHaptic('medium');
-    onAddToCart(product, quantity);
-    setIsAdded(true);
-    setTimeout(() => setIsAdded(false), 1200);
-  };
-
-  const handleHeartClick = (e) => {
-    e.stopPropagation();
-    triggerHaptic('selection');
-    if (onToggleSave) onToggleSave(product.id);
-  };
-
-  const BADGE_MAP = {
-    halal: { ru: '100% Халяль', uz: '100% Halol', en: '100% Halal' },
-    fresh: { ru: 'Свежий сбор', uz: 'Yangi uzilgan', en: 'Fresh' },
-    fresh_hot: { ru: 'Из тандыра', uz: 'Issiq tandir', en: 'Hot Tandoor' },
-    top_seller: { ru: 'Хит продаж', uz: 'Eng xaridorgir', en: 'Top Seller' },
-    bestseller: { ru: 'Хит продаж', uz: 'Eng xaridorgir', en: 'Top Seller' },
-    top_rated: { ru: 'Высший сорт', uz: 'Oliy nav', en: 'Top Rated' },
-    sweet: { ru: 'Сахарный вкус', uz: 'Asaldek shirin', en: 'Extra Sweet' },
-    premium: { ru: 'Премиум', uz: 'Premium', en: 'Premium' },
-    organic: { ru: 'Эко ферма', uz: 'Tabiiy', en: 'Organic' },
-    tea_house: { ru: 'Чайханский', uz: 'Choyxona', en: 'Tea House' },
-    barbecue: { ru: 'Шашлычный', uz: 'Shashlikbop', en: 'Barbecue' },
-    hot: { ru: 'Хит', uz: 'Mashhur', en: 'Hot' }
-  };
-
-  const getBadgeLabel = (badgeKey) => {
-    if (!badgeKey) return null;
-    const key = badgeKey.toLowerCase().trim();
-    if (BADGE_MAP[key]) {
-      return BADGE_MAP[key][language] || BADGE_MAP[key].uz;
-    }
-    const directT = t(`products.badge_${key}`);
-    if (directT && !directT.startsWith('products.badge')) return directT;
-    return null;
-  };
-
-  // Calculate discount percentage if old price exists
   const discountPercent = product.old_price && product.old_price > product.price
     ? Math.round(((product.old_price - product.price) / product.old_price) * 100)
     : null;
 
-  // Real stall from the server (store_name_*, stall_number come with every product)
-  const storeName = (language === 'ru' ? product.store_name_ru : (language === 'en' ? product.store_name_en : null)) || product.store_name_uz;
-  const storeLabel = product.stall_number
-    ? `${storeName} • ${product.stall_number}`.toUpperCase()
-    : (language === 'ru' ? 'ЮНУСАБАДСКИЙ БАЗАР' : (language === 'en' ? 'YUNUSABAD BAZAAR' : 'YUNUSOBOD BOZORI'));
+  // One "+" like Yandex Lavka: the first tap adds the minimum, then the button becomes "− 1 kg +"
+  const add = (e) => {
+    e.stopPropagation();
+    triggerHaptic(inCart ? 'light' : 'medium');
+    if (inCart && cartApi) cartApi.update(product.id, 1);
+    else if (cartApi) cartApi.add(product, min);
+    else if (onAddToCart) onAddToCart(product, min);
+  };
+  const remove = (e) => {
+    e.stopPropagation();
+    triggerHaptic('light');
+    cartApi?.update(product.id, -1);
+  };
+  const toggleSave = (e) => {
+    e.stopPropagation();
+    triggerHaptic('selection');
+    onToggleSave?.(product.id);
+  };
+  const open = () => onOpenMediaModal?.(product);
 
-
-  // Currency label based on selected language
-  const currencyLabel = language === 'ru' ? 'сум' : (language === 'en' ? 'UZS' : 'so\'m');
+  const unavailable = product.is_available === false;
 
   return (
-    <article className="med-product-card group">
-      
-      {/* 1. Image Container */}
-      <div 
-        className="med-product-img-box"
-        onClick={() => {
-          triggerHaptic('light');
-          if (onOpenMediaModal) onOpenMediaModal(product);
-        }}
-      >
-        <img 
-          src={product.image_url || "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=500&auto=format&fit=crop&q=80"} 
-          alt={getLocalized(product, 'name')}
-          loading="lazy"
-          className="med-product-img"
-          onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = "https://images.unsplash.com/photo-1595855759920-86582396756a?w=500&auto=format&fit=crop&q=80";
-          }}
-        />
-
-        {/* Wishlist Heart Button */}
-        <button 
-          type="button"
-          aria-label="Saqlash"
-          className={`med-heart-btn ${isSaved ? 'saved' : ''}`}
-          onClick={handleHeartClick}
-        >
-          <Heart 
-            size={18} 
-            style={{
-              fill: isSaved ? '#ef4444' : 'none',
-              stroke: isSaved ? '#ef4444' : '#94a3b8',
-              transition: 'all 0.2s ease'
-            }}
-          />
+    <article className="med-product-card" onClick={open} style={{ display: 'flex', flexDirection: 'column', background: '#ffffff', borderRadius: 20, overflow: 'hidden', cursor: 'pointer', height: '100%', boxShadow: '0 1px 3px rgba(15,23,42,0.06)' }}>
+      {/* Photo */}
+      <div style={{ position: 'relative', aspectRatio: '1 / 1', background: '#f1f5f9', overflow: 'hidden', flexShrink: 0 }}>
+        <img src={product.image_url} alt={getLocalized(product, 'name')} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: unavailable ? 0.5 : 1 }} />
+        {discountPercent && (
+          <span style={{ position: 'absolute', top: 8, left: 8, padding: '3px 8px', borderRadius: 999, background: '#f97316', color: '#ffffff', fontSize: 12, fontWeight: 800 }}>−{discountPercent}%</span>
+        )}
+        <button type="button" onClick={toggleSave} aria-label="save" style={{ position: 'absolute', top: 8, right: 8, width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <Heart size={17} className={isSaved ? 'fill-rose-500 text-rose-500' : ''} color={isSaved ? '#f43f5e' : '#64748b'} fill={isSaved ? '#f43f5e' : 'none'} />
         </button>
+      </div>
 
-        {/* Badges on Bottom Left of Image */}
-        <div className="med-img-badges">
-          {discountPercent && (
-            <span className="med-badge-discount">−{discountPercent}%</span>
-          )}
-          {product.badge && (
-            <span className="med-badge-tag">{getBadgeLabel(product.badge)}</span>
-          )}
+      {/* Price, name, weight */}
+      <div style={{ padding: '10px 10px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 17, fontWeight: 800, color: '#0f172a' }}>{Math.round(product.price).toLocaleString()} {currencyLabel}</span>
+          {discountPercent && <span style={{ fontSize: 12, color: '#94a3b8', textDecoration: 'line-through' }}>{Math.round(product.old_price).toLocaleString()}</span>}
         </div>
+        <div style={{ fontSize: 14, color: '#0f172a', lineHeight: 1.3, marginTop: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {getLocalized(product, 'name')}
+        </div>
+        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+          {qtyLabel(min)}{product.stall_number ? ` · ${product.stall_number}` : ''}
+        </div>
+      </div>
 
-        {/* Video Reel Trigger Badge */}
-        {product.video_url && (
-          <div className="med-video-reel-pill">
-            <Play size={10} fill="#ffffff" />
-            <span>Video Reel</span>
+      {/* One big button */}
+      <div style={{ padding: 10 }}>
+        {unavailable ? (
+          <div style={{ height: 44, borderRadius: 14, background: '#f1f5f9', color: '#94a3b8', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {language === 'ru' ? 'Нет в наличии' : (language === 'en' ? 'Out of stock' : "Hozir yo'q")}
           </div>
+        ) : inCart ? (
+          <div onClick={(e) => e.stopPropagation()} style={{ height: 44, borderRadius: 14, background: '#059669', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <button type="button" onClick={remove} aria-label="minus" style={{ width: 44, height: 44, border: 'none', background: 'none', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Minus size={18} /></button>
+            <span style={{ fontWeight: 800, fontSize: 15 }}>{qtyLabel(inCart)}</span>
+            <button type="button" onClick={add} aria-label="plus" style={{ width: 44, height: 44, border: 'none', background: 'none', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Plus size={18} /></button>
+          </div>
+        ) : (
+          <button type="button" onClick={add} style={{ width: '100%', height: 44, borderRadius: 14, border: 'none', background: '#f1f5f9', color: '#0f172a', fontWeight: 800, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
+            <Plus size={18} /> {language === 'ru' ? 'В корзину' : (language === 'en' ? 'Add' : "Qo'shish")}
+          </button>
         )}
       </div>
-
-      {/* 2. Product Information Content */}
-      <div className="med-product-info">
-        
-        {/* Prices Row */}
-        <div className="med-price-row">
-          <span className="med-current-price">
-            {product.price.toLocaleString()} {currencyLabel}
-          </span>
-          {product.old_price && (
-            <span className="med-old-price">
-              {product.old_price.toLocaleString()} {currencyLabel}
-            </span>
-          )}
-        </div>
-
-        {/* Store / Stall name */}
-        <p className="med-store-label">
-          {storeLabel}
-        </p>
-
-        {/* Product Title */}
-        <h3 
-          className="med-product-title"
-          onClick={() => {
-            if (onOpenMediaModal) onOpenMediaModal(product);
-          }}
-        >
-          {getLocalized(product, 'name')}
-        </h3>
-
-        {/* Rating & Reviews */}
-        <div className="med-rating-row">
-          <span className="med-unit-tag">/ {displayUnit}</span>
-        </div>
-
-        {/* 3. Stepper & Add to Cart Button */}
-        <div className="med-card-actions">
-          
-          {/* Weight Stepper */}
-          <div className="med-stepper">
-            <button 
-              type="button"
-              className="med-step-btn" 
-              onClick={handleDecrement}
-              disabled={quantity <= min}
-            >
-              <Minus size={13} />
-            </button>
-            <span className="med-step-value">
-              {quantity} {displayUnit}
-            </span>
-            <button 
-              type="button"
-              className="med-step-btn" 
-              onClick={handleIncrement}
-            >
-              <Plus size={13} />
-            </button>
-          </div>
-
-          {/* Add to Cart Button */}
-          <button 
-            type="button" 
-            className={`med-add-btn ${isAdded ? 'added' : ''}`}
-            onClick={handleAdd}
-          >
-            {isAdded ? (
-              <>
-                <Check size={16} />
-                <span>{t('products.added')}</span>
-              </>
-            ) : (
-              <>
-                <ShoppingCart size={15} />
-                <span>{t('products.add_to_cart')}</span>
-              </>
-            )}
-          </button>
-
-        </div>
-
-      </div>
-
     </article>
   );
 }

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from './i18n/LanguageContext';
 import { api, getSellerSession } from './services/api';
+import { CartContext } from './context/CartContext';
 import { initTelegramApp, triggerHaptic } from './services/telegram';
 
 import Navbar from './components/Navbar';
-import HeroBanner from './components/HeroBanner';
+import AddressBar from './components/AddressBar';
 import CategoryGrid from './components/CategoryGrid';
-import InfoTicker from './components/InfoTicker';
 import ReviewsSection from './components/ReviewsSection';
 import DiscountsSection from './components/DiscountsSection';
 import CategorizedSections from './components/CategorizedSections';
@@ -228,8 +228,10 @@ export default function App() {
         .map((item) => {
           if (item.product.id === productId) {
             const step = item.product.step_weight || 0.5;
+            const min = item.product.min_weight || step;
             const newQty = +(item.quantity + delta * step).toFixed(2);
-            return newQty > 0 ? { ...item, quantity: newQty } : null;
+            // Below the minimum weight the item leaves the cart, like delivery apps do
+            return newQty >= min - 1e-9 ? { ...item, quantity: newQty } : null;
           }
           return item;
         })
@@ -271,7 +273,15 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const cartApi = {
+    cart,
+    quantityOf: (productId) => cart.find((item) => item.product.id === productId)?.quantity || 0,
+    add: handleAddToCart,
+    update: handleUpdateCartQuantity,
+  };
+
   return (
+    <CartContext.Provider value={cartApi}>
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
       
       {/* 1. TOP NAVBAR (Pixel-Perfect MedBaza Style) */}
@@ -505,16 +515,8 @@ export default function App() {
                     /* BAZAAR MAIN STOREFRONT */
                     <div className="animate-fade">
                       
-                      {/* 1. Modern Hero Banner Carousel */}
-                      <HeroBanner 
-                        onSelectCategory={(slug) => {
-                          setActiveCategory(slug);
-                          setActiveTab('catalog');
-                        }}
-                      />
-
-                      {/* 2. Running line with real bazaar facts */}
-                      <InfoTicker />
+                      {/* 1. Yandex Go style: delivery address and time first, no ad banners */}
+                      <AddressBar />
 
                       {/* 3. Big photo cards for bazaar sections */}
                       <CategoryGrid
@@ -642,6 +644,9 @@ export default function App() {
         grandTotal={cartTotal + (cartTotal > 0 ? 15000 : 0)}
         onOrderSuccess={(orderNum) => {
           setCheckoutModalOpen(false);
+          // Go straight to live tracking, even if the order started from a product page
+          setSelectedProduct(null);
+          setSelectedStore(null);
           setActiveOrderNumber(orderNum);
           setActiveOrderStatus('pending');
           rememberMyOrder(orderNum);
@@ -666,5 +671,6 @@ export default function App() {
       />
 
     </div>
+    </CartContext.Provider>
   );
 }
