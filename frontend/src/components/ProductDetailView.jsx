@@ -148,6 +148,50 @@ export default function ProductDetailView({
         </nav>
       </div>
 
+      {/* Product header above the photo: seller, name, save/share, verified */}
+      <div className="med-pdp-header" style={{ margin: '4px 0 14px' }}>
+        <div className="med-pdp-vendor-tag">
+          {storeLabel.toUpperCase()}
+        </div>
+
+        <h1 className="med-pdp-title">
+          {getLocalized(product, 'name')}
+        </h1>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div className="med-pdp-verified-badge" style={{ margin: 0 }}>
+            <CheckCircle2 size={14} className="text-emerald-600" />
+            <span>
+              {language === 'ru' ? 'Проверенный продавец базара' : (language === 'en' ? 'Verified Bazaar Merchant' : 'Tasdiqlangan sotuvchi')}
+            </span>
+          </div>
+          <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <button 
+              type="button" 
+              onClick={() => onToggleSave && onToggleSave(product.id)}
+              className={`med-pdp-icon-btn ${isSaved ? 'saved' : ''}`}
+              title="Saqlash"
+            >
+              <Heart size={16} className={isSaved ? "fill-rose-500 text-rose-500" : "text-slate-500"} />
+            </button>
+            <button 
+              type="button" 
+              onClick={handleShare}
+              className="med-pdp-icon-btn"
+              title="Ulashish"
+            >
+              <Share2 size={16} className="text-slate-500" />
+            </button>
+          </div>
+        </div>
+
+        {copied && (
+          <div className="text-xs text-emerald-700 font-bold bg-emerald-50 p-2 rounded-lg border border-emerald-200 mt-2">
+            ✓ {language === 'ru' ? 'Ссылка скопирована в буфер обмена!' : (language === 'en' ? 'Link copied!' : 'Havola nusxalandi!')}
+          </div>
+        )}
+      </div>
+
       {/* 2. Main 3-Column MedBaza Exact Layout */}
       <div className="med-pdp-main-grid">
         
@@ -231,52 +275,6 @@ export default function ProductDetailView({
             ========================================= */}
         <div className="med-pdp-details-col">
           
-          {/* Seller / Brand Title */}
-          <div className="med-pdp-vendor-tag">
-            {storeLabel.toUpperCase()}
-          </div>
-
-          {/* Product Main Title */}
-          <h1 className="med-pdp-title">
-            {getLocalized(product, 'name')}
-          </h1>
-
-          {/* Rating Row */}
-          <div className="med-pdp-rating-row">
-            <div className="ml-auto flex items-center gap-2">
-              <button 
-                type="button" 
-                onClick={() => onToggleSave && onToggleSave(product.id)}
-                className={`med-pdp-icon-btn ${isSaved ? 'saved' : ''}`}
-                title="Saqlash"
-              >
-                <Heart size={16} className={isSaved ? "fill-rose-500 text-rose-500" : "text-slate-500"} />
-              </button>
-              <button 
-                type="button" 
-                onClick={handleShare}
-                className="med-pdp-icon-btn"
-                title="Ulashish"
-              >
-                <Share2 size={16} className="text-slate-500" />
-              </button>
-            </div>
-          </div>
-
-          {copied && (
-            <div className="text-xs text-emerald-700 font-bold bg-emerald-50 p-2 rounded-lg border border-emerald-200 mb-2">
-              ✓ {language === 'ru' ? 'Ссылка скопирована в буфер обмена!' : 'Havola nusxalandi!'}
-            </div>
-          )}
-
-          {/* Verified Seller Pill (Matching MedBaza) */}
-          <div className="med-pdp-verified-badge">
-            <CheckCircle2 size={14} className="text-emerald-600" />
-            <span>
-              {language === 'ru' ? 'Проверенный продавец базара' : (language === 'en' ? 'Verified Bazaar Merchant' : 'Tasdiqlangan sotuvchi')}
-            </span>
-          </div>
-
           {/* Description Section (Mahsulot haqida) */}
           <div className="med-pdp-about-box">
             <h3 className="med-pdp-about-title">

@@ -105,6 +105,12 @@ export default function App() {
   }, []);
   const [activeOrderStatus, setActiveOrderStatus] = useState('pending');
 
+  // Every new screen (product, stall, tab, section) opens from the top, not where the last one was scrolled
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.scrollingElement?.scrollTo?.(0, 0);
+  }, [activeTab, selectedProduct?.id, selectedStore?.id, activeCategory]);
+
   // Initialize Telegram WebApp SDK
   useEffect(() => {
     initTelegramApp();
