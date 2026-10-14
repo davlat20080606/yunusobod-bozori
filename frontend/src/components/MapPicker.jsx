@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Search, X, Navigation, Loader, MapPin } from 'lucide-react';
+import { formatAddress } from '../services/location';
 
 // Yunusobod Dehqon Bozori area
 const DEFAULT_CENTER = { lat: 41.36467, lng: 69.29089 };
@@ -22,17 +23,6 @@ const TEXTS = {
   deliveryPoint: { uz: 'Yetkazib berish manzili', ru: 'Адрес доставки', en: 'Delivery address' },
 };
 
-function formatAddress(data) {
-  const a = data?.address;
-  if (!a) return null;
-  const street = a.road || a.pedestrian || a.footway || a.residential || a.neighbourhood || a.suburb || a.quarter;
-  const main = [street, a.house_number].filter(Boolean).join(', ');
-  const detailParts = [a.neighbourhood || a.quarter, a.suburb, a.city_district || a.county]
-    .filter((part, i, arr) => part && part !== street && arr.indexOf(part) === i);
-  const details = detailParts.join(', ');
-  if (!main && !details) return null;
-  return { main: main || details, details: main ? details : '' };
-}
 
 // Straight-line distance in km (haversine), same formula as the server
 export function distanceKm(a, b) {
@@ -254,7 +244,7 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
   const canConfirm = address && !addressLoading && !dragging && !outside;
   const handleConfirm = () => {
     if (!canConfirm) return;
-    onAddressSelect([address.main, address.details].filter(Boolean).join(', '), coords);
+    onAddressSelect([address.main, address.details].filter(Boolean).join(', '), coords, address);
   };
 
   const roundBtn = {

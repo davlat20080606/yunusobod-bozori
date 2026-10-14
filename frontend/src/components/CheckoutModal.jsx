@@ -4,7 +4,8 @@ import { X, CheckCircle, Clock, MapPin, CreditCard, ShieldCheck } from 'lucide-r
 import confetti from 'canvas-confetti';
 import { triggerHaptic, getTelegramUser, requestPhone } from '../services/telegram';
 import { api } from '../services/api';
-import MapPicker from './MapPicker';
+import MapPicker, { distanceKm } from './MapPicker';
+import { getCurrentPosition, reverseGeocode, loadAddresses, rememberAddress } from '../services/location';
 import { ClickLogo, PaymeLogo } from './PaymentLogos';
 
 export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', grandTotal, onSubmitOrder, onOrderSuccess, pickerNotes = '' }) {
@@ -15,9 +16,15 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
     tgUser ? `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim() : ''
   );
   const [customerPhone, setCustomerPhone] = useState('+998 ');
-  const [district, setDistrict] = useState('Yunusobod');
-  const [address, setAddress] = useState('');
+  // Address: one tap (GPS / map / saved), then only entrance, floor and apartment
+  const [place, setPlace] = useState(null); // { main, details, district, lat, lng }
+  const [entrance, setEntrance] = useState('');
+  const [floor, setFloor] = useState('');
+  const [apartment, setApartment] = useState('');
   const [landmark, setLandmark] = useState('');
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [locating, setLocating] = useState(false);
+  const [locateError, setLocateError] = useState('');
   // The bazaar works 06:00–20:00 Tashkent time (UTC+5): offer only slots that can still be delivered
   const tashkentHour = ((new Date().getUTCHours() + 5) % 24) + new Date().getUTCMinutes() / 60;
   const slots = [
@@ -30,7 +37,6 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showMap, setShowMap] = useState(false);
-  const [deliveryCoords, setDeliveryCoords] = useState(null);
   const [zone, setZone] = useState({ bazaar: { lat: 41.36467, lng: 69.29089 }, delivery_radius_km: 3 });
   const radiusKm = zone.delivery_radius_km;
 
@@ -38,6 +44,38 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
   useEffect(() => {
     if (isOpen) api.getConfig().then(setZone).catch(() => {});
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) loadAddresses().then(setSavedAddresses).catch(() => {});
+  }, [isOpen]);
+
+  const deliveryCoords = place ? { lat: place.lat, lng: place.lng } : null;
+  const placeDistance = place ? distanceKm(zone.bazaar, place) : null;
+
+  const applyPlace = (p) => {
+    setPlace(p);
+    setLocateError('');
+    if (p.entrance !== undefined) setEntrance(p.entrance || '');
+    if (p.floor !== undefined) setFloor(p.floor || '');
+    if (p.apartment !== undefined) setApartment(p.apartment || '');
+    if (p.landmark !== undefined) setLandmark(p.landmark || '');
+  };
+
+  const locateMe = async () => {
+    triggerHaptic('light');
+    setLocating(true);
+    setLocateError('');
+    const pos = await getCurrentPosition();
+    if (!pos) {
+      setLocating(false);
+      setLocateError(language === 'ru' ? 'Не удалось определить местоположение — выберите на карте' : (language === 'en' ? 'Could not get your location — pick it on the map' : "Joylashuvni aniqlab bo'lmadi — xaritadan tanlang"));
+      return;
+    }
+    const found = await reverseGeocode(pos.lat, pos.lng, language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz'));
+    setLocating(false);
+    applyPlace({ main: found?.main || `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`, details: found?.details || '', district: found?.district || 'Yunusobod', ...pos });
+    triggerHaptic('success');
+  };
 
   // Like Evos / Bellissimo: the phone and name come from the bot registration, not from this form
   const [profile, setProfile] = useState(null);
@@ -74,13 +112,18 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if ((!registered && (!customerName.trim() || customerPhone.replace(/\D/g, '').length < 9)) || !address.trim()) {
+    if (!registered && (!customerName.trim() || customerPhone.replace(/\D/g, '').length < 9)) {
       setError(language === 'ru' ? 'Пожалуйста, заполните имя, телефон и адрес' : "Iltimos, ism, telefon va manzilni to'liq kiriting!");
       triggerHaptic('error');
       return;
     }
     if (askPhoneInApp) {
       setError(language === 'ru' ? 'Сначала отправьте номер телефона' : (language === 'en' ? 'Share your phone number first' : 'Avval telefon raqamingizni yuboring'));
+      triggerHaptic('error');
+      return;
+    }
+    if (placeDistance !== null && placeDistance > radiusKm) {
+      setError(language === 'ru' ? `Пока доставляем только в радиусе ${radiusKm} км от базара` : (language === 'en' ? `For now we deliver only within ${radiusKm} km of the bazaar` : `Hozircha faqat bozordan ${radiusKm} km ichida yetkazamiz`));
       triggerHaptic('error');
       return;
     }
@@ -99,9 +142,15 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
       customer_phone: customerPhone,
       customer_tg_id: tgUser ? String(tgUser.id) : null,
       customer_tg_username: tgUser?.username || null,
-      delivery_district: district,
-      delivery_address: address,
-      landmark: landmark,
+      delivery_district: place?.district || 'Yunusobod',
+      delivery_address: [
+        place?.main,
+        place?.details,
+        entrance && `${language === 'ru' ? 'подъезд' : 'podyezd'} ${entrance}`,
+        floor && `${language === 'ru' ? 'этаж' : 'qavat'} ${floor}`,
+        apartment && `${language === 'ru' ? 'кв.' : 'xonadon'} ${apartment}`,
+      ].filter(Boolean).join(', '),
+      landmark: landmark.trim() || null,
       delivery_time_slot: timeSlot,
       payment_method: paymentMethod,
       delivery_lat: deliveryCoords?.lat ?? null,
@@ -123,6 +172,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
       }
 
       triggerHaptic('success');
+      if (place) rememberAddress({ ...place, entrance, floor, apartment, landmark }).catch(() => {});
       confetti({
         particleCount: 80,
         spread: 60,
@@ -215,67 +265,97 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
             </div>
             )}
 
-            {/* District & Address */}
-            <div className="form-group">
-              <label className="form-label">{t('checkout.district')}</label>
-              <select 
-                className="form-select"
-                value={district}
-                onChange={(e) => setDistrict(e.target.value)}
-              >
-                {[
-                  { id: 'Yunusobod', uz: 'Yunusobod tumani', ru: 'Юнусабадский район', en: 'Yunusobod District' },
-                  { id: "Mirzo Ulug'bek", uz: "Mirzo Ulug'bek tumani", ru: 'Мирзо-Улугбекский район', en: "Mirzo Ulug'bek District" },
-                  { id: 'Shayxontohur', uz: 'Shayxontohur tumani', ru: 'Шайхантахурский район', en: 'Shaykhantakhur District' },
-                  { id: 'Olmazor', uz: 'Olmazor tumani', ru: 'Алмазарский район', en: 'Olmazor District' },
-                  { id: 'Chilonzor', uz: 'Chilonzor tumani', ru: 'Чиланзарский район', en: 'Chilanzar District' },
-                  { id: 'Yakkasaroy', uz: 'Yakkasaroy tumani', ru: 'Яккасарайский район', en: 'Yakkasaray District' },
-                  { id: 'Mirobod', uz: 'Mirobod tumani', ru: 'Мирабадский район', en: 'Mirabad District' },
-                ].map(d => (
-                  <option key={d.id} value={d.id}>
-                    {language === 'ru' ? d.ru : (language === 'en' ? d.en : d.uz)}
-                  </option>
-                ))}
-              </select>
-            </div>
 
             <div className="form-group">
               <label className="form-label">{t('checkout.address')} *</label>
-              {/* The map point is required: it checks the 3 km zone and guides the porter and taxi */}
-              <button
-                type="button"
-                onClick={() => setShowMap(true)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left',
-                  padding: '12px 14px', borderRadius: 12, cursor: 'pointer', marginBottom: 8,
-                  border: deliveryCoords ? '1.5px solid #10b981' : '1.5px dashed #f59e0b',
-                  background: deliveryCoords ? '#f0fdf4' : '#fffbeb'
-                }}
-              >
-                <MapPin size={20} color={deliveryCoords ? '#059669' : '#d97706'} style={{ flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
-                  {deliveryCoords
-                    ? (language === 'ru' ? '✅ Точка на карте выбрана — изменить' : (language === 'en' ? '✅ Map point set — change' : "✅ Xaritada belgilandi — o'zgartirish"))
-                    : (language === 'ru' ? `Отметьте дом на карте (доставка до ${radiusKm} км от базара)` : (language === 'en' ? `Mark your home on the map (within ${radiusKm} km of the bazaar)` : `Uyingizni xaritada belgilang (bozordan ${radiusKm} km gacha)`))}
-                </span>
-              </button>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder={t('checkout.address_placeholder')}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                required
-              />
+
+              {/* Saved addresses: next order is one tap */}
+              {savedAddresses.length > 0 && !place && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                  {savedAddresses.map((a, idx) => (
+                    <button key={idx} type="button" onClick={() => { triggerHaptic('selection'); applyPlace(a); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, border: '1.5px solid #e2e8f0', background: '#ffffff', cursor: 'pointer', textAlign: 'left' }}>
+                      <span style={{ fontSize: 18 }}>{idx === 0 ? '🏠' : '📍'}</span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.main}</span>
+                        <span style={{ display: 'block', fontSize: '0.78rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {[a.apartment && `${language === 'ru' ? 'кв.' : 'xonadon'} ${a.apartment}`, a.details].filter(Boolean).join(' · ')}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* One tap: GPS or the map */}
+              {!place && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <button type="button" onClick={locateMe} disabled={locating} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '14px 8px', borderRadius: 14, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', opacity: locating ? 0.7 : 1 }}>
+                    <span style={{ fontSize: 22 }}>{locating ? '⏳' : '📍'}</span>
+                    {locating
+                      ? (language === 'ru' ? 'Определяем…' : (language === 'en' ? 'Locating…' : 'Aniqlanmoqda…'))
+                      : (language === 'ru' ? 'Моё местоположение' : (language === 'en' ? 'My location' : 'Joylashuvimni aniqlash'))}
+                  </button>
+                  <button type="button" onClick={() => setShowMap(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '14px 8px', borderRadius: 14, border: '1.5px solid #10b981', background: '#f0fdf4', color: '#047857', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <span style={{ fontSize: 22 }}>🗺</span>
+                    {language === 'ru' ? 'Выбрать на карте' : (language === 'en' ? 'Pick on map' : 'Xaritadan tanlash')}
+                  </button>
+                </div>
+              )}
+              {!place && (
+                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 6 }}>
+                  {language === 'ru' ? `Доставляем до ${radiusKm} км от базара` : (language === 'en' ? `We deliver within ${radiusKm} km of the bazaar` : `Bozordan ${radiusKm} km gacha yetkazamiz`)}
+                </div>
+              )}
+              {locateError && <div style={{ fontSize: '0.82rem', color: '#b45309', marginTop: 6 }}>{locateError}</div>}
+
+              {/* Chosen address */}
+              {place && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 12, border: `1.5px solid ${placeDistance > radiusKm ? '#fecaca' : '#bbf7d0'}`, background: placeDistance > radiusKm ? '#fef2f2' : '#f0fdf4', marginBottom: 10 }}>
+                    <span style={{ fontSize: 18 }}>{placeDistance > radiusKm ? '⚠️' : '✅'}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>{place.main}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                        {[place.details, `🏪 ${placeDistance.toFixed(1)} km`].filter(Boolean).join(' · ')}
+                      </div>
+                      {placeDistance > radiusKm && (
+                        <div style={{ fontSize: '0.8rem', color: '#b91c1c', fontWeight: 700, marginTop: 4 }}>
+                          {language === 'ru' ? `Дальше ${radiusKm} км — пока не доставляем` : (language === 'en' ? `Farther than ${radiusKm} km — not delivered yet` : `${radiusKm} km'dan uzoq — hozircha yetkazmaymiz`)}
+                        </div>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => setShowMap(true)} style={{ border: 'none', background: 'none', color: '#047857', fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer', padding: 0, flexShrink: 0 }}>
+                      {language === 'ru' ? 'Изменить' : (language === 'en' ? 'Change' : "O'zgartirish")}
+                    </button>
+                  </div>
+
+                  {/* Only short numbers to type */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, marginBottom: 8 }}>
+                    {[
+                      [entrance, setEntrance, language === 'ru' ? 'Подъезд' : (language === 'en' ? 'Entrance' : 'Podyezd')],
+                      [floor, setFloor, language === 'ru' ? 'Этаж' : (language === 'en' ? 'Floor' : 'Qavat')],
+                      [apartment, setApartment, language === 'ru' ? 'Квартира' : (language === 'en' ? 'Apt.' : 'Xonadon')],
+                    ].map(([value, setter, label]) => (
+                      <input key={label} className="form-input" inputMode="numeric" placeholder={label} value={value} maxLength={6} onChange={(e) => setter(e.target.value.replace(/[^\dA-Za-zА-Яа-я]/g, ''))} style={{ textAlign: 'center' }} />
+                    ))}
+                  </div>
+                  <input
+                    className="form-input"
+                    placeholder={language === 'ru' ? 'Ориентир (необязательно): например, рядом с Макро' : (language === 'en' ? 'Landmark (optional): e.g. next to Makro' : "Mo'ljal (ixtiyoriy): masalan, Makro yonida")}
+                    value={landmark}
+                    maxLength={150}
+                    onChange={(e) => setLandmark(e.target.value)}
+                  />
+                </>
+              )}
             </div>
 
             {/* Map Picker Modal */}
             {showMap && (
               <MapPicker
                 language={language}
-                onAddressSelect={(addr, coords) => {
-                  setAddress(addr);
-                  setDeliveryCoords(coords || null);
+                onAddressSelect={(addr, coords, details) => {
+                  applyPlace({ main: details?.main || addr, details: details?.details || '', district: details?.district || 'Yunusobod', ...coords });
                   setShowMap(false);
                 }}
                 onClose={() => setShowMap(false)}
