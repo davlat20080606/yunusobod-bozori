@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, Minus, Plus, Heart, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useCart } from '../context/CartContext';
@@ -6,7 +6,7 @@ import { triggerHaptic } from '../services/telegram';
 import ProductCard, { formatUnit } from './ProductCard';
 
 // Yandex Go style product sheet: slides up over the shop, choose amount, "Add"
-export default function ProductSheet({ product, store, sellerProducts = [], isSaved, onToggleSave, onClose, onOpenStore, onSelectProduct, savedProductIds = [] }) {
+export default function ProductSheet({ product, store, otherProducts = [], isSaved, onToggleSave, onClose, onOpenStore, onSelectProduct, savedProductIds = [] }) {
   const { getLocalized, language } = useLanguage();
   const lang = language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz');
   const cartApi = useCart();
@@ -16,9 +16,12 @@ export default function ProductSheet({ product, store, sellerProducts = [], isSa
   const [qty, setQty] = useState(inCart || min);
   const [showAll, setShowAll] = useState(false);
 
+  const scrollRef = useRef(null);
   useEffect(() => {
     setQty(cartApi.quantityOf(product.id) || min);
     setShowAll(false);
+    // Opening another product from the list starts at its photo
+    scrollRef.current?.scrollTo(0, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id]);
 
@@ -28,6 +31,19 @@ export default function ProductSheet({ product, store, sellerProducts = [], isSa
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, []);
+
+  // "Boshqa mahsulotlar tanlovi": this seller's same kind first (an apple -> all of Botir aka's fruit),
+  // then the seller's other goods, then other sellers' same kind, then everything else
+  const rank = (p) => {
+    const sameSeller = p.store_id === product.store_id;
+    const sameKind = p.category_slug === product.category_slug;
+    return sameSeller ? (sameKind ? 0 : 1) : (sameKind ? 2 : 3);
+  };
+  const choices = otherProducts
+    .filter((p) => p.id !== product.id && p.is_available !== false)
+    .map((p, index) => ({ p, index }))
+    .sort((a, b) => rank(a.p) - rank(b.p) || a.index - b.index)
+    .map(({ p }) => p);
 
   const unit = formatUnit(product.unit, language);
   const cur = lang === 'ru' ? 'сум' : (lang === 'en' ? 'UZS' : "so'm");
@@ -52,7 +68,7 @@ export default function ProductSheet({ product, store, sellerProducts = [], isSa
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
       <div onClick={(e) => e.stopPropagation()} className="animate-fade" style={{ width: '100%', maxWidth: 640, maxHeight: '94vh', background: '#f8fafc', borderRadius: '28px 28px 0 0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto' }}>
           {/* Photo */}
           <div style={{ position: 'relative', background: '#ffffff', borderRadius: '0 0 28px 28px', paddingBottom: 16 }}>
             <div style={{ position: 'relative', aspectRatio: '1 / 0.85', overflow: 'hidden' }}>
@@ -97,16 +113,14 @@ export default function ProductSheet({ product, store, sellerProducts = [], isSa
             </button>
           )}
 
-          {sellerProducts.length > 0 && (
-            <div style={{ padding: '16px 12px 20px' }}>
-              <div style={{ fontSize: 16, fontWeight: 800, margin: '0 4px 10px' }}>
-                {lang === 'ru' ? 'Ещё у этого продавца' : (lang === 'en' ? 'More from this seller' : "Do'konchining boshqa mahsulotlari")}
+          {choices.length > 0 && (
+            <div style={{ background: '#ffffff', borderRadius: 28, margin: '12px 0 0', padding: '18px 12px 20px' }}>
+              <div style={{ fontSize: 22, fontWeight: 800, margin: '0 4px 14px' }}>
+                {lang === 'ru' ? 'Выбор других товаров' : (lang === 'en' ? 'More to choose from' : 'Boshqa mahsulotlar tanlovi')}
               </div>
-              <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-                {sellerProducts.map((p) => (
-                  <div key={p.id} style={{ width: 150, flexShrink: 0 }}>
-                    <ProductCard product={p} onOpenMediaModal={() => onSelectProduct?.(p)} isSaved={savedProductIds.includes(p.id)} onToggleSave={onToggleSave} />
-                  </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '14px 8px' }}>
+                {choices.map((p) => (
+                  <ProductCard key={p.id} compact product={p} onOpenMediaModal={() => onSelectProduct?.(p)} isSaved={savedProductIds.includes(p.id)} onToggleSave={onToggleSave} />
                 ))}
               </div>
             </div>

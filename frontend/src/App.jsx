@@ -631,7 +631,7 @@ export default function App() {
         <ProductSheet
           product={selectedProduct}
           store={stores.find((st) => st.id === selectedProduct.store_id) || null}
-          sellerProducts={products.filter((p) => p.store_id === selectedProduct.store_id && p.id !== selectedProduct.id)}
+          otherProducts={products}
           isSaved={savedProductIds.includes(selectedProduct.id)}
           savedProductIds={savedProductIds}
           onToggleSave={handleToggleSave}

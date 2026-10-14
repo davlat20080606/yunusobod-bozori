@@ -41,7 +41,8 @@ export default function ProductCard({
   onAddToCart, 
   onOpenMediaModal,
   isSaved = false,
-  onToggleSave
+  onToggleSave,
+  compact = false
 }) {
   const { getLocalized, language } = useLanguage();
   const cartApi = useCart();
@@ -76,7 +77,8 @@ export default function ProductCard({
   const unavailable = product.is_available === false;
 
   const discountSum = product.old_price && product.old_price > product.price ? Math.round(product.old_price - product.price) : null;
-  const circle = { width: 40, height: 40, borderRadius: '50%', border: 'none', background: '#ffffff', boxShadow: '0 2px 8px rgba(15,23,42,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#0f172a' };
+  const size = compact ? 34 : 40;
+  const circle = { width: size, height: size, borderRadius: '50%', border: 'none', background: '#ffffff', boxShadow: '0 2px 8px rgba(15,23,42,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#0f172a' };
 
   return (
     <article className="med-product-card" onClick={open} style={{ display: 'flex', flexDirection: 'column', background: 'transparent', border: 'none', boxShadow: 'none', cursor: 'pointer', height: '100%' }}>
@@ -84,20 +86,20 @@ export default function ProductCard({
       <div style={{ position: 'relative', aspectRatio: '1 / 1', background: '#f1f5f9', borderRadius: 22, overflow: 'hidden', flexShrink: 0 }}>
         <img src={product.image_url} alt={getLocalized(product, 'name')} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: unavailable ? 0.45 : 1 }} />
         {discountSum && (
-          <span style={{ position: 'absolute', top: 8, left: 8, padding: '3px 8px', borderRadius: 8, background: '#059669', color: '#ffffff', fontSize: 12, fontWeight: 800 }}>−{discountSum.toLocaleString()} {currencyLabel}</span>
+          <span style={{ position: 'absolute', top: 6, left: 6, padding: compact ? '2px 6px' : '3px 8px', borderRadius: 8, background: '#059669', color: '#ffffff', fontSize: compact ? 10 : 12, fontWeight: 800 }}>−{discountSum.toLocaleString()} {currencyLabel}</span>
         )}
-        <button type="button" onClick={toggleSave} aria-label="save" style={{ position: 'absolute', top: 6, right: 6, width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+        {!compact && <button type="button" onClick={toggleSave} aria-label="save" style={{ position: 'absolute', top: 6, right: 6, width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
           <Heart size={16} color={isSaved ? '#f43f5e' : '#64748b'} fill={isSaved ? '#f43f5e' : 'none'} />
-        </button>
+        </button>}
 
         {!unavailable && (inCart ? (
-          <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', left: 8, right: 8, bottom: 8, height: 40, borderRadius: 20, background: '#ffffff', boxShadow: '0 2px 8px rgba(15,23,42,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', left: 6, right: 6, bottom: 6, height: size, borderRadius: 20, background: '#ffffff', boxShadow: '0 2px 8px rgba(15,23,42,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <button type="button" onClick={remove} aria-label="minus" style={{ width: 40, height: 40, border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Minus size={18} /></button>
-            <span style={{ fontWeight: 800, fontSize: 14 }}>{qtyLabel(inCart)}</span>
+            <span style={{ fontWeight: 800, fontSize: compact ? 12 : 14 }}>{qtyLabel(inCart)}</span>
             <button type="button" onClick={add} aria-label="plus" style={{ width: 40, height: 40, border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Plus size={18} /></button>
           </div>
         ) : (
-          <button type="button" onClick={add} aria-label="add" style={{ ...circle, position: 'absolute', right: 8, bottom: 8 }}><Plus size={20} /></button>
+          <button type="button" onClick={add} aria-label="add" style={{ ...circle, position: 'absolute', right: 6, bottom: 6 }}><Plus size={compact ? 18 : 20} /></button>
         ))}
         {unavailable && (
           <span style={{ position: 'absolute', left: 8, bottom: 8, padding: '4px 10px', borderRadius: 999, background: '#ffffff', fontSize: 12, fontWeight: 700, color: '#64748b' }}>
@@ -109,14 +111,14 @@ export default function ProductCard({
       {/* Price, name, weight */}
       <div style={{ padding: '8px 4px 4px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 17, fontWeight: 800, color: discountSum ? '#047857' : '#0f172a' }}>{Math.round(product.price).toLocaleString()} {currencyLabel}</span>
+          <span style={{ fontSize: compact ? 15 : 17, fontWeight: 800, color: discountSum ? '#047857' : '#0f172a' }}>{Math.round(product.price).toLocaleString()} {currencyLabel}</span>
           {discountSum && <span style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through' }}>{Math.round(product.old_price).toLocaleString()}</span>}
         </div>
-        <div style={{ fontSize: 15, color: '#0f172a', lineHeight: 1.3, marginTop: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <div style={{ fontSize: compact ? 13 : 15, color: '#0f172a', lineHeight: 1.3, marginTop: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {getLocalized(product, 'name')}
         </div>
-        <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 2 }}>
-          {qtyLabel(min)}{product.stall_number ? ` · ${product.stall_number}` : ''}
+        <div style={{ fontSize: compact ? 12 : 13, color: '#94a3b8', marginTop: 2 }}>
+          {qtyLabel(min)}{product.stall_number && !compact ? ` · ${product.stall_number}` : ''}
         </div>
       </div>
     </article>
