@@ -50,3 +50,14 @@ export function getTelegramUser() {
 export function getTelegramInitData() {
   return tg?.initData || '';
 }
+
+// Ask Telegram to share the user's phone with the bot (Bot API 6.9+); calls back with true when sent
+export function requestPhone(callback) {
+  if (!tg?.requestContact || !tg.isVersionAtLeast?.('6.9')) return false;
+  try {
+    tg.requestContact((sent) => callback(Boolean(sent)));
+    return true;
+  } catch {
+    return false;
+  }
+}

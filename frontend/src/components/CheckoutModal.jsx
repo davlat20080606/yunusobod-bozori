@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { X, CheckCircle, Clock, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { triggerHaptic, getTelegramUser } from '../services/telegram';
+import { triggerHaptic, getTelegramUser, requestPhone } from '../services/telegram';
 import { api } from '../services/api';
 import MapPicker from './MapPicker';
 import { ClickLogo, PaymeLogo } from './PaymentLogos';
@@ -39,6 +39,34 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
     if (isOpen) api.getConfig().then(setZone).catch(() => {});
   }, [isOpen]);
 
+  // Like Evos / Bellissimo: the phone and name come from the bot registration, not from this form
+  const [profile, setProfile] = useState(null);
+  const [phoneRequesting, setPhoneRequesting] = useState(false);
+  useEffect(() => {
+    if (isOpen) api.getMe().then(setProfile).catch(() => setProfile({ in_telegram: false, registered: false }));
+  }, [isOpen]);
+  const registered = Boolean(profile?.registered);
+  const askPhoneInApp = profile?.in_telegram && !registered;
+
+  const sharePhone = () => {
+    const started = requestPhone((sent) => {
+      if (!sent) return;
+      setPhoneRequesting(true);
+      // The bot receives the contact a moment later; check a few times
+      let tries = 0;
+      const timer = setInterval(async () => {
+        tries += 1;
+        const me = await api.getMe().catch(() => null);
+        if (me?.registered || tries > 10) {
+          clearInterval(timer);
+          setPhoneRequesting(false);
+          if (me) setProfile(me);
+        }
+      }, 1500);
+    });
+    if (!started) setProfile({ ...profile, in_telegram: false });
+  };
+
   const itemsTotal = cart.reduce((sum, item) => sum + ((item.product?.price || 0) * (item.quantity || 1)), 0);
   const finalGrandTotal = (grandTotal !== undefined && grandTotal !== null) ? grandTotal : (itemsTotal + 15000);
 
@@ -46,8 +74,13 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!customerName.trim() || customerPhone.trim().length < 9 || !address.trim()) {
+    if ((!registered && (!customerName.trim() || customerPhone.replace(/\D/g, '').length < 9)) || !address.trim()) {
       setError(language === 'ru' ? 'Пожалуйста, заполните имя, телефон и адрес' : "Iltimos, ism, telefon va manzilni to'liq kiriting!");
+      triggerHaptic('error');
+      return;
+    }
+    if (askPhoneInApp) {
+      setError(language === 'ru' ? 'Сначала отправьте номер телефона' : (language === 'en' ? 'Share your phone number first' : 'Avval telefon raqamingizni yuboring'));
       triggerHaptic('error');
       return;
     }
@@ -130,7 +163,31 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
               </div>
             )}
 
-            {/* Name & Phone */}
+            {/* Registered in the bot: show who orders instead of asking again */}
+            {registered && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12, background: '#f0fdf4', border: '1.5px solid #bbf7d0', marginBottom: 14 }}>
+                <span style={{ fontSize: 22 }}>👤</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{profile.name}</div>
+                  <div style={{ fontSize: '0.85rem', color: '#475569' }}>{profile.phone}</div>
+                </div>
+                <span style={{ fontSize: '0.72rem', color: '#64748b', textAlign: 'right' }}>
+                  {language === 'ru' ? 'Изменить: /profile в боте' : (language === 'en' ? 'Change: /profile in the bot' : "O'zgartirish: botda /profile")}
+                </span>
+              </div>
+            )}
+
+            {/* Inside Telegram but not registered yet: one tap shares the phone */}
+            {askPhoneInApp && (
+              <button type="button" onClick={sharePhone} disabled={phoneRequesting} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 12, border: 'none', background: '#2563eb', color: '#ffffff', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', marginBottom: 14, opacity: phoneRequesting ? 0.7 : 1 }}>
+                📱 {phoneRequesting
+                  ? (language === 'ru' ? 'Получаем номер…' : (language === 'en' ? 'Getting your number…' : 'Raqam olinmoqda…'))
+                  : (language === 'ru' ? 'Отправить номер телефона' : (language === 'en' ? 'Share phone number' : 'Telefon raqamni yuborish'))}
+              </button>
+            )}
+
+            {/* Name & Phone: only outside Telegram (website in a browser) */}
+            {profile && !profile.in_telegram && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div className="form-group">
                 <label className="form-label">{t('checkout.name')} *</label>
@@ -156,6 +213,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                 />
               </div>
             </div>
+            )}
 
             {/* District & Address */}
             <div className="form-group">

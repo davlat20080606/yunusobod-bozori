@@ -83,6 +83,12 @@ const adminFetch = (path, options) => tokenFetch(path, adminSession, 'x-admin-to
 const json = (method, body) => ({ method, body: body === undefined ? undefined : JSON.stringify(body) });
 
 export const api = {
+  async getMe() {
+    const res = await fetch(`${API_BASE}/me`, { headers: tgHeaders() });
+    if (!res.ok) throw await readError(res, 'Failed to load profile');
+    return res.json();
+  },
+
   async getConfig() {
     const res = await fetch(`${API_BASE}/config`);
     if (!res.ok) throw await readError(res, 'Failed to load settings');

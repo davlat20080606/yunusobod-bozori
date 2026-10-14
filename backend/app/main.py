@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List
 from contextlib import asynccontextmanager
 import hashlib
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response, HTTPException, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response, HTTPException, Depends, Header
 from aiogram import types as tg_types
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -160,6 +160,27 @@ app.include_router(staff.router)
 app.include_router(taxi.router)
 app.include_router(patta.router)
 app.include_router(admin.router)
+
+
+@app.get("/api/me")
+async def my_profile(x_telegram_init_data: str = Header(None), db: AsyncSession = Depends(get_db)):
+    """The buyer's bot registration (phone, name), so checkout does not ask again."""
+    from app.api.tg_auth import telegram_user
+    from app.models.schemas import CustomerModel
+    tg_user = telegram_user(x_telegram_init_data)
+    if not tg_user:
+        return {"in_telegram": False, "registered": False}
+    customer = (await db.execute(select(CustomerModel).where(CustomerModel.tg_id == str(tg_user["id"])))).scalars().first()
+    if customer and customer.phone and not customer.name and tg_user.get("first_name"):
+        # Phone was shared from the app: use the Telegram name until the person sets one
+        customer.name = tg_user["first_name"][:100]
+        await db.commit()
+    return {
+        "in_telegram": True,
+        "registered": bool(customer and customer.phone),
+        "name": customer.name if customer else None,
+        "phone": customer.phone if customer else None,
+    }
 
 
 @app.get("/api/config")

@@ -11,7 +11,7 @@ from app.api.auth import current_admin
 from app.services.config_store import get_setting, distance_km
 from app.api.tg_auth import telegram_user
 from app.bot.notify import notify_new_order, notify_status
-from app.models.schemas import OrderModel, OrderItemModel, ProductModel, StoreModel, OrderCreateSchema, OrderSchema, ReviewModel
+from app.models.schemas import OrderModel, OrderItemModel, ProductModel, StoreModel, OrderCreateSchema, OrderSchema, ReviewModel, CustomerModel
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
@@ -23,8 +23,19 @@ async def create_order(
 ):
     if not data.items:
         raise HTTPException(status_code=400, detail="Buyurtmada mahsulotlar yo'q / Корзина пуста")
-    if len(re.sub(r"\D", "", data.customer_phone)) < 9:
-        raise HTTPException(status_code=400, detail="Telefon raqamini to'liq kiriting / Введите номер телефона полностью")
+
+    # Inside Telegram the name and phone come from the bot registration, not from the form
+    tg_user = telegram_user(x_telegram_init_data)
+    customer = None
+    if tg_user:
+        customer = (await db.execute(select(CustomerModel).where(CustomerModel.tg_id == str(tg_user["id"])))).scalars().first()
+    if customer and customer.phone:
+        data.customer_phone = customer.phone
+        data.customer_name = customer.name or tg_user.get("first_name") or "Xaridor"
+    if len(re.sub(r"\D", "", data.customer_phone or "")) < 9:
+        raise HTTPException(status_code=400, detail="Telefon raqamingizni yuboring / Отправьте номер телефона")
+    if len((data.customer_name or "").strip()) < 2:
+        raise HTTPException(status_code=400, detail="Ismingizni kiriting / Введите имя")
 
     # The bazaar works 06:00–20:00 Tashkent time (UTC+5)
     now = datetime.utcnow()
@@ -40,8 +51,6 @@ async def create_order(
     if distance_km(data.delivery_lat, data.delivery_lng) > radius:
         raise HTTPException(status_code=409, detail=f"Hozircha faqat bozordan {radius:g} km ichida yetkazamiz / Пока доставляем только в радиусе {radius:g} км от базара")
 
-    # Only trust the Telegram account that Telegram itself signed (used for status messages)
-    tg_user = telegram_user(x_telegram_init_data)
 
     rand_suffix = random.SystemRandom().randint(100000, 999999)
     order_number = f"YB-{datetime.now().strftime('%d%m')}-{rand_suffix}"

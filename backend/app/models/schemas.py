@@ -169,6 +169,18 @@ class ReviewModel(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class CustomerModel(Base):
+    """A buyer who registered in the bot (language → phone → name), like Evos / Bellissimo bots."""
+    __tablename__ = "customers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tg_id = Column(String(50), unique=True, index=True, nullable=False)
+    lang = Column(String(5), nullable=True)
+    phone = Column(String(30), nullable=True)
+    name = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class StaffModel(Base):
     """Bazaar workers: aravachi (porter), taksichi (courier), pattachi (stall-fee collector)."""
     __tablename__ = "staff"
@@ -298,8 +310,8 @@ class OrderItemCreateSchema(BaseModel):
 
 
 class OrderCreateSchema(BaseModel):
-    customer_name: str = Field(..., min_length=2, max_length=100)
-    customer_phone: str = Field(..., min_length=9, max_length=50)
+    customer_name: Optional[str] = Field(None, max_length=100)
+    customer_phone: Optional[str] = Field(None, max_length=50)
     customer_tg_id: Optional[str] = Field(None, max_length=50)
     customer_tg_username: Optional[str] = Field(None, max_length=100)
     delivery_address: str = Field(..., min_length=3, max_length=300)
