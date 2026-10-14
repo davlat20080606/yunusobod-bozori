@@ -632,6 +632,10 @@ export default function App() {
           product={selectedProduct}
           store={stores.find((st) => st.id === selectedProduct.store_id) || null}
           otherProducts={products}
+          categoryName={(() => {
+            const cat = categories.find((c) => c.slug === selectedProduct.category_slug);
+            return cat ? getLocalized(cat, 'name').replace(/^\p{Extended_Pictographic}\s*/u, '') : null;
+          })()}
           isSaved={savedProductIds.includes(selectedProduct.id)}
           savedProductIds={savedProductIds}
           onToggleSave={handleToggleSave}
