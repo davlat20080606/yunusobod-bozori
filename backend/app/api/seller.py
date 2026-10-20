@@ -103,8 +103,8 @@ async def register_store(
         owner_phone=data.owner_phone.strip(),
         seller_pin=data.pin,
         category_slug=data.category_slug,
-        avatar_url="https://images.unsplash.com/photo-1588168333986-5078d3ae3976?w=300&auto=format&fit=crop&q=80",
-        banner_url="https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=800&auto=format&fit=crop&q=80",
+        avatar_url="/img/p/9dbbb0f54890.jpg",
+        banner_url="/img/p/ef38b94878f0.jpg",
         description_uz=data.description_uz or "Yangi saralangan mahsulotlar.",
         description_ru=data.description_ru or "Свежие отборные продукты напрямую с прилавка.",
         description_en="Fresh market produce directly from the stall.",
@@ -161,7 +161,7 @@ async def create_store_product(data: ProductCreateSchema, store: StoreModel = De
     if not (await db.execute(select(CategoryModel).where(CategoryModel.slug == data.category_slug))).scalars().first():
         raise HTTPException(status_code=400, detail="Bo'lim topilmadi / Раздел не найден")
 
-    default_image = "https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&auto=format&fit=crop&q=80"
+    default_image = "/img/p/b2fb288e8c9b.jpg"
 
     new_product = ProductModel(
         store_id=store.id,

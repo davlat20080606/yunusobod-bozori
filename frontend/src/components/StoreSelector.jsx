@@ -32,7 +32,7 @@ export default function StoreSelector({ stores, onSelectStore }) {
             {/* Store Banner Image */}
             <div className="med-store-banner-wrap">
               <img 
-                src={store.banner_url || "https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=600&auto=format&fit=crop&q=80"} 
+                src={store.banner_url || "/img/p/628eb6dfa087.jpg"} 
                 alt={getLocalized(store, 'name')} 
                 loading="lazy"
                 className="med-store-banner-img"
@@ -49,7 +49,7 @@ export default function StoreSelector({ stores, onSelectStore }) {
             <div className="med-store-body">
               <div className="med-store-header-row">
                 <img 
-                  src={store.avatar_url || "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=120&auto=format&fit=crop&q=80"} 
+                  src={store.avatar_url || "/img/p/da60021c8357.jpg"} 
                   alt={store.owner_name}
                   className="med-store-avatar"
                 />

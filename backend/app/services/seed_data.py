@@ -4,6 +4,7 @@ from sqlalchemy import select, inspect
 from app.config import settings
 from app.models.schemas import CategoryModel, StoreModel, ProductModel
 from app.database import Base, engine, async_session_factory
+from app.services.local_images import local_image
 
 CATEGORIES = [
     {
@@ -893,5 +894,13 @@ async def init_db_and_seed():
                 prod = ProductModel(**p_data)
                 session.add(prod)
 
+        await session.commit()
+
+        # Point demo photos at our own copies (foreign image hosts are unreliable from Uzbekistan)
+        for prod in (await session.execute(select(ProductModel))).scalars().all():
+            prod.image_url = local_image(prod.image_url)
+        for store in (await session.execute(select(StoreModel))).scalars().all():
+            store.avatar_url = local_image(store.avatar_url)
+            store.banner_url = local_image(store.banner_url)
         await session.commit()
 

@@ -63,7 +63,7 @@ export default function StoreDetailView({ store, products: propProducts, onBack,
       >
         <div style={{ height: '140px', position: 'relative' }}>
           <img 
-            src={store.banner_url || "https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=1000&auto=format&fit=crop&q=80"} 
+            src={store.banner_url || "/img/p/628eb6dfa087.jpg"} 
             alt={getLocalized(store, 'name')}
             style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.45 }}
           />
@@ -79,7 +79,7 @@ export default function StoreDetailView({ store, products: propProducts, onBack,
 
         <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
           <img 
-            src={store.avatar_url || "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=150&auto=format&fit=crop&q=80"}
+            src={store.avatar_url || "/img/p/da60021c8357.jpg"}
             alt={store.owner_name}
             style={{ width: '60px', height: '60px', borderRadius: '14px', objectFit: 'cover', border: '3px solid #ffffff', marginTop: '-38px', position: 'relative', zIndex: 2 }}
           />

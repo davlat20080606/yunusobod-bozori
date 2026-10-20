@@ -8,12 +8,12 @@ import { formatUnit } from './ProductCard';
 import { ClickLogo, PaymeLogo } from './PaymentLogos';
 
 const PHOTO_PRESETS = [
-  { name: '🥩 Go\'sht / Мясо', image: 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=600&auto=format&fit=crop&q=80', video: '' },
-  { name: '🍅 Pomidor / Овощи', image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&auto=format&fit=crop&q=80', video: '' },
-  { name: '🍈 Qovun / Фрукты', image: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/Melon_product.jpg/960px-Melon_product.jpg', video: '' },
-  { name: '🥖 Non / Выпечка', image: 'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=600&auto=format&fit=crop&q=80', video: '' },
-  { name: '🥜 Quruq meva / Орехи', image: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fe/White_walnut_kernels.jpg/960px-White_walnut_kernels.jpg', video: '' },
-  { name: '🧀 Qaymoq / Молочка', image: 'https://images.unsplash.com/photo-1528750997573-59b89d56f4f7?w=600&auto=format&fit=crop&q=80', video: '' },
+  { name: '🥩 Go\'sht / Мясо', image: '/img/p/ef38b94878f0.jpg', video: '' },
+  { name: '🍅 Pomidor / Овощи', image: '/img/p/66ff63f3f334.jpg', video: '' },
+  { name: '🍈 Qovun / Фрукты', image: '/img/p/d2ef82ecd095.jpg', video: '' },
+  { name: '🥖 Non / Выпечка', image: '/img/p/f3cdfa490b92.jpg', video: '' },
+  { name: '🥜 Quruq meva / Орехи', image: '/img/p/4474d3c91c5b.jpg', video: '' },
+  { name: '🧀 Qaymoq / Молочка', image: '/img/p/1b2087837e43.jpg', video: '' },
 ];
 
 export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onSignOut }) {

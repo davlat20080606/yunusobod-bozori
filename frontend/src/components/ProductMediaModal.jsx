@@ -149,7 +149,7 @@ export default function ProductMediaModal({
                 </div>
               ) : (
                 <img 
-                  src={product.image_url || "https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&auto=format&fit=crop&q=80"} 
+                  src={product.image_url || "/img/p/b2fb288e8c9b.jpg"} 
                   alt={getLocalized(product, 'name')}
                   className="med-uzum-img"
                 />

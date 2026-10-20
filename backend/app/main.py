@@ -269,5 +269,6 @@ if FRONTEND_DIST.exists():
             return {"error": "Not Found"}
         file_path = (FRONTEND_DIST / full_path).resolve()
         if file_path.is_relative_to(FRONTEND_DIST.resolve()) and file_path.is_file():
-            return FileResponse(str(file_path))
+            cache = {"Cache-Control": "public, max-age=604800"} if full_path.startswith("img/") else None
+            return FileResponse(str(file_path), headers=cache)
         return FileResponse(str(FRONTEND_DIST / "index.html"))

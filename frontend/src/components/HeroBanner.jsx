@@ -15,7 +15,7 @@ const BANNER_SLIDES = [
     desc_uz: "Xarid qilingan go'sht va sabzavotlar 45 daqiqada to'g'ridan-to'g'ri rastadan uyingizga!",
     desc_ru: 'Говядина, баранина, фрукты и овощи прямо с прилавков базара — к вашей двери.',
     desc_en: 'Grass-fed lamb, fresh vegetables and sweet melons delivered right to your door.',
-    image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200&auto=format&fit=crop&q=80',
+    image: '/img/p/b2fb288e8c9b.jpg',
     cta_category: 'meat',
     tag: ''
   },
@@ -30,7 +30,7 @@ const BANNER_SLIDES = [
     desc_uz: "Aravachi hamma rastalarni aylanib, xaridlaringizni birga olib keladi.",
     desc_ru: 'Аравачи обойдёт все расты и привезёт покупки вместе.',
     desc_en: 'A bazaar porter visits every stall and brings it all together.',
-    image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=1200&auto=format&fit=crop&q=80',
+    image: '/img/p/d8695acbd883.jpg',
     cta_category: 'combos',
     tag: ''
   },
@@ -45,7 +45,7 @@ const BANNER_SLIDES = [
     desc_uz: "Qaynoq tandirdan endigina uzilgan shohona nonlar va xushbo'y pishiriqlar.",
     desc_ru: 'Хрустящая корочка, натуральное сливочное масло и неповторимый аромат.',
     desc_en: 'Steaming hot from the tandoor clay oven straight to your dining table.',
-    image: 'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=1200&auto=format&fit=crop&q=80',
+    image: '/img/p/f3cdfa490b92.jpg',
     cta_category: 'bakery',
     tag_uz: 'YANGI',
     tag_ru: 'НОВИНКА',
