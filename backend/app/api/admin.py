@@ -71,6 +71,7 @@ async def overview(db: AsyncSession = Depends(get_db)):
         "patta_today": {"paid": patta["paid_count"], "of": len(patta["stores"]), "total": patta["total"]},
         "delivery_radius_km": float(await get_setting(db, "delivery_radius_km")),
         "patta_amount": float(await get_setting(db, "patta_amount")),
+        "support_phone": await get_setting(db, "support_phone"),
     }
 
 
@@ -171,13 +172,17 @@ async def patta_report(day: Optional[str] = None, db: AsyncSession = Depends(get
 async def update_settings(
     delivery_radius_km: Optional[float] = Body(None, gt=0.5, le=50),
     patta_amount: Optional[float] = Body(None, gt=0, le=10_000_000),
+    support_phone: Optional[str] = Body(None, max_length=30, pattern=r"^[\d\s()+-]*$"),
     db: AsyncSession = Depends(get_db)
 ):
     if delivery_radius_km is not None:
         await set_setting(db, "delivery_radius_km", f"{delivery_radius_km:g}")
     if patta_amount is not None:
         await set_setting(db, "patta_amount", f"{patta_amount:g}")
+    if support_phone is not None:
+        await set_setting(db, "support_phone", support_phone.strip())
     return {
         "delivery_radius_km": float(await get_setting(db, "delivery_radius_km")),
         "patta_amount": float(await get_setting(db, "patta_amount")),
+        "support_phone": await get_setting(db, "support_phone"),
     }

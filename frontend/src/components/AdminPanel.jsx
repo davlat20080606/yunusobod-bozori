@@ -36,6 +36,7 @@ const T = {
   saved: { uz: 'Saqlandi', ru: 'Сохранено', en: 'Saved' },
   km: { uz: 'km (bozordan)', ru: 'км (от базара)', en: 'km (from the bazaar)' },
   patta_amount: { uz: 'Kunlik patta summasi', ru: 'Ежедневная сумма патты', en: 'Daily patta amount' },
+  support_phone: { uz: 'Yordam telefoni (xaridorlar uchun)', ru: 'Телефон поддержки (для покупателей)', en: 'Help phone (for customers)' },
   paid: { uz: "To'lagan", ru: 'Оплатили', en: 'Paid' },
   not_paid: { uz: "To'lamagan", ru: 'Не оплатили', en: 'Not paid' },
   status: {
@@ -101,7 +102,7 @@ export default function AdminPanel({ onBackToMarket }) {
   const [data, setData] = useState({ overview: null, stores: [], staff: [], orders: [], patta: null });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [settingsForm, setSettingsForm] = useState({ radius: '', patta: '' });
+  const [settingsForm, setSettingsForm] = useState({ radius: '', patta: '', phone: '' });
 
   const load = useCallback(async () => {
     if (!signedIn) return;
@@ -110,7 +111,7 @@ export default function AdminPanel({ onBackToMarket }) {
         api.adminOverview(), api.adminStores(), api.adminStaff(), api.adminOrders(), api.adminPatta()
       ]);
       setData({ overview, stores, staff, orders, patta });
-      setSettingsForm((prev) => prev.radius ? prev : { radius: String(overview.delivery_radius_km), patta: String(overview.patta_amount) });
+      setSettingsForm((prev) => prev.radius ? prev : { radius: String(overview.delivery_radius_km), patta: String(overview.patta_amount), phone: overview.support_phone || '' });
       setError('');
     } catch (err) {
       if (err.status === 401) setSignedIn(false);
@@ -289,11 +290,13 @@ export default function AdminPanel({ onBackToMarket }) {
       )}
 
       {tab === 6 && (
-        <form onSubmit={(e) => { e.preventDefault(); act(() => api.adminSettings({ delivery_radius_km: Number(settingsForm.radius), patta_amount: Number(settingsForm.patta) }), t('saved')); }} style={card}>
+        <form onSubmit={(e) => { e.preventDefault(); act(() => api.adminSettings({ delivery_radius_km: Number(settingsForm.radius), patta_amount: Number(settingsForm.patta), support_phone: settingsForm.phone }), t('saved')); }} style={card}>
           <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>{t('radius')} ({t('km')})</label>
           <input value={settingsForm.radius} onChange={(e) => setSettingsForm({ ...settingsForm, radius: e.target.value.replace(/[^\d.]/g, '') })} inputMode="decimal" style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 16, marginBottom: 12 }} />
           <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>{t('patta_amount')} (UZS)</label>
           <input value={settingsForm.patta} onChange={(e) => setSettingsForm({ ...settingsForm, patta: e.target.value.replace(/\D/g, '') })} inputMode="numeric" style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 16, marginBottom: 12 }} />
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>{t('support_phone')}</label>
+          <input value={settingsForm.phone} onChange={(e) => setSettingsForm({ ...settingsForm, phone: e.target.value.replace(/[^\d\s()+-]/g, '') })} type="tel" inputMode="tel" placeholder="+998 71 000 00 00" maxLength={30} style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 16, marginBottom: 12 }} />
           <button type="submit" style={{ width: '100%', height: 48, borderRadius: 14, border: 'none', background: '#0f172a', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>{t('save')}</button>
         </form>
       )}

@@ -1,4 +1,4 @@
-"""Bazaar settings that the administration can change: delivery radius, patta amount."""
+"""Bazaar settings that the administration can change: delivery radius, patta amount, help phone."""
 import math
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.schemas import SettingModel
@@ -11,6 +11,7 @@ DEFAULTS = {
     "delivery_radius_km": "3",
     "patta_amount": "20000",
     "admin_tg_id": "",
+    "support_phone": "",
 }
 
 

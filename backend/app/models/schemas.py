@@ -320,7 +320,8 @@ class OrderCreateSchema(BaseModel):
     delivery_lat: Optional[float] = Field(None, ge=-90, le=90)
     delivery_lng: Optional[float] = Field(None, ge=-180, le=180)
     delivery_time_slot: str = Field("Express (45-60 min)", max_length=100)
-    payment_method: str = Field("click", pattern=r"^(cash|click|payme)$")
+    # Click/Payme are not connected to a merchant account yet, so only cash on delivery is accepted
+    payment_method: str = Field("cash", pattern=r"^cash$")
     notes: Optional[str] = Field(None, max_length=1000)
     items: List[OrderItemCreateSchema] = Field(..., min_length=1, max_length=60)
 

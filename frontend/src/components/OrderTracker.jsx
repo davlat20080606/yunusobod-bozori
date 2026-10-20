@@ -4,6 +4,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { api } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 import { formatUnit } from './ProductCard';
+import { slotLabel } from '../services/slots';
 
 const BAZAAR = { lat: 41.36467, lng: 69.29089 };
 const MY_ORDERS_KEY = 'yunusobod_my_orders';
@@ -35,6 +36,8 @@ const T = {
   rate_thanks: { uz: 'Bahoyingiz uchun rahmat!', ru: 'Спасибо за оценку!', en: 'Thanks for your rating!' },
   cancel_confirm: { uz: 'Buyurtmani bekor qilasizmi?', ru: 'Отменить заказ?', en: 'Cancel this order?' },
   cash: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' },
+  help: { uz: 'Savol yoki muammo bormi?', ru: 'Есть вопрос или проблема?', en: 'Question or problem?' },
+  help_call: { uz: "Bozorga qo'ng'iroq qiling", ru: 'Позвоните на базар', en: 'Call the bazaar' },
 };
 
 const STEPS = {
@@ -121,7 +124,7 @@ function etaText(order, lang) {
     const time = formatTime(new Date(created.getTime() + 60 * 60000));
     return lang === 'ru' ? `до ${time}` : (lang === 'en' ? `by ${time}` : `${time} gacha`);
   }
-  return order.delivery_time_slot;
+  return slotLabel(order.delivery_time_slot, lang);
 }
 
 // Small map: bazaar → delivery point (MapLibre + free OpenFreeMap tiles)
@@ -203,6 +206,11 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState('');
   const [sendingReview, setSendingReview] = useState(false);
+  const [supportPhone, setSupportPhone] = useState('');
+
+  useEffect(() => {
+    api.getConfig().then((cfg) => setSupportPhone(cfg.support_phone || '')).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!initialOrderNumber) return;
@@ -438,7 +446,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
         <div style={card}>
           {[
             [MapPin, t('address'), [openOrder.delivery_district, openOrder.delivery_address].filter(Boolean).join(', ') + (openOrder.landmark ? ` · ${openOrder.landmark}` : '')],
-            [Clock, t('delivery'), openOrder.delivery_time_slot],
+            [Clock, t('delivery'), slotLabel(openOrder.delivery_time_slot, lang)],
             [CreditCard, t('payment'), paymentLabel],
           ].map(([Icon, label, value], i) => (
             <div key={label} style={{ display: 'flex', gap: 12, padding: '10px 0', borderTop: i ? '1px solid #f1f5f9' : 'none' }}>
@@ -454,6 +462,17 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             {t('order')} #{openOrder.order_number}{copied ? ` · ${t('copied')}` : ''}
           </button>
         </div>
+
+        {supportPhone && (
+          <a href={`tel:${supportPhone.replace(/[^\d+]/g, '')}`} style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: '#0f172a' }}>
+            <span style={{ width: 44, height: 44, borderRadius: '50%', background: '#ecfdf5', color: '#047857', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Phone size={20} /></span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 15, fontWeight: 800 }}>{t('help')}</span>
+              <span style={{ display: 'block', fontSize: 13, color: '#64748b' }}>{t('help_call')} · {supportPhone}</span>
+            </span>
+            <ChevronRight size={20} color="#94a3b8" />
+          </a>
+        )}
 
         {/* Real reviews: rate the order once it has been delivered */}
         {openOrder.status === 'delivered' && (

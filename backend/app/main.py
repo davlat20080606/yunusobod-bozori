@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from aiogram.types import MenuButtonWebApp, WebAppInfo
+from aiogram.types import MenuButtonWebApp, WebAppInfo, BotCommand
 from app.config import settings, USE_WEBHOOK
 from app.database import engine, Base, get_db
 from app.models.schemas import MediaModel
@@ -85,6 +85,16 @@ async def lifespan(app: FastAPI):
                 logger.warning(f"Webhook check note: {e}")
             if cloud_url:
                 logger.warning(f"⚠️ Bot is running in the cloud ({cloud_url}); local copy will not answer Telegram.")
+
+        if not cloud_url:
+            try:
+                await bot.set_my_commands([
+                    BotCommand(command="start", description="Bozorni ochish / Открыть базар"),
+                    BotCommand(command="help", description="Yordam / Помощь"),
+                    BotCommand(command="profile", description="Profil / Профиль"),
+                ])
+            except Exception as e:
+                logger.warning(f"Bot commands note: {e}")
 
         # Keep the Telegram menu button pointing at the current site address
         if settings.WEBAPP_URL.startswith("https://") and not cloud_url:
@@ -185,11 +195,12 @@ async def my_profile(x_telegram_init_data: str = Header(None), db: AsyncSession 
 
 @app.get("/api/config")
 async def public_config(db: AsyncSession = Depends(get_db)):
-    """What the app needs to draw the delivery zone."""
+    """What the app needs to draw the delivery zone and show the help phone."""
     from app.services.config_store import get_setting, BAZAAR_LAT, BAZAAR_LNG
     return {
         "bazaar": {"lat": BAZAAR_LAT, "lng": BAZAAR_LNG},
         "delivery_radius_km": float(await get_setting(db, "delivery_radius_km")),
+        "support_phone": await get_setting(db, "support_phone"),
     }
 
 bot_status = {"bot": "not started"}

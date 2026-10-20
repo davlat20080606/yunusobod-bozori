@@ -36,7 +36,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
     { id: 'Morning (09:00-11:00)', label: t('checkout.time_morning'), open: true }
   ];
   const [timeSlot, setTimeSlot] = useState(() => slots.find((s) => s.open).id);
-  const [paymentMethod, setPaymentMethod] = useState('click');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showMap, setShowMap] = useState(false);
@@ -346,11 +346,20 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
           {/* Payment */}
           <div style={section}>
             <h3 style={h}>{tr("To'lov", 'Оплата', 'Payment')}</h3>
+            <button type="button" onClick={() => { triggerHaptic('selection'); setPaymentMethod('cash'); }} style={{ width: '100%', height: 64, marginBottom: 10, borderRadius: 18, border: paymentMethod === 'cash' ? '2px solid #0f172a' : '1.5px solid transparent', background: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', cursor: 'pointer', textAlign: 'left' }}>
+              <span style={{ fontSize: 26 }}>💵</span>
+              <span style={{ flex: 1 }}>
+                <span style={{ display: 'block', fontSize: 16, fontWeight: 800, color: '#0f172a' }}>{tr('Naqd pul', 'Наличными', 'Cash')}</span>
+                <span style={{ display: 'block', fontSize: 13, color: '#64748b' }}>{tr("Kuryerga, qabul qilganda to'laysiz", 'Курьеру при получении', 'Pay the courier on delivery')}</span>
+              </span>
+            </button>
+            {/* Click/Payme are not connected to a merchant account yet, so they cannot be chosen */}
             <div style={{ display: 'flex', gap: 10 }}>
               {[['click', <ClickLogo key="c" height={20} color="blue" />], ['payme', <PaymeLogo key="p" height={20} variant="color" />]].map(([id, logo]) => (
-                <button key={id} type="button" onClick={() => { triggerHaptic('selection'); setPaymentMethod(id); }} style={{ flex: 1, height: 80, borderRadius: 18, border: paymentMethod === id ? '2px solid #0f172a' : '1.5px solid transparent', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <div key={id} aria-disabled="true" style={{ flex: 1, height: 72, borderRadius: 18, background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: 0.55 }}>
                   {logo}
-                </button>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>{tr('Tez orada', 'Скоро', 'Coming soon')}</span>
+                </div>
               ))}
             </div>
           </div>

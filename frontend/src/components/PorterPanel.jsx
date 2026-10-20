@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ShoppingCart, Phone, MapPin, CheckCircle2, Circle, ChevronLeft, LogOut, RefreshCw, User, Store, AlertCircle } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { slotLabel } from '../services/slots';
 import { api, staffSession } from '../services/api';
 import StaffLogin from './StaffLogin';
 import { formatUnit } from './ProductCard';
@@ -391,7 +392,7 @@ function OrderRoute({ t, language, order, busy, error, onBack, onTogglePicked, o
         </div>
         <div style={{ fontSize: 14, color: '#334155', marginBottom: 4 }}>{order.delivery_district}, {order.delivery_address}</div>
         {order.landmark && <div style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>📍 {order.landmark}</div>}
-        <div style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>⏱ {order.delivery_time_slot}</div>
+        <div style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>⏱ {slotLabel(order.delivery_time_slot, language)}</div>
         <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
           {Math.round(order.total_amount).toLocaleString()} UZS · {order.payment_method === 'cash' ? t('cash') : `${order.payment_method === 'payme' ? 'Payme' : 'Click'} (${t('check_payment')})`}
         </div>

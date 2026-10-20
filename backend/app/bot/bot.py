@@ -108,6 +108,16 @@ REG_TEXTS = {
         "ru": "✅ Спасибо, {name}! Вы зарегистрированы.\n📱 {phone}",
         "en": "✅ Thank you, {name}! You are registered.\n📱 {phone}",
     },
+    "help": {
+        "uz": "ℹ️ <b>Yordam</b>\n\n🕕 Bozor har kuni 06:00 – 20:00 ishlaydi\n🚚 Yetkazish: bozordan {radius} km gacha, 45–60 daqiqa\n💵 To'lov: naqd, kuryerga qabul qilganda{phone_line}\n\n/profile — ism va telefonni o'zgartirish",
+        "ru": "ℹ️ <b>Помощь</b>\n\n🕕 Базар работает каждый день 06:00 – 20:00\n🚚 Доставка: до {radius} км от базара, 45–60 минут\n💵 Оплата: наличными курьеру при получении{phone_line}\n\n/profile — изменить имя и телефон",
+        "en": "ℹ️ <b>Help</b>\n\n🕕 The bazaar is open daily 06:00 – 20:00\n🚚 Delivery: up to {radius} km from the bazaar, 45–60 minutes\n💵 Payment: cash to the courier on delivery{phone_line}\n\n/profile — change name and phone",
+    },
+    "help_phone": {
+        "uz": "📞 Savol yoki muammo bo'lsa: {phone}",
+        "ru": "📞 Вопросы и проблемы: {phone}",
+        "en": "📞 Questions or problems: {phone}",
+    },
     "profile": {
         "uz": "👤 <b>Profilingiz</b>\nIsm: {name}\nTelefon: {phone}\n\nO'zgartirish uchun tugmani bosing.",
         "ru": "👤 <b>Ваш профиль</b>\nИмя: {name}\nТелефон: {phone}\n\nЧтобы изменить, нажмите кнопку.",
@@ -220,6 +230,18 @@ def setup_dispatcher() -> Dispatcher:
         except Exception:
             pass
         await send_welcome(message, customer.lang)
+
+    @dp.message(Command("help"))
+    async def cmd_help(message: types.Message):
+        from app.database import async_session_factory
+        from app.services.config_store import get_setting
+        customer = await get_customer(message.from_user.id)
+        lang = (customer.lang if customer else None) or "uz"
+        async with async_session_factory() as db:
+            phone = await get_setting(db, "support_phone")
+            radius = await get_setting(db, "delivery_radius_km")
+        phone_line = "\n\n" + REG_TEXTS["help_phone"][lang].format(phone=escape(phone)) if phone else ""
+        await message.answer(REG_TEXTS["help"][lang].format(radius=radius, phone_line=phone_line), parse_mode="HTML")
 
     @dp.message(Command("profile", "settings"))
     async def cmd_profile(message: types.Message):
