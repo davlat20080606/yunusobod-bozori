@@ -1,7 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Phone, Clock, MapPin, Send, ShieldCheck, ShoppingBag, Sparkles } from 'lucide-react';
-import { ClickLogo, PaymeLogo, UzcardBadge, HumoBadge } from './PaymentLogos';
 
 // Photos under CC BY / CC BY-SA must name their authors
 const PHOTO_CREDITS = [
@@ -151,21 +150,14 @@ export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateS
           {/* Column 4: Payment Methods */}
           <div className="med-footer-col">
             <h4 className="med-footer-heading">{t('footer.payments')}</h4>
+            {/* Only cash works today; card payments appear here once Click/Payme are connected */}
             <div className="med-footer-pay-list" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-              <div style={{ background: '#ffffff', borderRadius: '8px', padding: '4px 8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center' }}>
-                <ClickLogo height={16} color="blue" />
-              </div>
-              <div style={{ background: '#ffffff', borderRadius: '8px', padding: '4px 8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center' }}>
-                <PaymeLogo height={16} />
-              </div>
-              <UzcardBadge height={14} />
-              <HumoBadge height={14} />
               <span className="med-pay-pill" style={{ margin: 0 }}>
                 💵 {language === 'ru' ? 'Наличные' : (language === 'en' ? 'Cash' : 'Naqd pul')}
               </span>
             </div>
             <p className="med-footer-pay-hint">
-              {language === 'ru' ? 'Безопасная онлайн оплата или оплата курьеру при получении.' : (language === 'en' ? 'Secure online payment or cash upon delivery.' : 'Xavfsiz to\'lov va kuryerga qabul qilganda to\'lash imkoniyati.')}
+              {language === 'ru' ? 'Оплата курьеру при получении. Click и Payme — скоро.' : (language === 'en' ? 'Pay the courier on delivery. Click and Payme coming soon.' : "Kuryerga qabul qilganda to'laysiz. Click va Payme — tez orada.")}
             </p>
           </div>
 
