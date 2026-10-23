@@ -103,6 +103,15 @@ export default function AdminPanel({ onBackToMarket }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [settingsForm, setSettingsForm] = useState({ radius: '', patta: '', phone: '' });
+  const [categories, setCategories] = useState({});
+
+  useEffect(() => {
+    api.getCategories().then((list) => setCategories(Object.fromEntries(list.map((c) => [c.slug, c])))).catch(() => {});
+  }, []);
+  const categoryName = (slug) => {
+    const c = categories[slug];
+    return c ? `${c.icon || ''} ${c[`name_${language}`] || c.name_uz}`.trim() : slug;
+  };
 
   const load = useCallback(async () => {
     if (!signedIn) return;
@@ -172,7 +181,7 @@ export default function AdminPanel({ onBackToMarket }) {
         <span style={pill(STATUS_COLOR[s.status])}>{statusName(s.status)}</span>
       </div>
       <div style={{ fontSize: 14 }}>{s.name_uz}</div>
-      <div style={{ fontSize: 13, color: '#64748b' }}>{s.owner_name} · <a href={`tel:${s.owner_phone.replace(/[^\d+]/g, '')}`} style={{ color: 'inherit' }}>{s.owner_phone}</a> · {s.category_slug}</div>
+      <div style={{ fontSize: 13, color: '#64748b' }}>{s.owner_name} · <a href={`tel:${s.owner_phone.replace(/[^\d+]/g, '')}`} style={{ color: 'inherit' }}>{s.owner_phone}</a> · {categoryName(s.category_slug)}</div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         {statusButtons(s, api.adminStoreStatus)}
         {s.status === 'approved' && <button type="button" style={{ ...smallBtn('#f1f5f9', '#334155'), marginTop: 8 }} onClick={() => resetPin((pin) => api.adminStorePin(s.id, pin))}>{t('new_pin')}</button>}
