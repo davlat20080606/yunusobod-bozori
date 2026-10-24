@@ -344,6 +344,13 @@ h1, h2, h3, h4, .font-heading {
   font-weight: 700;
 }
 
+/* Tablets: not enough room for every label next to the search, keep icons only */
+@media (min-width: 768px) and (max-width: 1099px) {
+  .med-action-btn .med-action-label {
+    display: none;
+  }
+}
+
 .med-action-btn:hover, .med-action-btn.active {
   background: #f1f5f9;
   color: #0f172a;
@@ -1050,6 +1057,12 @@ h1, h2, h3, h4, .font-heading {
   .med-products-grid {
     grid-template-columns: repeat(4, 1fr);
     gap: 20px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .med-products-grid {
+    grid-template-columns: repeat(6, 1fr);
   }
 }
 

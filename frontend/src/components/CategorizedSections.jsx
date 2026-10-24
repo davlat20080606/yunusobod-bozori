@@ -82,8 +82,8 @@ export default function CategorizedSections({
       {/* 1. MASHHUR / POPULAR PRODUCTS SECTION */}
       <section className="med-section-block">
         <div className="med-section-header">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🛍</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 20 }}>🛍</span>
             <h2 className="med-section-title">
               {language === 'ru' ? 'Популярные товары' : (language === 'en' ? 'Popular Produce' : 'Mashhur mahsulotlar')}
             </h2>

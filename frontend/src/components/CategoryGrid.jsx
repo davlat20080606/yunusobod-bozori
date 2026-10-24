@@ -37,7 +37,8 @@ export default function CategoryGrid({ categories = [], products = [], onSelectC
       <h2 className="med-section-title" style={{ marginBottom: 12 }}>
         {lang === 'ru' ? 'Разделы базара' : (lang === 'en' ? 'Bazaar sections' : "Bozor bo'limlari")}
       </h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      {/* Two tiles per row on phones, more on wide screens so the photos stay a sensible size */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
         {cards.map(({ cat, count, photo }) => (
           <button
             key={cat.slug}
