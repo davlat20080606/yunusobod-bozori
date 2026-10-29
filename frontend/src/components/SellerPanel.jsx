@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import SellerPromos from './SellerPromos';
 import SellerOrderBody from './SellerOrderBody';
+import { newIdsWatcher } from '../services/sound';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import { api, getSellerSession, setSellerSession } from '../services/api';
@@ -112,7 +113,9 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
     }
   };
 
-  const reloadOrders = () => api.getStoreOrders().then(setIncomingOrders).catch(() => {});
+  const [watchNew] = useState(() => newIdsWatcher());
+  // A new order rings, so a seller with busy hands hears it
+  const reloadOrders = () => api.getStoreOrders().then((list) => { setIncomingOrders(list); watchNew(list.map((o) => o.id)); }).catch(() => {});
 
   // New orders and other stalls' progress arrive while the cabinet is open
   useEffect(() => {

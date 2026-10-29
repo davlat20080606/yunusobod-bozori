@@ -8,11 +8,11 @@ from sqlalchemy.orm import selectinload
 
 from app.database import async_session_factory
 from app.models.schemas import OrderModel
-from app.bot.notify import notify_status
+from app.bot.notify import notify_status, notify_cold_chain
 
 logger = logging.getLogger(__name__)
 
-CHECK_EVERY_SECONDS = 600
+CHECK_EVERY_SECONDS = 60
 
 
 def is_stale(order: OrderModel, now: datetime) -> bool:
@@ -43,10 +43,28 @@ async def cancel_stale_orders() -> int:
     return len(stale)
 
 
+COLD_CHAIN_MINUTES = 15
+
+
+async def check_cold_chain() -> int:
+    """An order the aravachi brought to the gate should not sit there long (meat, milk, summer heat)."""
+    now = datetime.utcnow()
+    async with async_session_factory() as db:
+        res = await db.execute(select(OrderModel).where(OrderModel.status == "handed_over", OrderModel.cold_alert_sent.isnot(True)))
+        late = [o for o in res.scalars().all() if o.handed_over_at and now - o.handed_over_at > timedelta(minutes=COLD_CHAIN_MINUTES)]
+        for order in late:
+            order.cold_alert_sent = True
+        await db.commit()
+    for order in late:
+        notify_cold_chain(order.id, int((now - order.handed_over_at).total_seconds() // 60))
+    return len(late)
+
+
 async def run_forever():
     while True:
         try:
             await cancel_stale_orders()
+            await check_cold_chain()
         except Exception as e:
             logger.warning(f"Stale order check failed: {e}")
         await asyncio.sleep(CHECK_EVERY_SECONDS)

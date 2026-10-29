@@ -12,6 +12,8 @@ export default function SellerOrderBody({ order, language, onChanged }) {
   const tr = (uz, ru, en) => (lang === 'ru' ? ru : (lang === 'en' ? en : uz));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [editing, setEditing] = useState(null);
+  const [weightValue, setWeightValue] = useState('');
 
   const mode = order.fulfillment || 'courier';
   const items = order.items || [];
@@ -39,6 +41,7 @@ export default function SellerOrderBody({ order, language, onChanged }) {
     }
   };
 
+  const smallBtn = { flex: 1, height: 36, borderRadius: 10, border: '1px solid #e2e8f0', background: '#ffffff', fontWeight: 700, fontSize: 13, cursor: 'pointer' };
   const btn = { flex: 1, height: 46, borderRadius: 12, border: 'none', fontWeight: 800, fontSize: 15, cursor: 'pointer' };
 
   return (
@@ -53,12 +56,39 @@ export default function SellerOrderBody({ order, language, onChanged }) {
       <div style={{ fontSize: 13, color: '#64748b', marginBottom: 10 }}>👤 {order.customer_name} · {order.customer_phone}</div>
 
       <div style={{ background: 'var(--bg-subtle)', padding: 10, borderRadius: 8, fontSize: 14, marginBottom: 10 }}>
-        {items.map((item) => (
-          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 4 }}>
-            <span>{item.seller_handed ? '✅' : (item.seller_ready ? '📦' : '•')} {itemName(item, lang)} — {item.quantity} {formatUnit(item.unit, language)}</span>
-            <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{Math.round(item.total_price).toLocaleString()}</span>
-          </div>
-        ))}
+        {items.map((item) => {
+          const missing = item.item_status === 'missing';
+          const weighed = item.actual_quantity != null && !missing;
+          return (
+            <div key={item.id} style={{ marginTop: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ textDecoration: missing ? 'line-through' : 'none', color: missing ? '#b91c1c' : 'inherit' }}>
+                  {missing ? '❌' : (item.seller_handed ? '✅' : (item.seller_ready ? '📦' : '•'))} {itemName(item, lang)} — {item.quantity} {formatUnit(item.unit, language)}
+                  {weighed && <b style={{ color: item.weight_status === 'pending' ? '#b45309' : '#047857' }}> → ⚖️ {item.actual_quantity}{item.weight_status === 'pending' ? ` (${tr('xaridor javobi kutilmoqda', 'ждём ответ покупателя', 'waiting for the customer')})` : ''}</b>}
+                </span>
+                <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{Math.round(item.total_price).toLocaleString()}</span>
+              </div>
+              {!closed && item.price > 0 && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                  {!missing && (
+                    <button type="button" disabled={busy} onClick={() => { setEditing(item.id); setWeightValue(String(item.actual_quantity ?? item.quantity)); }} style={smallBtn}>⚖️ {tr('Vazn', 'Вес', 'Weight')}</button>
+                  )}
+                  <button type="button" disabled={busy} onClick={() => run(() => api.sellerItemMissing(item.id, !missing))} style={{ ...smallBtn, color: missing ? '#047857' : '#b91c1c' }}>
+                    {missing ? `↩️ ${tr('Bor ekan', 'Есть', 'Back in stock')}` : `❌ ${tr('Tugadi', 'Закончился', 'Ran out')}`}
+                  </button>
+                </div>
+              )}
+              {editing === item.id && (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 6 }}>
+                  <input value={weightValue} onChange={(e) => setWeightValue(e.target.value.replace(',', '.').replace(/[^\d.]/g, ''))} inputMode="decimal" autoFocus style={{ width: 90, height: 42, borderRadius: 10, border: '2px solid #93c5fd', fontSize: 18, fontWeight: 800, textAlign: 'center' }} />
+                  <span>{formatUnit(item.unit, language)}</span>
+                  <button type="button" onClick={() => setEditing(null)} style={smallBtn}>✕</button>
+                  <button type="button" disabled={busy || !(Number(weightValue) > 0)} onClick={() => { run(() => api.sellerItemWeight(item.id, Number(weightValue))); setEditing(null); }} style={{ ...smallBtn, background: '#059669', color: '#ffffff' }}>{tr('Saqlash', 'Сохранить', 'Save')}</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
         {gifts.map((b) => (
           <div key={b.text} style={{ marginTop: 6, color: '#047857', fontWeight: 800 }}>{bonusLabel(b, lang)} — {tr("qo'shib bering", 'положите в заказ', 'add it to the order')}</div>
         ))}

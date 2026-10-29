@@ -113,11 +113,21 @@ export const api = {
   porterOrders: () => staffFetch('/porter/orders'),
   porterTake: (orderId) => staffFetch(`/porter/orders/${orderId}/take`, json('POST', {})),
   porterPicked: (itemId, isPicked) => staffFetch(`/porter/items/${itemId}/picked`, json('PATCH', { is_picked: isPicked })),
-  porterStatus: (orderId, status) => staffFetch(`/porter/orders/${orderId}/status`, json('PATCH', { status })),
+  porterStatus: (orderId, status, code) => staffFetch(`/porter/orders/${orderId}/status`, json('PATCH', { status, code })),
+  porterWeight: (itemId, actualQuantity, photoUrl) => staffFetch(`/porter/items/${itemId}/weight`, json('PATCH', { actual_quantity: actualQuantity, photo_url: photoUrl || null })),
+  porterMissing: (itemId, missing) => staffFetch(`/porter/items/${itemId}/missing`, json('POST', { missing })),
+  async porterPhoto(file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    const session = staffSession.get();
+    const res = await fetch(`${API_BASE}/porter/upload-photo`, { method: 'POST', body: fd, headers: session?.token ? { 'x-staff-token': session.token } : {} });
+    if (!res.ok) throw await readError(res, 'Upload failed');
+    return res.json();
+  },
   porterRelease: (orderId) => staffFetch(`/porter/orders/${orderId}/release`, json('POST', {})),
   taxiOrders: () => staffFetch('/taxi/orders'),
-  taxiTake: (orderId) => staffFetch(`/taxi/orders/${orderId}/take`, json('POST', {})),
-  taxiStatus: (orderId, status) => staffFetch(`/taxi/orders/${orderId}/status`, json('PATCH', { status })),
+  taxiTake: (orderId, etaMinutes) => staffFetch(`/taxi/orders/${orderId}/take`, json('POST', { eta_minutes: etaMinutes })),
+  taxiStatus: (orderId, status, code) => staffFetch(`/taxi/orders/${orderId}/status`, json('PATCH', { status, code })),
   pattaToday: () => staffFetch('/patta/today'),
   pattaPay: (storeId, amount) => staffFetch(`/patta/${storeId}`, json('POST', { amount })),
   pattaUndo: (storeId) => staffFetch(`/patta/${storeId}`, { method: 'DELETE' }),
@@ -198,6 +208,21 @@ export const api = {
   async confirmReceived(orderNumber) {
     const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}/received`, { method: 'POST' });
     if (!res.ok) throw await readError(res, 'Failed to confirm');
+    return res.json();
+  },
+
+  async weightDecision(orderNumber, itemId, approve) {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}/items/${itemId}/weight-decision`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approve })
+    });
+    if (!res.ok) throw await readError(res, 'Failed to send');
+    return res.json();
+  },
+
+  // Orders of this Telegram user, kept on the server
+  async myOrders() {
+    const res = await fetch(`${API_BASE}/orders/mine`, { headers: tgHeaders() });
+    if (!res.ok) return [];
     return res.json();
   },
 
@@ -291,6 +316,8 @@ export const api = {
   async getStoreOrders() {
     return sellerFetch('/orders');
   },
+  sellerItemWeight: (itemId, actualQuantity) => sellerFetch(`/items/${itemId}/weight`, { method: 'PATCH', body: JSON.stringify({ actual_quantity: actualQuantity }) }),
+  sellerItemMissing: (itemId, missing) => sellerFetch(`/items/${itemId}/missing`, { method: 'POST', body: JSON.stringify({ missing }) }),
   sellerOrderReady: (orderId) => sellerFetch(`/orders/${orderId}/ready`, { method: 'POST' }),
   sellerOrderHanded: (orderId) => sellerFetch(`/orders/${orderId}/handed`, { method: 'POST' }),
   sellerPromos: () => sellerFetch('/promos'),

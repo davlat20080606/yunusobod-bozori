@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ShoppingCart, Phone, MapPin, CheckCircle2, Circle, ChevronLeft, LogOut, RefreshCw, User, Store, AlertCircle } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { slotLabel } from '../services/slots';
@@ -7,6 +7,7 @@ import StaffLogin from './StaffLogin';
 import { formatUnit } from './ProductCard';
 import { triggerHaptic } from '../services/telegram';
 import { fulfillmentLabel, pointName } from '../services/offers';
+import { newIdsWatcher } from '../services/sound';
 import { stallLabel, itemName } from '../services/stall';
 
 const T = {
@@ -34,7 +35,7 @@ const T = {
   customer: { uz: 'Mijoz', ru: 'Покупатель', en: 'Customer' },
   map: { uz: 'Xaritada ochish', ru: 'Открыть на карте', en: 'Open on map' },
   note: { uz: 'Izoh', ru: 'Комментарий', en: 'Note' },
-  handed_over: { uz: '🤝 Taksichiga topshirdim', ru: '🤝 Передал таксисту', en: '🤝 Handed to taxi' },
+  handed_over: { uz: "🚕 Yig'dim — taksi chaqirish", ru: '🚕 Собрал — вызвать такси', en: '🚕 Packed — call a taxi' },
   self_deliver: { uz: "🚶 O'zim olib boraman", ru: '🚶 Отнесу сам', en: '🚶 I will deliver' },
   delivered: { uz: '✅ Yetkazildi', ru: '✅ Доставлено', en: '✅ Delivered' },
   collect_first: { uz: "Avval hamma mahsulotlarni belgilang", ru: 'Сначала отметьте все товары', en: 'Tick all items first' },
@@ -57,7 +58,47 @@ const T = {
   min_ago: { uz: 'daq. oldin', ru: 'мин. назад', en: 'min ago' },
   cash: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' },
   check_payment: { uz: "to'lovni tekshiring", ru: 'проверьте оплату', en: 'check payment' },
+  weight: { uz: '⚖️ Vazn', ru: '⚖️ Вес', en: '⚖️ Weight' },
+  missing: { uz: "❌ Yo'q", ru: '❌ Нет', en: '❌ Out' },
+  missing_undo: { uz: '↩️ Bor ekan', ru: '↩️ Есть', en: '↩️ Found it' },
+  missing_label: { uz: "Tugagan — buyurtmadan olib tashlandi", ru: 'Закончился — убран из заказа', en: 'Ran out — removed from the order' },
+  weight_title: { uz: 'Tarozida qancha chiqdi?', ru: 'Сколько показали весы?', en: 'What does the scale show?' },
+  weight_photo: { uz: '📷 Tarozi rasmi (ixtiyoriy)', ru: '📷 Фото весов (по желанию)', en: '📷 Photo of the scale (optional)' },
+  weight_hint: { uz: "+15% gacha o'zi qabul qilinadi, ko'pi xaridor roziligi bilan", ru: 'До +15% принимается сразу, больше — с согласия покупателя', en: 'Up to +15% is accepted at once, more needs the customer' },
+  weight_pending: { uz: '⏳ Xaridor roziligi kutilmoqda', ru: '⏳ Ждём согласия покупателя', en: '⏳ Waiting for the customer' },
+  weight_rejected: { uz: "Xaridor rozi bo'lmadi — buyurtma vazniga kesib bering", ru: 'Покупатель против — отрежьте до заказанного веса', en: 'Customer said no — trim it to the ordered weight' },
+  save: { uz: 'Saqlash', ru: 'Сохранить', en: 'Save' },
+  cancel: { uz: 'Bekor', ru: 'Отмена', en: 'Cancel' },
+  code_label: { uz: 'Xaridordan 4 xonali kodni so\'rang', ru: 'Спросите у покупателя 4-значный код', en: "Ask the customer for the 4-digit code" },
+  taxi_eta: { uz: 'Taksi ~{m} daqiqada keladi', ru: 'Такси будет через ~{m} мин', en: 'Taxi arrives in ~{m} min' },
+  go_now: { uz: '🏃 Darvozaga chiqing!', ru: '🏃 Выходите к воротам!', en: '🏃 Head to the gate now!' },
+  go_in: { uz: 'Darvozaga {m} daqiqadan keyin chiqing', ru: 'Выходите к воротам через {m} мин', en: 'Head to the gate in {m} min' },
+  waiting_for: { uz: 'Kutilmoqda: {m} daq', ru: 'Ждёт: {m} мин', en: 'Waiting: {m} min' },
+  cold: { uz: "🌡 Go'sht/sut uzoq kutmasin: o'zingiz olib boring yoki rastaga qaytaring", ru: '🌡 Мясо/молочка не должны ждать: отвезите сами или верните на расту', en: '🌡 Meat/dairy must not wait: deliver it yourself or take it back to the stall' },
+  offline: { uz: "📶 Internet yo'q — oxirgi ro'yxat ko'rsatilmoqda. Belgilaringiz saqlanadi va internet kelganda yuboriladi.", ru: '📶 Нет интернета — показан последний список. Отметки сохранятся и уйдут, когда появится связь.', en: '📶 No internet — showing the last list. Your ticks are kept and sent when the connection is back.' },
+  need_net: { uz: 'Buning uchun internet kerak', ru: 'Для этого нужен интернет', en: 'This needs internet' },
 };
+
+const CACHE_KEY = 'porter_orders_cache';
+const QUEUE_KEY = 'porter_offline_queue';
+const readJson = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; } catch { return fallback; } };
+const writeJson = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
+// fetch() itself failing (no connection) throws a TypeError; server answers carry a status
+const isOffline = (err) => err instanceof TypeError || !navigator.onLine;
+
+// Ticks made without internet are shown at once and sent later
+function withQueued(data, queue) {
+  if (!queue.length) return data;
+  const map = new Map(queue.map((q) => [q.itemId, q.isPicked]));
+  const fix = (o) => {
+    const stops = o.stops.map((st) => ({ ...st, items: st.items.map((i) => (map.has(i.id) ? { ...i, is_picked: map.get(i.id) } : i)) }));
+    return { ...o, stops, picked_count: stops.reduce((n, st) => n + st.items.filter((i) => i.is_picked).length, 0) };
+  };
+  return { available: data.available, mine: data.mine.map(fix) };
+}
+
+const minutesSince = (iso) => (iso ? Math.max(0, Math.floor((Date.now() - new Date(`${iso}Z`).getTime()) / 60000)) : 0);
+const minutesUntil = (iso) => (iso ? Math.ceil((new Date(`${iso}Z`).getTime() - Date.now()) / 60000) : null);
 
 const card = {
   background: '#ffffff',
@@ -118,18 +159,45 @@ export default function PorterPanel({ onBackToMarket }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [points, setPoints] = useState([]);
+  const [offline, setOffline] = useState(false);
+  const watchNew = useRef(newIdsWatcher()).current;
   useEffect(() => { api.getConfig().then((cfg) => setPoints(cfg.handoff_points || [])).catch(() => {}); }, []);
+
+  // Send ticks made under the dome without internet
+  const flushQueue = async () => {
+    let queue = readJson(QUEUE_KEY, []);
+    while (queue.length) {
+      const { itemId, isPicked } = queue[0];
+      try {
+        await api.porterPicked(itemId, isPicked);
+      } catch (err) {
+        if (isOffline(err)) return false;
+      }
+      queue = queue.slice(1);
+      writeJson(QUEUE_KEY, queue);
+    }
+    return true;
+  };
 
   const loadOrders = useCallback(async () => {
     if (!session) return;
     try {
+      await flushQueue();
       const data = await api.porterOrders();
-      setOrders(data);
+      const shown = withQueued(data, readJson(QUEUE_KEY, []));
+      setOrders(shown);
+      writeJson(CACHE_KEY, data);
+      setOffline(false);
       setError('');
+      watchNew(data.available.map((o) => o.id));
     } catch (err) {
       if (err.status === 401 || err.status === 403) {
         staffSession.set(null);
         setSession(null);
+      } else if (isOffline(err)) {
+        setOffline(true);
+        const cached = readJson(CACHE_KEY, null);
+        if (cached) setOrders(withQueued(cached, readJson(QUEUE_KEY, [])));
       } else {
         setError(err.message);
       }
@@ -151,7 +219,7 @@ export default function PorterPanel({ onBackToMarket }) {
       await loadOrders();
     } catch (err) {
       triggerHaptic('error');
-      setError(err.message);
+      setError(isOffline(err) ? t('need_net') : err.message);
       await loadOrders();
     } finally {
       setBusy(false);
@@ -174,13 +242,33 @@ export default function PorterPanel({ onBackToMarket }) {
         busy={busy}
         error={error}
         onBack={() => setOpenOrderId(null)}
-        onTogglePicked={(item) => runAction(async () => {
+        offline={offline}
+        onTogglePicked={async (item) => {
           triggerHaptic(item.is_picked ? 'light' : 'success');
-          await api.porterPicked(item.id, !item.is_picked);
-        })}
-        onSetStatus={(status) => runAction(async () => {
+          try {
+            await api.porterPicked(item.id, !item.is_picked);
+            await loadOrders();
+          } catch (err) {
+            if (!isOffline(err)) { setError(err.message); return; }
+            // No signal: keep the tick on the phone and send it later
+            const queue = readJson(QUEUE_KEY, []).filter((q) => q.itemId !== item.id);
+            writeJson(QUEUE_KEY, [...queue, { itemId: item.id, isPicked: !item.is_picked }]);
+            setOffline(true);
+            setOrders((prev) => withQueued(prev, readJson(QUEUE_KEY, [])));
+          }
+        }}
+        onWeight={(item, qty, file) => runAction(async () => {
+          const photo = file ? (await api.porterPhoto(file)).url : null;
+          await api.porterWeight(item.id, qty, photo);
           triggerHaptic('success');
-          await api.porterStatus(openOrder.id, status);
+        })}
+        onMissing={(item, missing) => runAction(async () => {
+          await api.porterMissing(item.id, missing);
+          triggerHaptic('warning');
+        })}
+        onSetStatus={(status, code) => runAction(async () => {
+          triggerHaptic('success');
+          await api.porterStatus(openOrder.id, status, code);
           if (status === 'delivered') setOpenOrderId(null);
         })}
         onRelease={() => {
@@ -247,6 +335,7 @@ export default function PorterPanel({ onBackToMarket }) {
       </div>
 
       {error && <ErrorBox text={error} />}
+      {offline && <div style={{ ...card, background: '#fffbeb', borderColor: '#fde68a', color: '#92400e', fontSize: 13, fontWeight: 700 }}>{t('offline')}</div>}
 
       {list.length === 0 && (
         <div style={{ ...card, textAlign: 'center', color: '#64748b', padding: '28px 16px', fontSize: 14 }}>
@@ -318,7 +407,24 @@ function ErrorBox({ text }) {
   );
 }
 
-function OrderRoute({ t, language, points, order, busy, error, onBack, onTogglePicked, onSetStatus, onRelease }) {
+function OrderRoute({ t, language, points, order, busy, error, offline, onBack, onTogglePicked, onWeight, onMissing, onSetStatus, onRelease }) {
+  const [editing, setEditing] = useState(null); // item whose weight is being typed
+  const [weightValue, setWeightValue] = useState('');
+  const [weightFile, setWeightFile] = useState(null);
+  const [code, setCode] = useState('');
+  const [, setTick] = useState(0);
+  // Re-draw the gate timers every 15 seconds
+  useEffect(() => { const id = setInterval(() => setTick((n) => n + 1), 15000); return () => clearInterval(id); }, []);
+  const fill = (text, m) => text.replace('{m}', m);
+  const codeBox = (label, status) => (
+    <div style={{ ...card, background: '#f0fdf4', borderColor: '#86efac' }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#166534', marginBottom: 8 }}>🔑 {t('code_label')}</div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" placeholder="••••" style={{ width: 110, height: 52, borderRadius: 12, border: '2px solid #86efac', fontSize: 26, fontWeight: 800, letterSpacing: 6, textAlign: 'center' }} />
+        <button type="button" disabled={busy || (order.needs_code && code.length !== 4)} onClick={() => onSetStatus(status, code)} style={{ ...primaryBtn, flex: 1, opacity: busy || (order.needs_code && code.length !== 4) ? 0.5 : 1 }}>{label}</button>
+      </div>
+    </div>
+  );
   const allPicked = order.items_count > 0 && order.picked_count === order.items_count;
   const isPoint = order.fulfillment === 'point';
   const point = pointName(points, order.handoff_point, language);
@@ -346,6 +452,7 @@ function OrderRoute({ t, language, points, order, busy, error, onBack, onToggleP
       </div>
 
       {error && <ErrorBox text={error} />}
+      {offline && <div style={{ ...card, background: '#fffbeb', borderColor: '#fde68a', color: '#92400e', fontSize: 13, fontWeight: 700 }}>{t('offline')}</div>}
 
       <h3 style={{ fontSize: 15, fontWeight: 800, margin: '16px 2px 10px' }}>{t('route')}</h3>
 
@@ -374,31 +481,67 @@ function OrderRoute({ t, language, points, order, busy, error, onBack, onToggleP
                 </a>
               )}
             </div>
-            {stop.items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                disabled={busy || order.status !== 'picking'}
-                onClick={() => onTogglePicked(item)}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '12px 10px',
-                  marginTop: 6,
-                  borderRadius: 12,
-                  border: '1.5px solid ' + (item.is_picked ? '#86efac' : '#e2e8f0'),
-                  background: item.is_picked ? '#dcfce7' : '#f8fafc',
-                  cursor: order.status === 'picking' ? 'pointer' : 'default',
-                  textAlign: 'left'
-                }}
-              >
-                {item.is_picked ? <CheckCircle2 size={24} color="#16a34a" style={{ flexShrink: 0 }} /> : <Circle size={24} color="#94a3b8" style={{ flexShrink: 0 }} />}
-                <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#0f172a', textDecoration: item.is_picked ? 'line-through' : 'none' }}>{itemName(item, language)}</span>
-                <span style={{ fontSize: 15, fontWeight: 800, color: '#047857', whiteSpace: 'nowrap' }}>{formatQty(item, language)}</span>
-              </button>
-            ))}
+            {stop.items.map((item) => {
+              const missing = item.item_status === 'missing';
+              const canEdit = order.status === 'picking' && !busy;
+              const isGift = item.price === 0;
+              return (
+                <div key={item.id} style={{ marginTop: 6 }}>
+                  <button
+                    type="button"
+                    disabled={busy || order.status !== 'picking' || missing}
+                    onClick={() => onTogglePicked(item)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 10px', borderRadius: 12,
+                      border: '1.5px solid ' + (missing ? '#fecaca' : (item.is_picked ? '#86efac' : '#e2e8f0')),
+                      background: missing ? '#fef2f2' : (item.is_picked ? '#dcfce7' : '#f8fafc'),
+                      cursor: order.status === 'picking' && !missing ? 'pointer' : 'default', textAlign: 'left'
+                    }}
+                  >
+                    {missing ? <span style={{ fontSize: 20, flexShrink: 0 }}>❌</span> : (item.is_picked ? <CheckCircle2 size={24} color="#16a34a" style={{ flexShrink: 0 }} /> : <Circle size={24} color="#94a3b8" style={{ flexShrink: 0 }} />)}
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 15, fontWeight: 700, color: missing ? '#b91c1c' : '#0f172a', textDecoration: item.is_picked || missing ? 'line-through' : 'none' }}>{itemName(item, language)}</span>
+                      {missing && <span style={{ display: 'block', fontSize: 12, color: '#b91c1c', fontWeight: 700 }}>{t('missing_label')}</span>}
+                      {!missing && item.actual_quantity != null && (
+                        <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: item.weight_status === 'pending' ? '#b45309' : (item.weight_status === 'rejected' ? '#b91c1c' : '#047857') }}>
+                          ⚖️ {item.actual_quantity} {formatUnit(item.unit, language)} · {Math.round(item.price * item.actual_quantity).toLocaleString()}
+                          {item.weight_status === 'pending' && ` · ${t('weight_pending')}`}
+                          {item.weight_status === 'rejected' && ` · ${t('weight_rejected')}`}
+                        </span>
+                      )}
+                    </span>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: '#047857', whiteSpace: 'nowrap' }}>{formatQty(item, language)}</span>
+                  </button>
+                  {order.status === 'picking' && !isGift && (
+                    <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                      {!missing && (
+                        <button type="button" disabled={!canEdit} onClick={() => { setEditing(item.id); setWeightValue(String(item.actual_quantity ?? item.quantity)); setWeightFile(null); }} style={{ ...secondaryBtn, flex: 1, padding: '8px 6px', fontSize: 13 }}>{t('weight')}</button>
+                      )}
+                      <button type="button" disabled={!canEdit} onClick={() => onMissing(item, !missing)} style={{ ...secondaryBtn, flex: 1, padding: '8px 6px', fontSize: 13, color: missing ? '#047857' : '#b91c1c' }}>{missing ? t('missing_undo') : t('missing')}</button>
+                    </div>
+                  )}
+                  {editing === item.id && (
+                    <div style={{ marginTop: 6, padding: 12, borderRadius: 12, border: '1.5px solid #93c5fd', background: '#eff6ff' }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>{t('weight_title')}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <input value={weightValue} onChange={(e) => setWeightValue(e.target.value.replace(',', '.').replace(/[^\d.]/g, ''))} inputMode="decimal" autoFocus style={{ width: 110, height: 48, borderRadius: 12, border: '2px solid #93c5fd', fontSize: 22, fontWeight: 800, textAlign: 'center' }} />
+                        <span style={{ fontSize: 16, fontWeight: 700 }}>{formatUnit(item.unit, language)}</span>
+                        {Number(weightValue) > 0 && <span style={{ marginLeft: 'auto', fontWeight: 800, color: '#047857' }}>{Math.round(item.price * Number(weightValue)).toLocaleString()}</span>}
+                      </div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1d4ed8', marginBottom: 6 }}>
+                        {t('weight_photo')}{weightFile ? ' ✓' : ''}
+                        <input type="file" accept="image/*" capture="environment" onChange={(e) => setWeightFile(e.target.files?.[0] || null)} style={{ display: 'block', marginTop: 4, fontSize: 12 }} />
+                      </label>
+                      <div style={{ fontSize: 12, color: '#475569', marginBottom: 8 }}>{t('weight_hint')}</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button type="button" onClick={() => setEditing(null)} style={{ ...secondaryBtn, flex: 1 }}>{t('cancel')}</button>
+                        <button type="button" disabled={busy || !(Number(weightValue) > 0)} onClick={() => { onWeight(item, Number(weightValue), weightFile); setEditing(null); }} style={{ ...primaryBtn, flex: 2, opacity: busy || !(Number(weightValue) > 0) ? 0.5 : 1 }}>{t('save')}</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
       })}
@@ -459,11 +602,26 @@ function OrderRoute({ t, language, points, order, busy, error, onBack, onToggleP
             <button type="button" disabled={busy} onClick={onRelease} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: 8 }}>{t('release')}</button>
           </>
         )}
+        {order.status === 'handed_over' && (() => {
+          const waited = minutesSince(order.handed_over_at);
+          const eta = minutesUntil(order.taxi_eta_at);
+          const cold = waited >= 15;
+          return (
+            <div style={{ fontSize: 14, color: cold ? '#b91c1c' : '#1d4ed8', background: cold ? '#fef2f2' : '#eff6ff', borderRadius: 12, padding: '12px 14px', textAlign: 'center', fontWeight: 700 }}>
+              {order.taxi_name ? (
+                <>
+                  🚕 {order.taxi_name}
+                  <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4 }}>{eta !== null && eta > 2 ? fill(t('go_in'), eta - 2) : t('go_now')}</div>
+                  {eta !== null && eta > 0 && <div style={{ fontSize: 13 }}>{fill(t('taxi_eta'), eta)}</div>}
+                </>
+              ) : t('waiting_taxi')}
+              {order.handed_over_at && <div style={{ fontSize: 13, marginTop: 4 }}>{fill(t('waiting_for'), waited)}</div>}
+              {cold && <div style={{ fontSize: 13, marginTop: 6 }}>{t('cold')}</div>}
+            </div>
+          );
+        })()}
         {order.status === 'handed_over' && (
           <>
-            <div style={{ fontSize: 14, color: '#1d4ed8', background: '#eff6ff', borderRadius: 12, padding: '12px 14px', textAlign: 'center', fontWeight: 700 }}>
-              {t('waiting_taxi')}
-            </div>
             <button type="button" disabled={busy} onClick={() => onSetStatus('on_the_way')} style={{ ...secondaryBtn, opacity: busy ? 0.6 : 1 }}>{t('self_deliver')}</button>
           </>
         )}
@@ -472,12 +630,10 @@ function OrderRoute({ t, language, points, order, busy, error, onBack, onToggleP
             <div style={{ fontSize: 14, color: '#1d4ed8', background: '#eff6ff', borderRadius: 12, padding: '12px 14px', textAlign: 'center', fontWeight: 700 }}>
               {t('waiting_customer')}
             </div>
-            <button type="button" disabled={busy} onClick={() => onSetStatus('delivered')} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }}>{t('gave_customer')}</button>
+            {codeBox(t('gave_customer'), 'delivered')}
           </>
         )}
-        {order.status === 'on_the_way' && (
-          <button type="button" disabled={busy} onClick={() => onSetStatus('delivered')} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }}>{t('delivered')}</button>
-        )}
+        {order.status === 'on_the_way' && codeBox(t('delivered'), 'delivered')}
       </div>
     </div>
   );

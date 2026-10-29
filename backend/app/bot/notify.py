@@ -131,6 +131,86 @@ async def _customer_status(order_id: int):
         await _send(order.customer_tg_id, text, _webapp_button(texts["button"], f"tab=orders&order={order.order_number}&lang={lang}"))
 
 
+ADJUST_TEXTS = {
+    "uz": {
+        "weight": "⚖️ <b>Tarozida {qty}</b> chiqdi: {name}\nNarx: {old} → <b>{new} so'm</b>",
+        "weight_ask": "⚖️ <b>{name}: {qty}</b> chiqdi (buyurtma {ordered}).\nNarx: {old} → <b>{new} so'm</b>. Ilovada roziligingizni bering.",
+        "missing": "❌ <b>{name}</b> tugab qoldi — buyurtmadan olib tashlandi, {old} so'm hisobdan chiqdi. Qolgan mahsulotlar yo'lda.",
+        "back": "✅ <b>{name}</b> topildi — buyurtmaga qaytdi.",
+        "decision": "👍 Javobingiz qabul qilindi: {name}",
+        "total": "Yangi jami: <b>{total} so'm</b>",
+        "button": "📦 Buyurtma",
+    },
+    "ru": {
+        "weight": "⚖️ <b>На весах {qty}</b>: {name}\nЦена: {old} → <b>{new} сум</b>",
+        "weight_ask": "⚖️ <b>{name}: {qty}</b> (заказано {ordered}).\nЦена: {old} → <b>{new} сум</b>. Подтвердите в приложении.",
+        "missing": "❌ <b>{name}</b> — нет в наличии, убрали из заказа: −{old} сум. Остальное уже в пути.",
+        "back": "✅ <b>{name}</b> — снова в заказе.",
+        "decision": "👍 Ваш ответ принят: {name}",
+        "total": "Новая сумма: <b>{total} сум</b>",
+        "button": "📦 Заказ",
+    },
+    "en": {
+        "weight": "⚖️ <b>The scale shows {qty}</b>: {name}\nPrice: {old} → <b>{new} UZS</b>",
+        "weight_ask": "⚖️ <b>{name}: {qty}</b> (ordered {ordered}).\nPrice: {old} → <b>{new} UZS</b>. Please confirm in the app.",
+        "missing": "❌ <b>{name}</b> ran out — removed from the order, {old} UZS taken off. The rest is on its way.",
+        "back": "✅ <b>{name}</b> is back in the order.",
+        "decision": "👍 Got your answer: {name}",
+        "total": "New total: <b>{total} UZS</b>",
+        "button": "📦 Order",
+    },
+}
+
+
+async def _adjustment(order_id: int, item_id: int, kind: str):
+    """Tell the customer right away when the scale or an empty stall changes their order."""
+    from app.services.promos import unit_in
+    from app.models.schemas import OrderItemModel
+    async with async_session_factory() as db:
+        order = (await db.execute(
+            select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items).selectinload(OrderItemModel.product))
+        )).scalars().first()
+        if not order or not order.customer_tg_id:
+            return
+        item = next((i for i in order.items if i.id == item_id), None)
+        customer = (await db.execute(select(CustomerModel).where(CustomerModel.tg_id == order.customer_tg_id))).scalars().first()
+    if not item:
+        return
+    lang = customer.lang if customer and customer.lang in ADJUST_TEXTS else "uz"
+    texts = ADJUST_TEXTS[lang]
+    name = escape(getattr(item, f"product_name_{lang}", None) or item.product_name) if lang != "uz" else escape(item.product_name)
+    unit = unit_in(lang, item.unit) if lang != "uz" else item.unit
+    fmt = lambda n: f"{n:,.0f}".replace(",", " ")
+    key = "weight_ask" if kind == "weight" and item.weight_status == "pending" else kind
+    body = texts[key].format(
+        name=name, qty=f"{(item.actual_quantity or item.quantity):g} {unit}", ordered=f"{item.quantity:g} {unit}",
+        old=fmt(item.price * item.quantity), new=fmt(item.price * (item.actual_quantity or item.quantity)),
+    )
+    text = f"#{order.order_number}\n{body}\n{texts['total'].format(total=fmt(order.total_amount))}"
+    await _send(order.customer_tg_id, text, _webapp_button(texts["button"], f"tab=orders&order={order.order_number}&lang={lang}"))
+
+
+async def _cold_chain(order_id: int, minutes: int):
+    """Meat must not wait at the gate in the heat: warn the aravachi and the bozorkom."""
+    from app.services.config_store import get_setting
+    async with async_session_factory() as db:
+        order = await db.get(OrderModel, order_id)
+        porter = (await db.execute(select(StaffModel).where(StaffModel.phone == order.porter_phone))).scalars().first() if order and order.porter_phone else None
+        admin_tg = await get_setting(db, "admin_tg_id")
+    if not order:
+        return
+    text = (
+        f"🌡 <b>Buyurtma {minutes} daqiqadan beri darvozada · Заказ ждёт у ворот {minutes} мин</b> #{order.order_number}\n"
+        f"{'🚕 ' + escape(order.taxi_name) if order.taxi_name else '🚕 Taksi hali olmadi · Такси ещё не взяло'}\n"
+        f"Go'sht/sut issiqda turmasin: o'zingiz olib boring yoki rastaga qaytaring · "
+        f"Не держите мясо/молочку на жаре: отвезите сами или верните на расту"
+    )
+    if porter and porter.tg_id:
+        await _send(porter.tg_id, text, _webapp_button("🛒 Aravachi", "tab=porter"))
+    if admin_tg:
+        await _send(admin_tg, text, _webapp_button("🏛 Bozorkom", "tab=admin"))
+
+
 async def _new_order(order_id: int):
     async with async_session_factory() as db:
         order = (await db.execute(
@@ -245,6 +325,14 @@ def notify_status(order_id: int):
 def notify_new_order(order_id: int):
     _background(_new_order(order_id))
     _background(_customer_status(order_id))
+
+
+def notify_adjustment(order_id: int, item_id: int, kind: str):
+    _background(_adjustment(order_id, item_id, kind))
+
+
+def notify_cold_chain(order_id: int, minutes: int):
+    _background(_cold_chain(order_id, minutes))
 
 
 def notify_taxis(order_id: int):

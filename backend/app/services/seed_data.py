@@ -827,7 +827,9 @@ async def init_db_and_seed():
                          ("delivery_lat", "FLOAT"), ("delivery_lng", "FLOAT"),
                          ("taxi_name", "VARCHAR(100)"), ("taxi_phone", "VARCHAR(50)"),
                          ("fulfillment", "VARCHAR(20) DEFAULT 'courier'"), ("handoff_point", "VARCHAR(30)"),
-                         ("discount_amount", "FLOAT DEFAULT 0"), ("customer_confirmed_at", datetime_type)]:
+                         ("discount_amount", "FLOAT DEFAULT 0"), ("customer_confirmed_at", datetime_type),
+                         ("handoff_code", "VARCHAR(6)"), ("handed_over_at", datetime_type), ("taxi_eta_at", datetime_type),
+                         ("cold_alert_sent", "BOOLEAN DEFAULT FALSE")]:
             if col not in cols:
                 await conn.exec_driver_sql(f"ALTER TABLE orders ADD COLUMN {col} {col_type}")
         promo_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("promos")})
@@ -839,9 +841,11 @@ async def init_db_and_seed():
             if col not in bonus_cols:
                 await conn.exec_driver_sql(f"ALTER TABLE order_bonuses ADD COLUMN {col} VARCHAR(200)")
         item_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("order_items")})
-        for col in ("seller_ready", "seller_handed"):
+        for col, col_type in [("seller_ready", "BOOLEAN DEFAULT FALSE"), ("seller_handed", "BOOLEAN DEFAULT FALSE"),
+                              ("actual_quantity", "FLOAT"), ("item_status", "VARCHAR(20) DEFAULT 'ok'"),
+                              ("weight_status", "VARCHAR(20)"), ("weight_photo_url", "VARCHAR(500)")]:
             if col not in item_cols:
-                await conn.exec_driver_sql(f"ALTER TABLE order_items ADD COLUMN {col} BOOLEAN DEFAULT FALSE")
+                await conn.exec_driver_sql(f"ALTER TABLE order_items ADD COLUMN {col} {col_type}")
         store_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("stores")})
         if "status" not in store_cols:
             # Stalls that already exist were added by the administration, so they count as approved

@@ -138,6 +138,11 @@ class OrderModel(Base):
     handoff_point = Column(String(30), nullable=True)
     discount_amount = Column(Float, default=0.0)
     customer_confirmed_at = Column(DateTime, nullable=True)
+    # The customer tells this code to whoever hands the order over (taxi or aravachi)
+    handoff_code = Column(String(6), nullable=True)
+    handed_over_at = Column(DateTime, nullable=True)  # aravachi called a taxi
+    taxi_eta_at = Column(DateTime, nullable=True)  # when the taxi said it would be at the gate
+    cold_alert_sent = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     items = relationship("OrderItemModel", back_populates="order", cascade="all, delete-orphan")
@@ -157,6 +162,11 @@ class OrderItemModel(Base):
     unit = Column(String(20), default="kg")
     total_price = Column(Float, nullable=False)
     is_picked = Column(Boolean, default=False)  # aravachi: "Qabul qildim"
+    # Real bazaar: the scale shows another weight, or the stall ran out
+    actual_quantity = Column(Float, nullable=True)
+    item_status = Column(String(20), default="ok")  # ok | missing
+    weight_status = Column(String(20), nullable=True)  # pending (customer must agree) | approved | rejected
+    weight_photo_url = Column(String(500), nullable=True)
     seller_ready = Column(Boolean, default=False)  # seller: "Tayyor"
     seller_handed = Column(Boolean, default=False)  # seller: "Topshirdim"
 
@@ -414,6 +424,10 @@ class OrderItemSchema(BaseModel):
     unit: str
     total_price: float
     is_picked: bool
+    actual_quantity: Optional[float] = None
+    item_status: str = "ok"
+    weight_status: Optional[str] = None
+    weight_photo_url: Optional[str] = None
     product_name_ru: Optional[str] = None
     product_name_en: Optional[str] = None
     seller_ready: bool = False
@@ -461,6 +475,9 @@ class OrderSchema(BaseModel):
     handoff_point: Optional[str] = None
     discount_amount: float = 0.0
     customer_confirmed_at: Optional[datetime] = None
+    handoff_code: Optional[str] = None
+    handed_over_at: Optional[datetime] = None
+    taxi_eta_at: Optional[datetime] = None
     created_at: datetime
     items: List[OrderItemSchema] = []
     bonuses: List[OrderBonusSchema] = []

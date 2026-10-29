@@ -10,6 +10,8 @@ from app.database import get_db
 from app.api.auth import current_admin
 from app.services.config_store import get_setting, distance_km, HANDOFF_POINT_IDS
 from app.services.promos import compute_quote
+from app.services.adjust import recalc
+from app.bot.notify import notify_adjustment
 from app.api.tg_auth import telegram_user
 from app.bot.notify import notify_new_order, notify_status
 from app.models.schemas import (
@@ -105,6 +107,7 @@ async def create_order(
         discount_amount=quote["discount"],
         fulfillment=data.fulfillment,
         handoff_point=data.handoff_point,
+        handoff_code=f"{random.SystemRandom().randint(0, 9999):04d}",
         notes=data.notes
     )
     db.add(new_order)
@@ -128,6 +131,18 @@ async def create_order(
     full_order = (await db.execute(load_order(OrderModel.id == new_order.id))).scalars().first()
     notify_new_order(full_order.id)
     return full_order
+
+@router.get("/mine")
+async def my_orders(x_telegram_init_data: Optional[str] = Header(None), db: AsyncSession = Depends(get_db)):
+    """Orders of this Telegram user, so the tracker survives a closed app or another phone."""
+    tg_user = telegram_user(x_telegram_init_data)
+    if not tg_user:
+        return []
+    res = await db.execute(
+        select(OrderModel.order_number).where(OrderModel.customer_tg_id == str(tg_user["id"])).order_by(OrderModel.id.desc()).limit(20)
+    )
+    return list(res.scalars().all())
+
 
 @router.get("/{order_number_or_id}", response_model=OrderSchema)
 async def get_order(order_number_or_id: str, db: AsyncSession = Depends(get_db)):
@@ -218,4 +233,20 @@ async def confirm_received(order_number: str, db: AsyncSession = Depends(get_db)
     await db.commit()
     if not was_delivered:
         notify_status(order.id)
+    return (await db.execute(load_order(OrderModel.id == order.id))).scalars().first()
+
+
+@router.post("/{order_number}/items/{item_id}/weight-decision", response_model=OrderSchema)
+async def weight_decision(order_number: str, item_id: int, approve: bool = Body(..., embed=True), db: AsyncSession = Depends(get_db)):
+    """The customer agrees to a much heavier piece, or keeps the ordered weight (the seller trims it)."""
+    order = (await db.execute(load_order(OrderModel.order_number == order_number.replace("#", "").strip().upper()))).scalars().first()
+    item = next((i for i in order.items if i.id == item_id), None) if order else None
+    if not item:
+        raise HTTPException(status_code=404, detail="Buyurtma topilmadi / Заказ не найден")
+    if item.weight_status != "pending":
+        raise HTTPException(status_code=409, detail="Javob allaqachon berilgan / Ответ уже дан")
+    item.weight_status = "approved" if approve else "rejected"
+    recalc(order)
+    await db.commit()
+    notify_adjustment(order.id, item.id, "decision")
     return (await db.execute(load_order(OrderModel.id == order.id))).scalars().first()

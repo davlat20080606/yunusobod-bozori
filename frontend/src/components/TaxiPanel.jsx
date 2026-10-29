@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Phone, MapPin, LogOut, RefreshCw, AlertCircle, Navigation } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { api, staffSession } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 import StaffLogin from './StaffLogin';
 import { pointName } from '../services/offers';
+import { newIdsWatcher } from '../services/sound';
 import { stallLabel, itemName } from '../services/stall';
 
 const T = {
@@ -25,6 +26,10 @@ const T = {
   pay_check: { uz: "To'lovni tekshiring", ru: 'Проверьте оплату', en: 'Check payment' },
   items: { uz: 'ta mahsulot', ru: 'товаров', en: 'items' },
   logout: { uz: 'Chiqish', ru: 'Выйти', en: 'Sign out' },
+  eta_question: { uz: 'Darvozaga necha daqiqada yetasiz?', ru: 'Через сколько минут будете у ворот?', en: 'How soon will you be at the gate?' },
+  min: { uz: 'daq', ru: 'мин', en: 'min' },
+  navigator: { uz: 'Yandex Navigator', ru: 'Яндекс Навигатор', en: 'Yandex Navigator' },
+  code_label: { uz: 'Xaridordan 4 xonali kodni so\'rang', ru: 'Спросите у покупателя 4-значный код', en: 'Ask the customer for the 4-digit code' },
 };
 
 const BAZAAR = '69.29089,41.36467';
@@ -42,6 +47,9 @@ export default function TaxiPanel({ onBackToMarket }) {
     return current?.staff?.role === 'taxi' ? current : null;
   });
   const [orders, setOrders] = useState({ available: [], mine: [] });
+  const [etaFor, setEtaFor] = useState(null);
+  const [codes, setCodes] = useState({});
+  const watchNew = useRef(newIdsWatcher()).current;
   const [tab, setTab] = useState('new');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,7 +59,9 @@ export default function TaxiPanel({ onBackToMarket }) {
   const load = useCallback(async () => {
     if (!session) return;
     try {
-      setOrders(await api.taxiOrders());
+      const data = await api.taxiOrders();
+      setOrders(data);
+      watchNew(data.available.map((o) => o.id));
       setError('');
     } catch (err) {
       if (err.status === 401 || err.status === 403) {
@@ -146,16 +156,37 @@ export default function TaxiPanel({ onBackToMarket }) {
             </div>
 
             {tab === 'new' ? (
-              <button type="button" disabled={busy} onClick={() => run(async () => { await api.taxiTake(o.id); setTab('mine'); })} style={{ ...btn, opacity: busy ? 0.6 : 1 }}>{t('take')}</button>
+              etaFor === o.id ? (
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>{t('eta_question')}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                    {[5, 10, 15, 20].map((m) => (
+                      <button key={m} type="button" disabled={busy} onClick={() => run(async () => { await api.taxiTake(o.id, m); setEtaFor(null); setTab('mine'); })} style={{ ...btn, padding: '12px 4px', opacity: busy ? 0.6 : 1 }}>{m} {t('min')}</button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <button type="button" disabled={busy} onClick={() => setEtaFor(o.id)} style={{ ...btn, opacity: busy ? 0.6 : 1 }}>{t('take')}</button>
+              )
             ) : (
               <>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
                   <a href={`tel:${o.customer_phone.replace(/[^\d+]/g, '')}`} style={smallLink}><Phone size={14} /> {t('customer')}: {o.customer_name}</a>
                   {o.porter_phone && <a href={`tel:${o.porter_phone.replace(/[^\d+]/g, '')}`} style={smallLink}><Phone size={14} /> {t('porter')}</a>}
                   <a href={routeUrl} target="_blank" rel="noreferrer" style={smallLink}><Navigation size={14} /> {t('route')}</a>
+                  {hasPoint && <a href={`yandexnavi://build_route_on_map?lat_to=${o.delivery_lat}&lon_to=${o.delivery_lng}`} style={smallLink}>🧭 {t('navigator')}</a>}
+                  {hasPoint && <a href={`https://www.google.com/maps/dir/?api=1&destination=${o.delivery_lat},${o.delivery_lng}&travelmode=driving`} target="_blank" rel="noreferrer" style={smallLink}>🗺 Google Maps</a>}
                 </div>
                 {o.status === 'handed_over' && <button type="button" disabled={busy} onClick={() => run(() => api.taxiStatus(o.id, 'on_the_way'))} style={{ ...btn, opacity: busy ? 0.6 : 1 }}>{t('go')}</button>}
-                {o.status === 'on_the_way' && <button type="button" disabled={busy} onClick={() => run(() => api.taxiStatus(o.id, 'delivered'))} style={{ ...btn, background: '#059669', opacity: busy ? 0.6 : 1 }}>{t('delivered')}</button>}
+                {o.status === 'on_the_way' && (
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#166534', marginBottom: 6 }}>🔑 {t('code_label')}</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input value={codes[o.id] || ''} onChange={(e) => setCodes({ ...codes, [o.id]: e.target.value.replace(/\D/g, '').slice(0, 4) })} inputMode="numeric" placeholder="••••" style={{ width: 110, height: 50, borderRadius: 12, border: '2px solid #86efac', fontSize: 24, fontWeight: 800, letterSpacing: 6, textAlign: 'center' }} />
+                      <button type="button" disabled={busy || (o.needs_code && (codes[o.id] || '').length !== 4)} onClick={() => run(() => api.taxiStatus(o.id, 'delivered', codes[o.id]))} style={{ ...btn, flex: 1, background: '#059669', opacity: busy || (o.needs_code && (codes[o.id] || '').length !== 4) ? 0.5 : 1 }}>{t('delivered')}</button>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>

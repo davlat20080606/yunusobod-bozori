@@ -40,6 +40,14 @@ const T = {
   cash: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' },
   help: { uz: 'Savol yoki muammo bormi?', ru: 'Есть вопрос или проблема?', en: 'Question or problem?' },
   help_call: { uz: "Bozorga qo'ng'iroq qiling", ru: 'Позвоните на базар', en: 'Call the bazaar' },
+  code_title: { uz: 'Qabul qilish kodi', ru: 'Код получения', en: 'Pickup code' },
+  code_hint: { uz: 'Buyurtmani olganingizda kuryer yoki aravachiga ayting', ru: 'Назовите курьеру или аравачи, когда получите заказ', en: 'Tell it to the courier or porter when you get the order' },
+  weight_ask: { uz: 'Tarozida ko\'proq chiqdi', ru: 'На весах вышло больше', en: 'The scale shows more' },
+  weight_ask_body: { uz: '{name}: {qty} (buyurtma {ordered}). Narx {old} → {new} so\'m. Rozimisiz?', ru: '{name}: {qty} (заказано {ordered}). Цена {old} → {new} сум. Согласны?', en: '{name}: {qty} (ordered {ordered}). Price {old} → {new} UZS. OK?' },
+  weight_yes: { uz: '✅ Roziman', ru: '✅ Согласен', en: '✅ Yes' },
+  weight_no: { uz: '✂️ Buyurtma vaznida qolsin', ru: '✂️ Оставить заказанный вес', en: '✂️ Keep the ordered weight' },
+  photo: { uz: 'tarozi rasmi', ru: 'фото весов', en: 'scale photo' },
+  ran_out: { uz: 'tugagan', ru: 'закончился', en: 'ran out' },
   received: { uz: '✅ Buyurtmani oldim', ru: '✅ Я получил заказ', en: '✅ I got my order' },
   received_hint: { uz: "Olganingizni tasdiqlang, so'ng baholang", ru: 'Подтвердите получение, затем оцените', en: 'Confirm you got it, then rate it' },
   how: { uz: 'Qanday olasiz', ru: 'Как получить', en: 'How you get it' },
@@ -243,6 +251,17 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
   const [supportPhone, setSupportPhone] = useState('');
   const [points, setPoints] = useState([]);
   const [confirming, setConfirming] = useState(false);
+  const [deciding, setDeciding] = useState(false);
+
+  // Orders also live on the server for this Telegram user: a closed app or a new phone keeps them
+  useEffect(() => {
+    api.myOrders().then((numbers) => {
+      if (!numbers?.length) return;
+      const merged = [...new Set([...readMyOrders(), ...numbers])];
+      saveMyOrders(merged);
+      setMyOrders(merged);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.getConfig().then((cfg) => { setSupportPhone(cfg.support_phone || ''); setPoints(cfg.handoff_points || []); }).catch(() => {});
@@ -330,6 +349,20 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
       triggerHaptic('error');
     } finally {
       setConfirming(false);
+    }
+  };
+
+  const decideWeight = async (item, approve) => {
+    setDeciding(true);
+    setActionError('');
+    try {
+      const updated = await api.weightDecision(openOrder.order_number, item.id, approve);
+      triggerHaptic('success');
+      setOrders((prev) => ({ ...prev, [updated.order_number]: { ...prev[updated.order_number], ...updated } }));
+    } catch (e) {
+      setActionError(e.message);
+    } finally {
+      setDeciding(false);
     }
   };
 
@@ -438,6 +471,36 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
           )}
         </div>
 
+        {/* Urgent first: the code for the courier and «the scale shows more — OK?» */}
+        {/* The customer tells this code to whoever hands the order over */}
+        {openOrder.handoff_code && isActive && mode !== 'self' && (
+          <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 14, background: '#f0fdf4', border: '1.5px solid #86efac' }}>
+            <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: 6, color: '#065f46' }}>{openOrder.handoff_code}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 800 }}>🔑 {t('code_title')}</div>
+              <div style={{ fontSize: 13, color: '#475569' }}>{t('code_hint')}</div>
+            </div>
+          </div>
+        )}
+
+        {items.filter((i) => i.weight_status === 'pending').map((item) => {
+          const unit = formatUnit(item.unit, language);
+          const money = (n) => Math.round(n).toLocaleString();
+          return (
+            <div key={`w${item.id}`} style={{ ...card, background: '#fffbeb', border: '1.5px solid #fcd34d' }}>
+              <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>⚖️ {t('weight_ask')}</div>
+              <div style={{ fontSize: 14, marginBottom: 10 }}>
+                {t('weight_ask_body').replace('{name}', itemName(item, lang)).replace('{qty}', `${item.actual_quantity} ${unit}`).replace('{ordered}', `${item.quantity} ${unit}`).replace('{old}', money(item.price * item.quantity)).replace('{new}', money(item.price * item.actual_quantity))}
+                {item.weight_photo_url && <> · <a href={item.weight_photo_url} target="_blank" rel="noreferrer">📷 {t('photo')}</a></>}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" disabled={deciding} onClick={() => decideWeight(item, false)} style={{ flex: 1, height: 48, borderRadius: 14, border: '1.5px solid #e2e8f0', background: '#ffffff', fontWeight: 700, cursor: 'pointer' }}>{t('weight_no')}</button>
+                <button type="button" disabled={deciding} onClick={() => decideWeight(item, true)} style={{ flex: 1, height: 48, borderRadius: 14, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}>{t('weight_yes')}</button>
+              </div>
+            </div>
+          );
+        })}
+
         {/* Porter */}
         {openOrder.porter_name && (
           <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -491,7 +554,16 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
                   <div style={{ width: 22, height: 22, borderRadius: '50%', background: isDone(item) ? '#059669' : (item.seller_ready ? '#a7f3d0' : '#e2e8f0'), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {isDone(item) && <Check size={14} color="#ffffff" />}
                   </div>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#0f172a' }}>{itemName(item, lang)}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: item.item_status === 'missing' ? '#b91c1c' : '#0f172a', textDecoration: item.item_status === 'missing' ? 'line-through' : 'none' }}>
+                    {itemName(item, lang)}
+                    {item.item_status === 'missing' && <span style={{ display: 'block', fontSize: 12, fontWeight: 700 }}>❌ {t('ran_out')}</span>}
+                    {item.item_status !== 'missing' && item.actual_quantity != null && (
+                      <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#047857' }}>
+                        ⚖️ {item.actual_quantity} {formatUnit(item.unit, language)}
+                        {item.weight_photo_url && <> · <a href={item.weight_photo_url} target="_blank" rel="noreferrer" style={{ color: '#0284c7' }}>📷 {t('photo')}</a></>}
+                      </span>
+                    )}
+                  </span>
                   <span style={{ fontSize: 13, color: '#64748b', whiteSpace: 'nowrap' }}>{Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(1)} {formatUnit(item.unit, language)}</span>
                   <span style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap' }}>{Math.round(item.total_price).toLocaleString()}</span>
                 </div>

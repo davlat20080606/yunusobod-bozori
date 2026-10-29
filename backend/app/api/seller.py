@@ -3,7 +3,7 @@ import uuid
 import mimetypes
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Header
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Header, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -15,6 +15,8 @@ from app.api.auth import (
 )
 from app.bot.notify import notify_admin_application, notify_status
 from app.services.storage import save_media
+from app.services.adjust import set_weight, set_missing
+from app.bot.notify import notify_adjustment
 from app.models.schemas import (
     StoreModel, ProductModel, OrderModel, OrderItemModel, CategoryModel,
     ProductSchema, StoreSchema, UpdatePriceSchema, ToggleAvailabilitySchema,
@@ -406,3 +408,39 @@ async def delete_promo(promo_id: int, store: StoreModel = Depends(current_store)
     await db.delete(promo)
     await db.commit()
     return {"success": True}
+
+
+async def seller_item(item_id: int, store: StoreModel, db: AsyncSession):
+    item = await db.get(OrderItemModel, item_id)
+    if not item or item.store_id != store.id:
+        raise HTTPException(status_code=404, detail="Mahsulot topilmadi / Товар не найден")
+    order = (await db.execute(
+        select(OrderModel).where(OrderModel.id == item.order_id).options(selectinload(OrderModel.items))
+    )).scalars().first()
+    return order, next(i for i in order.items if i.id == item_id)
+
+
+@router.patch("/items/{item_id}/weight")
+async def seller_weight(item_id: int, actual_quantity: float = Body(..., embed=True), store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
+    """The seller weighed it: the price follows the scale."""
+    order, item = await seller_item(item_id, store, db)
+    set_weight(order, item, actual_quantity)
+    await db.commit()
+    notify_adjustment(order.id, item.id, "weight")
+    return {"success": True, "total_price": item.total_price, "weight_status": item.weight_status}
+
+
+@router.post("/items/{item_id}/missing")
+async def seller_missing(item_id: int, missing: bool = Body(True, embed=True), store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
+    """"Mahsulot tugadi": drop this line only, and hide the product until the seller has it again."""
+    order, item = await seller_item(item_id, store, db)
+    set_missing(order, item, missing)
+    if missing:
+        prod = await db.get(ProductModel, item.product_id)
+        if prod:
+            prod.is_available = False
+    await db.commit()
+    notify_adjustment(order.id, item.id, "missing" if missing else "back")
+    if order.status == "cancelled":
+        notify_status(order.id)
+    return {"success": True, "order_status": order.status}
