@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.database import async_session_factory
 from app.models.schemas import OrderModel
@@ -18,6 +19,9 @@ def is_stale(order: OrderModel, now: datetime) -> bool:
     """Nobody took the order in time: 3 hours for Express, 24 hours for scheduled slots."""
     if order.status not in ("pending", "accepted") or order.porter_phone:
         return False
+    # Self pickup has no aravachi: a seller who started packing means the order is alive
+    if any(i.seller_ready or i.seller_handed for i in order.items):
+        return False
     limit = timedelta(hours=3) if (order.delivery_time_slot or "").startswith("Express") else timedelta(hours=24)
     return order.created_at is not None and now - order.created_at > limit
 
@@ -25,7 +29,9 @@ def is_stale(order: OrderModel, now: datetime) -> bool:
 async def cancel_stale_orders() -> int:
     now = datetime.utcnow()
     async with async_session_factory() as db:
-        res = await db.execute(select(OrderModel).where(OrderModel.status.in_(["pending", "accepted"])))
+        res = await db.execute(
+            select(OrderModel).where(OrderModel.status.in_(["pending", "accepted"])).options(selectinload(OrderModel.items))
+        )
         stale = [o for o in res.scalars().all() if is_stale(o, now)]
         for order in stale:
             order.status = "cancelled"
