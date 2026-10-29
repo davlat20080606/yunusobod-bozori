@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ArrowLeft, Search } from 'lucide-react';
 import ProductCard from './ProductCard';
 import { triggerHaptic } from '../services/telegram';
+import { api } from '../services/api';
+import { promoLabel } from '../services/offers';
 
 export default function StoreDetailView({ store, products: propProducts, onBack, onAddToCart, onOpenMediaModal, savedProductIds, onToggleSave }) {
   const { getLocalized, t, language } = useLanguage();
   const [storeSearch, setStoreSearch] = useState('');
+  const [promos, setPromos] = useState([]);
+  useEffect(() => {
+    api.getPromos().then((list) => setPromos(list.filter((p) => p.store_id === store.id))).catch(() => {});
+  }, [store.id]);
 
   // Use store.products if passed, else propProducts
   const allProducts = propProducts || store.products || [];
@@ -94,6 +100,15 @@ export default function StoreDetailView({ store, products: propProducts, onBack,
           </div>
         </div>
       </div>
+
+      {/* This stall's offers for big orders */}
+      {promos.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+          {promos.map((p, i) => (
+            <div key={i} style={{ padding: '10px 12px', borderRadius: 14, background: '#ecfdf5', color: '#047857', fontSize: 14, fontWeight: 700 }}>🎉 {promoLabel(p, language)}</div>
+          ))}
+        </div>
+      )}
 
       {/* Products count + search */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>

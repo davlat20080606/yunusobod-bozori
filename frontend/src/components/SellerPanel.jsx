@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import SellerPromos from './SellerPromos';
+import SellerOrderBody from './SellerOrderBody';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import { api, getSellerSession, setSellerSession } from '../services/api';
@@ -93,6 +95,15 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
       setLoading(false);
     }
   };
+
+  const reloadOrders = () => api.getStoreOrders().then(setIncomingOrders).catch(() => {});
+
+  // New orders and other stalls' progress arrive while the cabinet is open
+  useEffect(() => {
+    if (!selectedStoreId) return undefined;
+    const timer = setInterval(reloadOrders, 20000);
+    return () => clearInterval(timer);
+  }, [selectedStoreId]);
 
   const handleLogout = () => {
     setSellerSession(null);
@@ -463,6 +474,8 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
             })}
           </div>
 
+          <SellerPromos language={language} />
+
           {/* Incoming Orders Section */}
           <div className="section-header">
             <h3>{t('seller.incoming_orders')} ({incomingOrders.length})</h3>
@@ -486,63 +499,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
                     boxShadow: 'var(--shadow-sm)'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <strong>Zakaz #{order.order_number}</strong>
-                    <span style={{ color: '#059669', fontWeight: 700 }}>{order.status}</span>
-                  </div>
-                  <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '10px' }}>
-                    👤 {order.customer_name} ({order.customer_phone}) | 📍 {order.delivery_district}, {order.delivery_address}
-                  </div>
-                  <div style={{ background: 'var(--bg-subtle)', padding: '10px', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '10px' }}>
-                    <strong>Sizning mahsulotlaringiz:</strong>
-                    {order.items.map(item => (
-                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                        <span>• {item.product_name} ({item.quantity} {formatUnit(item.unit, language)})</span>
-                        <span style={{ fontWeight: 700 }}>{item.total_price.toLocaleString()} UZS</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* 1-Tap Yandex Go Courier Action */}
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <a 
-                      href={`https://yandex.uz/maps/?rtext=41.36467,69.29089~${encodeURIComponent(order.delivery_district + ' ' + order.delivery_address)}&rtt=auto`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="nav-btn"
-                      style={{
-                        background: '#fc3f1d',
-                        color: '#ffffff',
-                        border: 'none',
-                        fontSize: '0.82rem',
-                        padding: '6px 14px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        textDecoration: 'none'
-                      }}
-                    >
-                      🚕 Яндекс Доставка (Маршрут)
-                    </a>
-
-                    <a 
-                      href={`tel:${order.customer_phone}`}
-                      className="nav-btn"
-                      style={{
-                        background: '#059669',
-                        color: '#ffffff',
-                        border: 'none',
-                        fontSize: '0.82rem',
-                        padding: '6px 14px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        textDecoration: 'none'
-                      }}
-                    >
-                      📞 Позвонить клиенту
-                    </a>
-                  </div>
+                  <SellerOrderBody order={order} language={language} onChanged={reloadOrders} />
                 </div>
               ))}
             </div>

@@ -133,9 +133,15 @@ class OrderModel(Base):
     porter_accepted_at = Column(DateTime, nullable=True)
     taxi_name = Column(String(100), nullable=True)
     taxi_phone = Column(String(50), nullable=True)
+    # self: customer collects at the stalls · point: aravachi brings it to a bazaar point · courier: aravachi → taxi → home
+    fulfillment = Column(String(20), default="courier")
+    handoff_point = Column(String(30), nullable=True)
+    discount_amount = Column(Float, default=0.0)
+    customer_confirmed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     items = relationship("OrderItemModel", back_populates="order", cascade="all, delete-orphan")
+    bonuses = relationship("OrderBonusModel", back_populates="order", cascade="all, delete-orphan")
 
 
 class OrderItemModel(Base):
@@ -150,7 +156,9 @@ class OrderItemModel(Base):
     quantity = Column(Float, nullable=False)
     unit = Column(String(20), default="kg")
     total_price = Column(Float, nullable=False)
-    is_picked = Column(Boolean, default=False)
+    is_picked = Column(Boolean, default=False)  # aravachi: "Qabul qildim"
+    seller_ready = Column(Boolean, default=False)  # seller: "Tayyor"
+    seller_handed = Column(Boolean, default=False)  # seller: "Topshirdim"
 
     order = relationship("OrderModel", back_populates="items")
     product = relationship("ProductModel", back_populates="order_items")
@@ -214,6 +222,34 @@ class SettingModel(Base):
 
     key = Column(String(50), primary_key=True)
     value = Column(String(200), nullable=False)
+
+
+class PromoModel(Base):
+    """A stall's offer for big orders: a discount, a free taxi or a gift once its part reaches min_amount."""
+    __tablename__ = "promos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    kind = Column(String(20), nullable=False)  # discount | free_taxi | gift
+    min_amount = Column(Float, nullable=False)
+    percent = Column(Float, nullable=True)  # discount only
+    gift_text = Column(String(150), nullable=True)  # gift only
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class OrderBonusModel(Base):
+    """What an order got from a stall, and what that stall owes for it (its discount, or its share of a free taxi)."""
+    __tablename__ = "order_bonuses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
+    kind = Column(String(20), nullable=False)
+    text = Column(String(200), nullable=True)
+    amount = Column(Float, default=0.0)
+
+    order = relationship("OrderModel", back_populates="bonuses")
 
 
 class MediaModel(Base):
@@ -314,7 +350,8 @@ class OrderCreateSchema(BaseModel):
     customer_phone: Optional[str] = Field(None, max_length=50)
     customer_tg_id: Optional[str] = Field(None, max_length=50)
     customer_tg_username: Optional[str] = Field(None, max_length=100)
-    delivery_address: str = Field(..., min_length=3, max_length=300)
+    # Only a courier order needs a home address
+    delivery_address: Optional[str] = Field(None, max_length=300)
     delivery_district: str = Field("Yunusobod", max_length=100)
     landmark: Optional[str] = Field(None, max_length=200)
     delivery_lat: Optional[float] = Field(None, ge=-90, le=90)
@@ -323,7 +360,21 @@ class OrderCreateSchema(BaseModel):
     # Click/Payme are not connected to a merchant account yet, so only cash on delivery is accepted
     payment_method: str = Field("cash", pattern=r"^cash$")
     notes: Optional[str] = Field(None, max_length=1000)
+    fulfillment: str = Field("courier", pattern=r"^(self|point|courier)$")
+    handoff_point: Optional[str] = Field(None, max_length=30)
     items: List[OrderItemCreateSchema] = Field(..., min_length=1, max_length=60)
+
+
+class QuoteSchema(BaseModel):
+    fulfillment: str = Field("courier", pattern=r"^(self|point|courier)$")
+    items: List[OrderItemCreateSchema] = Field(..., min_length=1, max_length=60)
+
+
+class PromoCreateSchema(BaseModel):
+    kind: str = Field(..., pattern=r"^(discount|free_taxi|gift)$")
+    min_amount: float = Field(..., gt=0, le=100_000_000)
+    percent: Optional[float] = Field(None, gt=0, le=50)
+    gift_text: Optional[str] = Field(None, max_length=150)
 
 
 class OrderItemSchema(BaseModel):
@@ -336,6 +387,18 @@ class OrderItemSchema(BaseModel):
     unit: str
     total_price: float
     is_picked: bool
+    seller_ready: bool = False
+    seller_handed: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+class OrderBonusSchema(BaseModel):
+    store_id: int
+    kind: str
+    text: Optional[str] = None
+    amount: float = 0.0
 
     class Config:
         from_attributes = True
@@ -363,8 +426,13 @@ class OrderSchema(BaseModel):
     porter_phone: Optional[str] = None
     taxi_name: Optional[str] = None
     taxi_phone: Optional[str] = None
+    fulfillment: str = "courier"
+    handoff_point: Optional[str] = None
+    discount_amount: float = 0.0
+    customer_confirmed_at: Optional[datetime] = None
     created_at: datetime
     items: List[OrderItemSchema] = []
+    bonuses: List[OrderBonusSchema] = []
     review_rating: Optional[int] = None
 
     class Config:

@@ -26,7 +26,7 @@ async def list_taxi_orders(taxi: StaffModel = Depends(current_taxi), db: AsyncSe
         .where(OrderModel.status.in_(["handed_over", "on_the_way"]))
         .order_by(OrderModel.id.desc())
         .limit(100)
-        .options(selectinload(OrderModel.items))
+        .options(selectinload(OrderModel.items), selectinload(OrderModel.bonuses))
     )
     orders = res.scalars().all()
     available = [o for o in orders if o.status == "handed_over" and not o.taxi_phone]

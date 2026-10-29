@@ -3,14 +3,25 @@ import { ArrowLeft, Trash2, Plus, Minus, MessageCircle, ChevronRight, ArrowRight
 import { useLanguage } from '../i18n/LanguageContext';
 import { triggerHaptic } from '../services/telegram';
 import ProductCard, { formatUnit } from './ProductCard';
-
-const DELIVERY_FEE = 15000;
+import { api } from '../services/api';
+import { bonusLabel, hintLabel } from '../services/offers';
 
 // Full-screen cart like Yandex Go: items, note, "Anything else?", floating Checkout
 export default function CartDrawer({ isOpen, onClose, cart, onUpdateQuantity, onClearCart, onCheckout, pickerNotes, setPickerNotes, products = [], onOpenProduct }) {
   const { getLocalized, language } = useLanguage();
   const lang = language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz');
   const [noteOpen, setNoteOpen] = useState(false);
+  const [quote, setQuote] = useState(null);
+
+  // Stall offers reached so far and what is missing for the next one (priced as home delivery)
+  const cartKey = cart.map((i) => `${i.product.id}:${i.quantity}`).join(',');
+  useEffect(() => {
+    if (!isOpen || !cart.length) return undefined;
+    let alive = true;
+    const items = cart.map((i) => ({ product_id: i.product.id, store_id: i.product.store_id, quantity: i.quantity }));
+    api.quoteOrder('courier', items).then((q) => { if (alive) setQuote(q); }).catch(() => {});
+    return () => { alive = false; };
+  }, [isOpen, cartKey]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -133,8 +144,19 @@ export default function CartDrawer({ isOpen, onClose, cart, onUpdateQuantity, on
               </div>
             )}
 
-            <div style={{ padding: '18px 16px 0', fontSize: 13, color: '#64748b' }}>
-              {lang === 'ru' ? 'Доставка' : (lang === 'en' ? 'Delivery' : 'Yetkazish')}: {DELIVERY_FEE.toLocaleString()} {cur}
+            <div style={{ padding: '18px 16px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(quote?.bonuses || []).filter((b, i, all) => b.kind !== 'free_taxi' || all.findIndex((x) => x.kind === 'free_taxi') === i).map((b) => (
+                <div key={`${b.store_id}-${b.kind}`} style={{ padding: '10px 12px', borderRadius: 14, background: '#ecfdf5', color: '#047857', fontSize: 14, fontWeight: 700 }}>
+                  {bonusLabel(b, lang)}{b.kind !== 'free_taxi' && b.stall_number ? ` · ${b.stall_number}` : ''}
+                </div>
+              ))}
+              {(quote?.hints || []).map((h) => (
+                <div key={`${h.store_id}-${h.kind}`} style={{ padding: '10px 12px', borderRadius: 14, background: '#f0fdf4', color: '#166534', fontSize: 13, fontWeight: 600 }}>💡 {hintLabel(h, lang)}</div>
+              ))}
+              <div style={{ fontSize: 13, color: '#64748b' }}>
+                {lang === 'ru' ? 'Доставка домой' : (lang === 'en' ? 'Home delivery' : 'Uyga yetkazish')}: {quote ? (quote.taxi_free ? `${Math.round(quote.delivery_fee).toLocaleString()} ${cur} (${lang === 'ru' ? 'такси бесплатно' : (lang === 'en' ? 'taxi free' : 'taksi bepul')})` : `${Math.round(quote.delivery_fee).toLocaleString()} ${cur}`) : '…'}
+                {' · '}{lang === 'ru' ? 'самовывоз бесплатно' : (lang === 'en' ? 'pickup is free' : "o'zingiz olsangiz bepul")}
+              </div>
             </div>
           </>
         )}

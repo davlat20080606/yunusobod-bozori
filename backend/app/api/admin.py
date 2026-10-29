@@ -72,6 +72,8 @@ async def overview(db: AsyncSession = Depends(get_db)):
         "delivery_radius_km": float(await get_setting(db, "delivery_radius_km")),
         "patta_amount": float(await get_setting(db, "patta_amount")),
         "support_phone": await get_setting(db, "support_phone"),
+        "porter_fee": float(await get_setting(db, "porter_fee")),
+        "taxi_fee": float(await get_setting(db, "taxi_fee")),
     }
 
 
@@ -144,6 +146,7 @@ async def list_orders(db: AsyncSession = Depends(get_db)):
             "id": o.id, "order_number": o.order_number, "status": o.status, "customer_name": o.customer_name,
             "customer_phone": o.customer_phone, "delivery_address": o.delivery_address, "total_amount": o.total_amount,
             "porter_name": o.porter_name, "taxi_name": o.taxi_name, "items_count": len(o.items),
+            "fulfillment": o.fulfillment or "courier",
             "created_at": o.created_at.isoformat() if o.created_at else None,
         }
         for o in res.scalars().all()
@@ -173,6 +176,8 @@ async def update_settings(
     delivery_radius_km: Optional[float] = Body(None, gt=0.5, le=50),
     patta_amount: Optional[float] = Body(None, gt=0, le=10_000_000),
     support_phone: Optional[str] = Body(None, max_length=30, pattern=r"^[\d\s()+-]*$"),
+    porter_fee: Optional[float] = Body(None, ge=0, le=1_000_000),
+    taxi_fee: Optional[float] = Body(None, ge=0, le=1_000_000),
     db: AsyncSession = Depends(get_db)
 ):
     if delivery_radius_km is not None:
@@ -181,8 +186,13 @@ async def update_settings(
         await set_setting(db, "patta_amount", f"{patta_amount:g}")
     if support_phone is not None:
         await set_setting(db, "support_phone", support_phone.strip())
+    for key, value in (("porter_fee", porter_fee), ("taxi_fee", taxi_fee)):
+        if value is not None:
+            await set_setting(db, key, f"{value:g}")
     return {
         "delivery_radius_km": float(await get_setting(db, "delivery_radius_km")),
         "patta_amount": float(await get_setting(db, "patta_amount")),
         "support_phone": await get_setting(db, "support_phone"),
+        "porter_fee": float(await get_setting(db, "porter_fee")),
+        "taxi_fee": float(await get_setting(db, "taxi_fee")),
     }

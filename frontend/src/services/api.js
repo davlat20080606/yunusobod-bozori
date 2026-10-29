@@ -186,6 +186,27 @@ export const api = {
     return res.json();
   },
 
+  // Price with stall offers before ordering
+  async quoteOrder(fulfillment, items) {
+    const res = await fetch(`${API_BASE}/orders/quote`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fulfillment, items })
+    });
+    if (!res.ok) throw await readError(res, 'Failed to price the order');
+    return res.json();
+  },
+
+  async confirmReceived(orderNumber) {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}/received`, { method: 'POST' });
+    if (!res.ok) throw await readError(res, 'Failed to confirm');
+    return res.json();
+  },
+
+  async getPromos() {
+    const res = await fetch(`${API_BASE}/stores/promos/active`);
+    if (!res.ok) throw await readError(res, 'Failed to load offers');
+    return res.json();
+  },
+
   async cancelOrder(orderNumber) {
     const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}/cancel`, { method: 'POST' });
     if (!res.ok) throw await readError(res, 'Failed to cancel order');
@@ -270,6 +291,11 @@ export const api = {
   async getStoreOrders() {
     return sellerFetch('/orders');
   },
+  sellerOrderReady: (orderId) => sellerFetch(`/orders/${orderId}/ready`, { method: 'POST' }),
+  sellerOrderHanded: (orderId) => sellerFetch(`/orders/${orderId}/handed`, { method: 'POST' }),
+  sellerPromos: () => sellerFetch('/promos'),
+  sellerAddPromo: (promo) => sellerFetch('/promos', { method: 'POST', body: JSON.stringify(promo) }),
+  sellerDeletePromo: (id) => sellerFetch(`/promos/${id}`, { method: 'DELETE' }),
 
   // Market stats
   async getMarketStats() {

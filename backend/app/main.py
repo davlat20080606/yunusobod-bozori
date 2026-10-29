@@ -196,11 +196,14 @@ async def my_profile(x_telegram_init_data: str = Header(None), db: AsyncSession 
 @app.get("/api/config")
 async def public_config(db: AsyncSession = Depends(get_db)):
     """What the app needs to draw the delivery zone and show the help phone."""
-    from app.services.config_store import get_setting, BAZAAR_LAT, BAZAAR_LNG
+    from app.services.config_store import get_setting, BAZAAR_LAT, BAZAAR_LNG, HANDOFF_POINTS
     return {
         "bazaar": {"lat": BAZAAR_LAT, "lng": BAZAAR_LNG},
         "delivery_radius_km": float(await get_setting(db, "delivery_radius_km")),
         "support_phone": await get_setting(db, "support_phone"),
+        "porter_fee": float(await get_setting(db, "porter_fee")),
+        "taxi_fee": float(await get_setting(db, "taxi_fee")),
+        "handoff_points": HANDOFF_POINTS,
     }
 
 bot_status = {"bot": "not started"}

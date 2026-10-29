@@ -4,6 +4,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { api, staffSession } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 import StaffLogin from './StaffLogin';
+import { pointName } from '../services/offers';
 
 const T = {
   title: { uz: 'Taksichi kabineti', ru: 'Кабинет таксиста', en: 'Taxi dashboard' },
@@ -13,7 +14,7 @@ const T = {
   empty_mine: { uz: "Sizda faol yo'l yo'q", ru: 'У вас нет активных поездок', en: 'No active trips' },
   at_gate: { uz: 'bozor darvozasida kutmoqda', ru: 'ждёт у ворот базара', en: 'waiting at the bazaar gate' },
   take: { uz: '🚕 Olib ketaman', ru: '🚕 Беру заказ', en: '🚕 Take order' },
-  go: { uz: "🚗 Yo'lga chiqdim", ru: '🚗 Выехал', en: '🚗 On my way' },
+  go: { uz: "🤝 Qabul qildim, yo'lga chiqdim", ru: '🤝 Принял, выехал', en: '🤝 Got it, on my way' },
   delivered: { uz: '✅ Yetkazdim', ru: '✅ Доставил', en: '✅ Delivered' },
   customer: { uz: 'Mijoz', ru: 'Покупатель', en: 'Customer' },
   porter: { uz: 'Aravachi', ru: 'Аравачи', en: 'Porter' },
@@ -43,6 +44,8 @@ export default function TaxiPanel({ onBackToMarket }) {
   const [tab, setTab] = useState('new');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [points, setPoints] = useState([]);
+  useEffect(() => { api.getConfig().then((cfg) => setPoints(cfg.handoff_points || [])).catch(() => {}); }, []);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -130,7 +133,8 @@ export default function TaxiPanel({ onBackToMarket }) {
               <span style={{ fontSize: 13, fontWeight: 700 }}>{Math.round(o.total_amount).toLocaleString()} UZS</span>
             </div>
             <div style={{ fontSize: 13, color: '#475569', marginBottom: 6 }}>
-              🛒 {o.porter_name} — {t('at_gate')} · {o.items_count} {t('items')}
+              🛒 {o.porter_name} — {o.handoff_point ? `📍 ${pointName(points, o.handoff_point, language)}` : t('at_gate')} · {o.items_count} {t('items')}
+              {o.gifts?.length > 0 && <div style={{ color: '#047857', fontWeight: 700 }}>🎁 {o.gifts.map((g) => g.text).join(', ')}</div>}
             </div>
             <div style={{ fontSize: 14, color: '#0f172a', marginBottom: 6, display: 'flex', gap: 4 }}>
               <MapPin size={15} style={{ flexShrink: 0, marginTop: 2 }} />

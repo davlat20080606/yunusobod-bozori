@@ -6,6 +6,7 @@ import { api, staffSession } from '../services/api';
 import StaffLogin from './StaffLogin';
 import { formatUnit } from './ProductCard';
 import { triggerHaptic } from '../services/telegram';
+import { fulfillmentLabel, pointName } from '../services/offers';
 
 const T = {
   title: { uz: 'Aravachi kabineti', ru: 'Кабинет аравачи', en: 'Porter Dashboard' },
@@ -41,6 +42,15 @@ const T = {
   release_confirm: { uz: 'Buyurtmani qaytarasizmi? Boshqa aravachi oladi.', ru: 'Вернуть заказ? Его возьмёт другой аравачи.', en: 'Give the order back? Another porter will take it.' },
   status_picking: { uz: '🛒 Yig\'ilmoqda', ru: '🛒 Собирается', en: '🛒 Collecting' },
   status_handed_over: { uz: '🤝 Taksichini kutmoqda', ru: '🤝 Ждёт таксиста', en: '🤝 Waiting for taxi' },
+  status_at_point: { uz: '📍 Xaridorni kutmoqda', ru: '📍 Ждёт покупателя', en: '📍 Waiting for customer' },
+  at_point: { uz: '📍 Joyga olib keldim', ru: '📍 Принёс на точку', en: '📍 At the pickup point' },
+  gave_customer: { uz: '✅ Xaridorga berdim', ru: '✅ Отдал покупателю', en: '✅ Gave to customer' },
+  waiting_customer: { uz: '🙋 Xaridor keladi — u xabar oldi', ru: '🙋 Покупатель подойдёт — он получил уведомление', en: '🙋 The customer is coming — they got a notification' },
+  seller_gave: { uz: 'Sotuvchi berdi', ru: 'Продавец отдал', en: 'Seller handed' },
+  seller_ready: { uz: 'Tayyor', ru: 'Готово', en: 'Packed' },
+  gifts: { uz: "Sovg'alar — ham oling", ru: 'Подарки — заберите тоже', en: 'Gifts — collect them too' },
+  meet_taxi: { uz: 'Taksiga berish joyi', ru: 'Где передать такси', en: 'Where to meet the taxi' },
+  bring_to: { uz: 'Olib boriladigan joy', ru: 'Куда принести', en: 'Bring it to' },
   status_on_the_way: { uz: "🚶 Yo'lda", ru: '🚶 В пути', en: '🚶 On the way' },
   logout: { uz: 'Chiqish', ru: 'Выйти', en: 'Sign out' },
   min_ago: { uz: 'daq. oldin', ru: 'мин. назад', en: 'min ago' },
@@ -106,6 +116,8 @@ export default function PorterPanel({ onBackToMarket }) {
   const [openOrderId, setOpenOrderId] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [points, setPoints] = useState([]);
+  useEffect(() => { api.getConfig().then((cfg) => setPoints(cfg.handoff_points || [])).catch(() => {}); }, []);
 
   const loadOrders = useCallback(async () => {
     if (!session) return;
@@ -156,6 +168,7 @@ export default function PorterPanel({ onBackToMarket }) {
       <OrderRoute
         t={t}
         language={language}
+        points={points}
         order={openOrder}
         busy={busy}
         error={error}
@@ -263,7 +276,12 @@ export default function PorterPanel({ onBackToMarket }) {
             </div>
             <div style={{ fontSize: 13, color: '#475569', marginBottom: 12, display: 'flex', gap: 4 }}>
               <MapPin size={14} style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>{order.delivery_district}, {order.delivery_address}</span>
+              <span>
+                {fulfillmentLabel(order.fulfillment, language)}
+                {order.handoff_point ? ` · ${pointName(points, order.handoff_point, language)}` : ''}
+                {order.fulfillment === 'courier' ? ` → ${order.delivery_district}, ${order.delivery_address}` : ''}
+                {order.gifts?.length > 0 ? ` · 🎁 ${order.gifts.length}` : ''}
+              </span>
             </div>
             {tab === 'new' ? (
               <button
@@ -299,8 +317,10 @@ function ErrorBox({ text }) {
   );
 }
 
-function OrderRoute({ t, language, order, busy, error, onBack, onTogglePicked, onSetStatus, onRelease }) {
+function OrderRoute({ t, language, points, order, busy, error, onBack, onTogglePicked, onSetStatus, onRelease }) {
   const allPicked = order.items_count > 0 && order.picked_count === order.items_count;
+  const isPoint = order.fulfillment === 'point';
+  const point = pointName(points, order.handoff_point, language);
   const progress = order.items_count ? Math.round((order.picked_count / order.items_count) * 100) : 0;
   // Exact point when the customer picked it on the map, otherwise search by the address text
   const mapUrl = order.delivery_lat != null && order.delivery_lng != null
@@ -342,6 +362,10 @@ function OrderRoute({ t, language, order, busy, error, onBack, onTogglePicked, o
                   <Store size={14} style={{ flexShrink: 0 }} /> {language === 'ru' ? stop.store_name_ru : stop.store_name_uz}
                 </div>
                 <div style={{ fontSize: 13, color: '#64748b' }}>{t('seller')}: {stop.owner_name}</div>
+                {/* Seller's own confirmation, next to the aravachi's ticks */}
+                {stop.items.every((i) => i.seller_handed)
+                  ? <div style={{ fontSize: 12, fontWeight: 800, color: '#047857' }}>🤝 {t('seller_gave')}</div>
+                  : stop.items.every((i) => i.seller_ready) && <div style={{ fontSize: 12, fontWeight: 800, color: '#0369a1' }}>📦 {t('seller_ready')}</div>}
               </div>
               {stop.owner_phone && (
                 <a href={`tel:${stop.owner_phone.replace(/[^\d+]/g, '')}`} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#ecfdf5', color: '#047857', borderRadius: 10, padding: '8px 10px', fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
@@ -378,6 +402,20 @@ function OrderRoute({ t, language, order, busy, error, onBack, onTogglePicked, o
         );
       })}
 
+      {order.gifts?.length > 0 && (
+        <div style={{ ...card, background: '#f0fdf4', borderColor: '#86efac' }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#047857', marginBottom: 4 }}>🎁 {t('gifts')}</div>
+          {order.gifts.map((g) => <div key={`${g.stall_number}-${g.text}`} style={{ fontSize: 14, fontWeight: 700 }}>{g.stall_number}: {g.text}</div>)}
+        </div>
+      )}
+
+      {point && (
+        <div style={{ ...card, background: '#eff6ff', borderColor: '#bfdbfe' }}>
+          <div style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 700 }}>{isPoint ? t('bring_to') : t('meet_taxi')}</div>
+          <div style={{ fontSize: 17, fontWeight: 800 }}>📍 {point}</div>
+        </div>
+      )}
+
       {/* Customer */}
       <h3 style={{ fontSize: 15, fontWeight: 800, margin: '16px 2px 10px' }}>{t('customer')}</h3>
       <div style={card}>
@@ -390,16 +428,18 @@ function OrderRoute({ t, language, order, busy, error, onBack, onTogglePicked, o
             <Phone size={14} /> {t('call')}
           </a>
         </div>
-        <div style={{ fontSize: 14, color: '#334155', marginBottom: 4 }}>{order.delivery_district}, {order.delivery_address}</div>
+        {!isPoint && <div style={{ fontSize: 14, color: '#334155', marginBottom: 4 }}>{order.delivery_district}, {order.delivery_address}</div>}
         {order.landmark && <div style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>📍 {order.landmark}</div>}
         <div style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>⏱ {slotLabel(order.delivery_time_slot, language)}</div>
         <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
           {Math.round(order.total_amount).toLocaleString()} UZS · {order.payment_method === 'cash' ? t('cash') : `${order.payment_method === 'payme' ? 'Payme' : 'Click'} (${t('check_payment')})`}
         </div>
         {order.notes && <div style={{ fontSize: 13, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 10px', marginBottom: 8 }}>💬 {t('note')}: {order.notes}</div>}
-        <a href={mapUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#0284c7', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
-          <MapPin size={14} /> {t('map')}
-        </a>
+        {!isPoint && (
+          <a href={mapUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#0284c7', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+            <MapPin size={14} /> {t('map')}
+          </a>
+        )}
       </div>
 
       {/* Actions */}
@@ -407,8 +447,14 @@ function OrderRoute({ t, language, order, busy, error, onBack, onTogglePicked, o
         {order.status === 'picking' && (
           <>
             {!allPicked && <div style={{ fontSize: 13, color: '#b45309', textAlign: 'center', fontWeight: 600 }}>{t('collect_first')}</div>}
-            <button type="button" disabled={!allPicked || busy} onClick={() => onSetStatus('handed_over')} style={{ ...primaryBtn, opacity: !allPicked || busy ? 0.5 : 1 }}>{t('handed_over')}</button>
-            <button type="button" disabled={!allPicked || busy} onClick={() => onSetStatus('on_the_way')} style={{ ...secondaryBtn, opacity: !allPicked || busy ? 0.5 : 1 }}>{t('self_deliver')}</button>
+            {isPoint ? (
+              <button type="button" disabled={!allPicked || busy} onClick={() => onSetStatus('at_point')} style={{ ...primaryBtn, opacity: !allPicked || busy ? 0.5 : 1 }}>{t('at_point')}</button>
+            ) : (
+              <>
+                <button type="button" disabled={!allPicked || busy} onClick={() => onSetStatus('handed_over')} style={{ ...primaryBtn, opacity: !allPicked || busy ? 0.5 : 1 }}>{t('handed_over')}</button>
+                <button type="button" disabled={!allPicked || busy} onClick={() => onSetStatus('on_the_way')} style={{ ...secondaryBtn, opacity: !allPicked || busy ? 0.5 : 1 }}>{t('self_deliver')}</button>
+              </>
+            )}
             <button type="button" disabled={busy} onClick={onRelease} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: 8 }}>{t('release')}</button>
           </>
         )}
@@ -418,6 +464,14 @@ function OrderRoute({ t, language, order, busy, error, onBack, onTogglePicked, o
               {t('waiting_taxi')}
             </div>
             <button type="button" disabled={busy} onClick={() => onSetStatus('on_the_way')} style={{ ...secondaryBtn, opacity: busy ? 0.6 : 1 }}>{t('self_deliver')}</button>
+          </>
+        )}
+        {order.status === 'at_point' && (
+          <>
+            <div style={{ fontSize: 14, color: '#1d4ed8', background: '#eff6ff', borderRadius: 12, padding: '12px 14px', textAlign: 'center', fontWeight: 700 }}>
+              {t('waiting_customer')}
+            </div>
+            <button type="button" disabled={busy} onClick={() => onSetStatus('delivered')} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }}>{t('gave_customer')}</button>
           </>
         )}
         {order.status === 'on_the_way' && (

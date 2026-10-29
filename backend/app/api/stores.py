@@ -5,7 +5,7 @@ from sqlalchemy import select, func
 from typing import List, Optional
 from app.database import get_db
 from app.api.reviews import store_ratings, apply_rating
-from app.models.schemas import StoreModel, ProductModel, StoreSchema, StoreWithProductsSchema, CategoryModel, CategorySchema
+from app.models.schemas import StoreModel, ProductModel, StoreSchema, StoreWithProductsSchema, CategoryModel, CategorySchema, PromoModel
 
 router = APIRouter(prefix="/api/stores", tags=["stores"])
 
@@ -52,3 +52,13 @@ async def get_store_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
     store_data.products_count = len(store_data.products)
     apply_rating(store_data, await store_ratings(db))
     return store_data
+
+
+@router.get("/promos/active")
+async def list_public_promos(db: AsyncSession = Depends(get_db)):
+    """Active stall offers, shown on stall pages: "from 400 000 so'm — free taxi"."""
+    res = await db.execute(select(PromoModel).where(PromoModel.is_active.is_(True)).order_by(PromoModel.min_amount))
+    return [
+        {"store_id": p.store_id, "kind": p.kind, "min_amount": p.min_amount, "percent": p.percent, "gift_text": p.gift_text}
+        for p in res.scalars().all()
+    ]

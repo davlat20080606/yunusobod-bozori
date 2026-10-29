@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database import async_session_factory
 from app.models.schemas import OrderModel, StoreModel, StaffModel
+from app.services.config_store import HANDOFF_POINTS
 from app.bot.bot import get_bot
 
 logger = logging.getLogger(__name__)
@@ -19,11 +20,18 @@ logger = logging.getLogger(__name__)
 CUSTOMER_TEXTS = {
     "pending": ("🧾 <b>Buyurtma qabul qilindi</b>", "🧾 <b>Заказ принят</b>", "Bo'sh aravachini qidiryapmiz", "Ищем свободного аравачи"),
     "picking": ("🛒 <b>Bozorda yig'ilmoqda</b>", "🛒 <b>Собираем на базаре</b>", "{porter} rastalarni aylanmoqda", "{porter} обходит расты"),
+    "ready": ("🛍 <b>Buyurtma tayyor</b>", "🛍 <b>Заказ готов</b>", "Rastalarga kelib oling: {stalls}", "Заберите на растах: {stalls}"),
+    "at_point": ("📍 <b>Aravachi sizni kutmoqda</b>", "📍 <b>Аравачи ждёт вас</b>", "{point} · {porter}", "{point} · {porter}"),
     "handed_over": ("🤝 <b>Taksichiga topshirildi</b>", "🤝 <b>Передан таксисту</b>", "{taxi}", "{taxi}"),
     "on_the_way": ("🚗 <b>Kuryer yo'lda</b>", "🚗 <b>Курьер в пути</b>", "Buyurtmangizni olib kelmoqda", "Везём заказ к вам"),
     "delivered": ("🎉 <b>Yetkazildi!</b>", "🎉 <b>Заказ доставлен!</b>", "Yoqimli ishtaha! Rahmat", "Приятного аппетита! Спасибо"),
     "cancelled": ("✖️ <b>Buyurtma bekor qilindi</b>", "✖️ <b>Заказ отменён</b>", "", ""),
 }
+
+
+def point_name(point_id) -> str:
+    point = next((p for p in HANDOFF_POINTS if p["id"] == point_id), None)
+    return f"{point['name_uz']} / {point['name_ru']}" if point else ""
 
 
 def _webapp_button(text: str, query: str) -> InlineKeyboardMarkup:
@@ -45,9 +53,16 @@ async def _send(chat_id, text: str, keyboard=None):
 
 async def _customer_status(order_id: int):
     async with async_session_factory() as db:
-        order = await db.get(OrderModel, order_id)
+        order = (await db.execute(
+            select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items))
+        )).scalars().first()
         if not order or not order.customer_tg_id:
             return
+        stall_rows = (await db.execute(
+            select(StoreModel.stall_number).where(StoreModel.id.in_({i.store_id for i in order.items}))
+        )).scalars().all()
+        stalls = escape(", ".join(stall_rows))
+        point = escape(point_name(order.handoff_point))
         texts = CUSTOMER_TEXTS.get(order.status)
         if not texts:
             return
@@ -58,7 +73,9 @@ async def _customer_status(order_id: int):
             sub_uz, sub_ru = "Taksichi tez orada oladi", "Таксист скоро заберёт"
         if order.status == "on_the_way" and taxi:
             sub_uz, sub_ru = f"🚕 {taxi}", ""
-        parts = [x.format(porter=porter, taxi=taxi) for x in (sub_uz, sub_ru) if x]
+        if order.status == "delivered" and not order.customer_confirmed_at:
+            sub_uz, sub_ru = "Olganingizni tasdiqlang va baholang", "Подтвердите получение и оцените"
+        parts = [x.format(porter=porter, taxi=taxi, stalls=stalls, point=point) for x in (sub_uz, sub_ru) if x]
         sub = " / ".join(dict.fromkeys(parts))
         text = f"{title_uz} · {title_ru.replace('<b>', '').replace('</b>', '')}\n#{order.order_number}" + (f"\n{sub}" if sub else "")
         await _send(order.customer_tg_id, text, _webapp_button("📦 Buyurtma / Заказ", f"tab=orders&order={order.order_number}"))
@@ -67,7 +84,7 @@ async def _customer_status(order_id: int):
 async def _new_order(order_id: int):
     async with async_session_factory() as db:
         order = (await db.execute(
-            select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items))
+            select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items), selectinload(OrderModel.bonuses))
         )).scalars().first()
         if not order:
             return
@@ -80,24 +97,33 @@ async def _new_order(order_id: int):
         )).scalars().all()
 
     stalls = ", ".join(escape(s.stall_number) for s in store_rows)
+    gifts = {}
+    for b in order.bonuses:
+        if b.kind == "gift":
+            gifts.setdefault(b.store_id, []).append(b.text)
+    self_pickup = order.fulfillment == "self"
+    where = point_name(order.handoff_point) if order.fulfillment == "point" else f"{order.delivery_district or ''}, {order.delivery_address}"
     porter_text = (
         f"🔔 <b>Yangi buyurtma · Новый заказ</b> #{order.order_number}\n"
         f"🏪 {stalls}\n"
         f"📦 {len(order.items)} · 💰 {order.total_amount:,.0f} UZS\n"
-        f"📍 {escape(order.delivery_district or '')}, {escape(order.delivery_address)}"
+        f"📍 {escape(where)}"
     )
     keyboard = _webapp_button("🛒 Olish / Взять заказ", "tab=porter")
-    await asyncio.gather(*[_send(p.tg_id, porter_text, keyboard) for p in porters])
+    if not self_pickup:
+        await asyncio.gather(*[_send(p.tg_id, porter_text, keyboard) for p in porters])
 
     for store in store_rows:
         if not store.telegram_chat_id:
             continue
         # "to'plam (сет)" -> "to'plam": the part in brackets is a leftover Russian word
         lines = "\n".join(f"• {escape(i.product_name)} — {i.quantity:g} {escape(re.sub(r'\s*\(.*?\)', '', i.unit or ''))}" for i in stores[store.id])
+        lines += "".join(f"\n🎁 {escape(g)}" for g in gifts.get(store.id, []))
+        who = ("🙋 Xaridor o'zi keladi — tayyorlab qo'ying / Покупатель придёт сам — подготовьте товар" if self_pickup
+               else "📦 Aravachi keladi — tayyorlab qo'ying / Аравачи скоро придёт — подготовьте товар")
         seller_text = (
             f"🔔 <b>Yangi buyurtma · Новый заказ</b> #{order.order_number}\n"
-            f"🏪 {escape(store.stall_number)}\n\n{lines}\n\n"
-            f"📦 Aravachi keladi — tayyorlab qo'ying / Аравачи скоро придёт — подготовьте товар"
+            f"🏪 {escape(store.stall_number)}\n\n{lines}\n\n{who}"
         )
         await _send(store.telegram_chat_id, seller_text, _webapp_button("🏪 Kabinet / Кабинет", "tab=seller_cabinet"))
 
@@ -112,7 +138,7 @@ async def _taxis(order_id: int):
         return
     text = (
         f"🚕 <b>Buyurtma tayyor · Заказ готов</b> #{order.order_number}\n"
-        f"🛒 {escape(order.porter_name or '')} — bozor darvozasida / у ворот базара\n"
+        f"🛒 {escape(order.porter_name or '')} — {escape(point_name(order.handoff_point) or 'bozor darvozasi / ворота базара')}\n"
         f"📍 {escape(order.delivery_district or '')}, {escape(order.delivery_address)}"
     )
     keyboard = _webapp_button("🚕 Olish / Взять заказ", "tab=taxi")

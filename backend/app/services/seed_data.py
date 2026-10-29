@@ -825,9 +825,15 @@ async def init_db_and_seed():
         datetime_type = "TIMESTAMP" if conn.dialect.name == "postgresql" else "DATETIME"
         for col, col_type in [("porter_name", "VARCHAR(100)"), ("porter_phone", "VARCHAR(50)"), ("porter_accepted_at", datetime_type),
                          ("delivery_lat", "FLOAT"), ("delivery_lng", "FLOAT"),
-                         ("taxi_name", "VARCHAR(100)"), ("taxi_phone", "VARCHAR(50)")]:
+                         ("taxi_name", "VARCHAR(100)"), ("taxi_phone", "VARCHAR(50)"),
+                         ("fulfillment", "VARCHAR(20) DEFAULT 'courier'"), ("handoff_point", "VARCHAR(30)"),
+                         ("discount_amount", "FLOAT DEFAULT 0"), ("customer_confirmed_at", datetime_type)]:
             if col not in cols:
                 await conn.exec_driver_sql(f"ALTER TABLE orders ADD COLUMN {col} {col_type}")
+        item_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("order_items")})
+        for col in ("seller_ready", "seller_handed"):
+            if col not in item_cols:
+                await conn.exec_driver_sql(f"ALTER TABLE order_items ADD COLUMN {col} BOOLEAN DEFAULT FALSE")
         store_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("stores")})
         if "status" not in store_cols:
             # Stalls that already exist were added by the administration, so they count as approved

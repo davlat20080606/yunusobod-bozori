@@ -13,12 +13,12 @@ from app.api.auth import (
     current_store, make_seller_token, normalize_phone,
     check_not_locked, record_failure
 )
-from app.bot.notify import notify_admin_application
+from app.bot.notify import notify_admin_application, notify_status
 from app.models.schemas import (
     StoreModel, ProductModel, OrderModel, OrderItemModel, CategoryModel,
     ProductSchema, StoreSchema, UpdatePriceSchema, ToggleAvailabilitySchema,
     SellerLoginSchema, StoreRegisterSchema, StoreUpdateSchema, ProductCreateSchema, OrderSchema,
-    MediaModel
+    MediaModel, PromoModel, PromoCreateSchema
 )
 
 router = APIRouter(prefix="/api/seller", tags=["seller"])
@@ -300,12 +300,96 @@ async def get_store_orders(store: StoreModel = Depends(current_store), db: Async
         return []
 
     orders_res = await db.execute(
-        select(OrderModel).where(OrderModel.id.in_(order_ids)).order_by(OrderModel.id.desc()).limit(100).options(selectinload(OrderModel.items))
+        select(OrderModel).where(OrderModel.id.in_(order_ids)).order_by(OrderModel.id.desc()).limit(100)
+        .options(selectinload(OrderModel.items), selectinload(OrderModel.bonuses))
     )
 
     response = []
     for o in orders_res.scalars().all():
         o_dict = OrderSchema.from_orm(o)
+        # A seller sees only their own part of a multi-stall order
         o_dict.items = [item for item in o.items if item.store_id == store.id]
+        o_dict.bonuses = [b for b in o.bonuses if b.store_id == store.id]
         response.append(o_dict)
     return response
+
+
+async def own_order_items(order_id: int, store: StoreModel, db: AsyncSession):
+    order = (await db.execute(
+        select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items))
+    )).scalars().first()
+    mine = [i for i in order.items if i.store_id == store.id] if order else []
+    if not mine:
+        raise HTTPException(status_code=404, detail="Buyurtma topilmadi / Заказ не найден")
+    if order.status in ("cancelled", "delivered"):
+        raise HTTPException(status_code=409, detail="Buyurtma yopilgan / Заказ закрыт")
+    return order, mine
+
+
+@router.post("/orders/{order_id}/ready")
+async def mark_ready(order_id: int, store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
+    """Seller packed their part of the order."""
+    order, mine = await own_order_items(order_id, store, db)
+    for item in mine:
+        item.seller_ready = True
+    # Self pickup: once every stall is packed the customer can come
+    if order.fulfillment == "self" and all(i.seller_ready for i in order.items) and order.status in ("pending", "accepted"):
+        order.status = "ready"
+    await db.commit()
+    notify_status(order.id)
+    return {"success": True, "status": order.status}
+
+
+@router.post("/orders/{order_id}/handed")
+async def mark_handed(order_id: int, store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
+    """Seller gave their part to the aravachi (or to the customer for self pickup)."""
+    order, mine = await own_order_items(order_id, store, db)
+    if order.fulfillment != "self" and not order.porter_phone:
+        raise HTTPException(status_code=409, detail="Hali aravachi olmagan / Аравачи ещё не взял заказ")
+    for item in mine:
+        item.seller_ready = True
+        item.seller_handed = True
+    if order.fulfillment == "self" and all(i.seller_handed for i in order.items):
+        order.status = "delivered"
+    await db.commit()
+    notify_status(order.id)
+    return {"success": True, "status": order.status}
+
+
+@router.get("/promos")
+async def list_promos(store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
+    res = await db.execute(select(PromoModel).where(PromoModel.store_id == store.id).order_by(PromoModel.min_amount))
+    return [promo_dict(p) for p in res.scalars().all()]
+
+
+def promo_dict(p: PromoModel) -> dict:
+    return {"id": p.id, "kind": p.kind, "min_amount": p.min_amount, "percent": p.percent, "gift_text": p.gift_text, "is_active": p.is_active}
+
+
+@router.post("/promos")
+async def create_promo(data: PromoCreateSchema, store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
+    if data.kind == "discount" and not data.percent:
+        raise HTTPException(status_code=400, detail="Chegirma foizini kiriting / Укажите процент скидки")
+    if data.kind == "gift" and len((data.gift_text or "").strip()) < 2:
+        raise HTTPException(status_code=400, detail="Sovg'ani yozing / Напишите подарок")
+    count = len((await db.execute(select(PromoModel.id).where(PromoModel.store_id == store.id))).all())
+    if count >= 10:
+        raise HTTPException(status_code=409, detail="Ko'pi bilan 10 ta aksiya / Не больше 10 акций")
+    promo = PromoModel(
+        store_id=store.id, kind=data.kind, min_amount=data.min_amount,
+        percent=data.percent if data.kind == "discount" else None,
+        gift_text=(data.gift_text or "").strip() if data.kind == "gift" else None,
+    )
+    db.add(promo)
+    await db.commit()
+    return promo_dict(promo)
+
+
+@router.delete("/promos/{promo_id}")
+async def delete_promo(promo_id: int, store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
+    promo = await db.get(PromoModel, promo_id)
+    if not promo or promo.store_id != store.id:
+        raise HTTPException(status_code=404, detail="Aksiya topilmadi / Акция не найдена")
+    await db.delete(promo)
+    await db.commit()
+    return {"success": True}

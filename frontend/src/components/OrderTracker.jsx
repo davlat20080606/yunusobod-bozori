@@ -5,6 +5,7 @@ import { api } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 import { formatUnit } from './ProductCard';
 import { slotLabel } from '../services/slots';
+import { fulfillmentLabel, pointName, bonusLabel } from '../services/offers';
 
 const BAZAAR = { lat: 41.36467, lng: 69.29089 };
 const MY_ORDERS_KEY = 'yunusobod_my_orders';
@@ -38,12 +39,30 @@ const T = {
   cash: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' },
   help: { uz: 'Savol yoki muammo bormi?', ru: 'Есть вопрос или проблема?', en: 'Question or problem?' },
   help_call: { uz: "Bozorga qo'ng'iroq qiling", ru: 'Позвоните на базар', en: 'Call the bazaar' },
+  received: { uz: '✅ Buyurtmani oldim', ru: '✅ Я получил заказ', en: '✅ I got my order' },
+  received_hint: { uz: "Olganingizni tasdiqlang, so'ng baholang", ru: 'Подтвердите получение, затем оцените', en: 'Confirm you got it, then rate it' },
+  how: { uz: 'Qanday olasiz', ru: 'Как получить', en: 'How you get it' },
+  bonuses: { uz: 'Aksiyalar', ru: 'Акции', en: 'Offers' },
+  stall_discount: { uz: 'Rasta chegirmasi', ru: 'Скидка расты', en: 'Stall discount' },
 };
 
+// Progress steps differ by how the order reaches the customer
 const STEPS = {
-  uz: ['Qabul qilindi', "Yig'ilmoqda", "Yo'lda", 'Yetkazildi'],
-  ru: ['Принят', 'Собираем', 'В пути', 'Доставлен'],
-  en: ['Accepted', 'Collecting', 'On the way', 'Delivered'],
+  courier: {
+    uz: ['Qabul qilindi', "Yig'ilmoqda", "Yo'lda", 'Yetkazildi'],
+    ru: ['Принят', 'Собираем', 'В пути', 'Доставлен'],
+    en: ['Accepted', 'Collecting', 'On the way', 'Delivered'],
+  },
+  point: {
+    uz: ['Qabul qilindi', "Yig'ilmoqda", 'Joyida', 'Olindi'],
+    ru: ['Принят', 'Собираем', 'На точке', 'Получен'],
+    en: ['Accepted', 'Collecting', 'At the point', 'Received'],
+  },
+  self: {
+    uz: ['Qabul qilindi', 'Tayyorlanmoqda', 'Tayyor', 'Olindi'],
+    ru: ['Принят', 'Готовят', 'Готов', 'Получен'],
+    en: ['Accepted', 'Packing', 'Ready', 'Received'],
+  },
 };
 
 const STATUS = {
@@ -56,6 +75,16 @@ const STATUS = {
     step: 1, emoji: '🛒',
     title: { uz: "Bozorda yig'ilmoqda", ru: 'Собираем на базаре', en: 'Collecting at the bazaar' },
     sub: { uz: 'Aravachi rastalarni aylanib chiqmoqda', ru: 'Аравачи обходит расты и выбирает свежее', en: 'The porter is visiting the stalls' },
+  },
+  ready: {
+    step: 2, emoji: '🛍',
+    title: { uz: 'Buyurtma tayyor', ru: 'Заказ готов', en: 'Order is ready' },
+    sub: { uz: 'Rastalarga kelib oling', ru: 'Заберите на растах', en: 'Collect it at the stalls' },
+  },
+  at_point: {
+    step: 2, emoji: '📍',
+    title: { uz: 'Aravachi sizni kutmoqda', ru: 'Аравачи ждёт вас', en: 'The porter is waiting' },
+    sub: { uz: 'Belgilangan joyga keling', ru: 'Подойдите к точке', en: 'Come to the pickup point' },
   },
   handed_over: {
     step: 2, emoji: '🤝',
@@ -80,7 +109,10 @@ const STATUS = {
 };
 STATUS.accepted = STATUS.pending;
 
-export const ACTIVE_STATUSES = ['pending', 'accepted', 'picking', 'handed_over', 'on_the_way'];
+export const ACTIVE_STATUSES = ['pending', 'accepted', 'picking', 'ready', 'at_point', 'handed_over', 'on_the_way'];
+
+// Where the customer can say "I got it": the order must have reached them
+const RECEIVABLE = { self: ['delivered'], point: ['at_point', 'delivered'], courier: ['on_the_way', 'delivered'] };
 
 export function statusTitle(status, language) {
   const lang = language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz');
@@ -207,9 +239,11 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
   const [comment, setComment] = useState('');
   const [sendingReview, setSendingReview] = useState(false);
   const [supportPhone, setSupportPhone] = useState('');
+  const [points, setPoints] = useState([]);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
-    api.getConfig().then((cfg) => setSupportPhone(cfg.support_phone || '')).catch(() => {});
+    api.getConfig().then((cfg) => { setSupportPhone(cfg.support_phone || ''); setPoints(cfg.handoff_points || []); }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -281,6 +315,22 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
     }
   };
 
+  const confirmReceived = async () => {
+    if (!openOrder) return;
+    setConfirming(true);
+    setActionError('');
+    try {
+      const updated = await api.confirmReceived(openOrder.order_number);
+      triggerHaptic('success');
+      setOrders((prev) => ({ ...prev, [updated.order_number]: { ...prev[updated.order_number], ...updated } }));
+    } catch (e) {
+      setActionError(e.message);
+      triggerHaptic('error');
+    } finally {
+      setConfirming(false);
+    }
+  };
+
   const sendReview = async () => {
     if (!openOrder || !stars) return;
     setSendingReview(true);
@@ -317,13 +367,25 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
       return <div style={{ padding: '60px 16px', textAlign: 'center', color: '#64748b' }}>…</div>;
     }
     const status = st(openOrder.status);
+    const mode = openOrder.fulfillment || 'courier';
     const items = openOrder.items || [];
-    const picked = items.filter((i) => i.is_picked).length;
+    // Self pickup: an item counts once its seller handed it over; otherwise once the aravachi took it
+    const isDone = (i) => (mode === 'self' ? i.seller_handed : i.is_picked);
+    const picked = items.filter(isDone).length;
+    const canConfirm = RECEIVABLE[mode]?.includes(openOrder.status) && !openOrder.customer_confirmed_at;
+    const bonuses = (openOrder.bonuses || []).filter((b, i, all) => b.kind !== 'free_taxi' || all.findIndex((x) => x.kind === 'free_taxi') === i);
+    const pointLabel = pointName(points, openOrder.handoff_point, lang);
     const eta = etaText(openOrder, lang);
     const isActive = ACTIVE_STATUSES.includes(openOrder.status);
     const subtitle = openOrder.status === 'picking' && openOrder.porter_name
       ? `${openOrder.porter_name} · ${t('collected_of')} ${picked} / ${items.length}`
-      : status.sub[lang];
+      : openOrder.status === 'at_point' && pointLabel
+        ? `📍 ${pointLabel}`
+        : mode === 'self' && ['pending', 'accepted', 'ready'].includes(openOrder.status)
+          ? (lang === 'ru' ? `Готово ${items.filter((i) => i.seller_ready).length} из ${items.length} · выдано ${picked}` : (lang === 'en' ? `${items.filter((i) => i.seller_ready).length} of ${items.length} packed · ${picked} collected` : `${items.filter((i) => i.seller_ready).length}/${items.length} tayyor · ${picked} olindi`))
+          : mode === 'point' && openOrder.status === 'pending'
+            ? (lang === 'ru' ? 'Ищем свободного аравачи' : (lang === 'en' ? 'Looking for a free porter' : "Bo'sh aravachini qidiryapmiz"))
+            : status.sub[lang];
     const paymentLabel = openOrder.payment_method === 'payme' ? 'Payme' : (openOrder.payment_method === 'click' ? 'Click' : t('cash'));
 
     return (
@@ -348,7 +410,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
 
           {status.step >= 0 && (
             <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
-              {STEPS[lang].map((label, i) => (
+              {(STEPS[mode] || STEPS.courier)[lang].map((label, i) => (
                 <div key={label} style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ height: 6, borderRadius: 3, background: i < status.step || status.step === 3 ? '#059669' : '#e2e8f0', overflow: 'hidden', position: 'relative' }}>
                     {i === status.step && status.step < 3 && (
@@ -424,14 +486,19 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             <div style={{ marginTop: 12 }}>
               {items.map((item) => (
                 <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderTop: '1px solid #f1f5f9' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: item.is_picked ? '#059669' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    {item.is_picked && <Check size={14} color="#ffffff" />}
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: isDone(item) ? '#059669' : (item.seller_ready ? '#a7f3d0' : '#e2e8f0'), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {isDone(item) && <Check size={14} color="#ffffff" />}
                   </div>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#0f172a' }}>{item.product_name}</span>
                   <span style={{ fontSize: 13, color: '#64748b', whiteSpace: 'nowrap' }}>{Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(1)} {formatUnit(item.unit, language)}</span>
                   <span style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap' }}>{Math.round(item.total_price).toLocaleString()}</span>
                 </div>
               ))}
+              {openOrder.discount_amount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderTop: '1px solid #f1f5f9', fontSize: 14, color: '#047857' }}>
+                  <span>{t('stall_discount')}</span><span>−{Math.round(openOrder.discount_amount).toLocaleString()}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderTop: '1px solid #f1f5f9', fontSize: 14, color: '#64748b' }}>
                 <span>{t('delivery')}</span><span>{Math.round(openOrder.delivery_fee).toLocaleString()}</span>
               </div>
@@ -445,10 +512,11 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
         {/* Details */}
         <div style={card}>
           {[
-            [MapPin, t('address'), [openOrder.delivery_district, openOrder.delivery_address].filter(Boolean).join(', ') + (openOrder.landmark ? ` · ${openOrder.landmark}` : '')],
+            [Package, t('how'), fulfillmentLabel(mode, lang) + (pointLabel ? ` · 📍 ${pointLabel}` : '')],
+            mode === 'courier' ? [MapPin, t('address'), [openOrder.delivery_district, openOrder.delivery_address].filter(Boolean).join(', ') + (openOrder.landmark ? ` · ${openOrder.landmark}` : '')] : null,
             [Clock, t('delivery'), slotLabel(openOrder.delivery_time_slot, lang)],
             [CreditCard, t('payment'), paymentLabel],
-          ].map(([Icon, label, value], i) => (
+          ].filter(Boolean).map(([Icon, label, value], i) => (
             <div key={label} style={{ display: 'flex', gap: 12, padding: '10px 0', borderTop: i ? '1px solid #f1f5f9' : 'none' }}>
               <Icon size={18} color="#64748b" style={{ flexShrink: 0, marginTop: 2 }} />
               <div style={{ minWidth: 0 }}>
@@ -474,8 +542,27 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
           </a>
         )}
 
-        {/* Real reviews: rate the order once it has been delivered */}
-        {openOrder.status === 'delivered' && (
+        {bonuses.length > 0 && (
+          <div style={card}>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>{t('bonuses')}</div>
+            {bonuses.map((b) => (
+              <div key={`${b.store_id}-${b.kind}`} style={{ fontSize: 14, fontWeight: 700, color: '#047857', padding: '3px 0' }}>{bonusLabel(b, lang)}</div>
+            ))}
+          </div>
+        )}
+
+        {/* Last step of every route: the customer confirms they have the order */}
+        {canConfirm && (
+          <div style={{ ...card, textAlign: 'center' }}>
+            <button type="button" onClick={confirmReceived} disabled={confirming} style={{ width: '100%', height: 54, borderRadius: 16, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 17, cursor: 'pointer', opacity: confirming ? 0.6 : 1 }}>
+              {t('received')}
+            </button>
+            <div style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>{t('received_hint')}</div>
+          </div>
+        )}
+
+        {/* Real reviews: rate the order once the customer has it */}
+        {openOrder.status === 'delivered' && !canConfirm && (
           <div style={{ ...card, textAlign: 'center' }}>
             {openOrder.review_rating ? (
               <>
@@ -513,7 +600,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
         )}
 
         {/* Like delivery apps: cancel is possible only until someone starts collecting */}
-        {['pending', 'accepted'].includes(openOrder.status) && !openOrder.porter_name && (
+        {['pending', 'accepted'].includes(openOrder.status) && !openOrder.porter_name && !items.some((i) => i.seller_handed) && (
           <button type="button" onClick={cancelOrder} disabled={cancelling} style={{ width: '100%', height: 48, borderRadius: 16, border: '1.5px solid #fecaca', background: '#ffffff', color: '#dc2626', fontWeight: 700, fontSize: 15, cursor: 'pointer', opacity: cancelling ? 0.6 : 1 }}>
             {t('cancel')}
           </button>

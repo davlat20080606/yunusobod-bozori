@@ -13,8 +13,8 @@ router = APIRouter(prefix="/api/porter", tags=["porter"])
 
 # Statuses an aravachi (bazaar porter) works with
 OPEN_STATUSES = ["pending", "accepted"]
-ACTIVE_STATUSES = ["picking", "handed_over", "on_the_way"]
-PORTER_NEXT_STATUSES = ["picking", "handed_over", "on_the_way", "delivered"]
+ACTIVE_STATUSES = ["picking", "at_point", "handed_over", "on_the_way"]
+PORTER_NEXT_STATUSES = ["picking", "at_point", "handed_over", "on_the_way", "delivered"]
 
 current_porter = staff_with_role("porter")
 
@@ -46,6 +46,8 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
             "unit": item.unit,
             "total_price": item.total_price,
             "is_picked": item.is_picked,
+            "seller_ready": bool(item.seller_ready),
+            "seller_handed": bool(item.seller_handed),
         })
 
     def stall_sort_key(stop):
@@ -71,6 +73,13 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
         "porter_phone": order.porter_phone,
         "taxi_name": order.taxi_name,
         "taxi_phone": order.taxi_phone,
+        "fulfillment": order.fulfillment or "courier",
+        "handoff_point": order.handoff_point,
+        # Gifts must travel with the order, so the aravachi collects them too
+        "gifts": [
+            {"text": b.text, "stall_number": stores[b.store_id].stall_number if b.store_id in stores else ""}
+            for b in order.bonuses if b.kind == "gift"
+        ],
         "created_at": order.created_at.isoformat() if order.created_at else None,
         "items_count": len(order.items),
         "picked_count": sum(1 for i in order.items if i.is_picked),
@@ -80,7 +89,7 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
 
 async def get_porter_order(order_id: int, db: AsyncSession) -> OrderModel:
     res = await db.execute(
-        select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items))
+        select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items), selectinload(OrderModel.bonuses))
     )
     order = res.scalars().first()
     if not order:
@@ -101,10 +110,11 @@ async def list_porter_orders(porter: StaffModel = Depends(current_porter), db: A
         .where(OrderModel.status.in_(OPEN_STATUSES + ACTIVE_STATUSES))
         .order_by(OrderModel.id.desc())
         .limit(100)
-        .options(selectinload(OrderModel.items))
+        .options(selectinload(OrderModel.items), selectinload(OrderModel.bonuses))
     )
     orders = res.scalars().all()
-    available = [o for o in orders if not o.porter_phone and o.status in OPEN_STATUSES]
+    # Self-pickup orders never need an aravachi
+    available = [o for o in orders if not o.porter_phone and o.status in OPEN_STATUSES and o.fulfillment != "self"]
     # Once a taxi took the order the porter's part is done
     mine = [
         o for o in orders
@@ -119,6 +129,8 @@ async def list_porter_orders(porter: StaffModel = Depends(current_porter), db: A
 @router.post("/orders/{order_id}/take")
 async def take_order(order_id: int, porter: StaffModel = Depends(current_porter), db: AsyncSession = Depends(get_db)):
     order = await get_porter_order(order_id, db)
+    if order.fulfillment == "self":
+        raise HTTPException(status_code=409, detail="Xaridor o'zi olib ketadi / Покупатель заберёт сам")
     if order.porter_phone and order.porter_phone != porter.phone:
         raise HTTPException(status_code=409, detail="Bu buyurtmani boshqa aravachi oldi / Заказ уже взял другой аравачи")
     if order.status not in OPEN_STATUSES + ["picking"]:
@@ -164,8 +176,12 @@ async def set_porter_status(
         raise HTTPException(status_code=400, detail="Noto'g'ri status")
     order = await get_porter_order(order_id, db)
     own_order(order, porter)
-    if status in ("handed_over", "on_the_way") and not all(i.is_picked for i in order.items):
+    if status in ("at_point", "handed_over", "on_the_way", "delivered") and not all(i.is_picked for i in order.items):
         raise HTTPException(status_code=409, detail="Avval hamma mahsulotlarni yig'ing / Сначала соберите все товары")
+    # A point order ends at the bazaar point; a courier order goes on to a taxi (or the aravachi drives it)
+    allowed = ["picking", "at_point", "delivered"] if order.fulfillment == "point" else ["picking", "handed_over", "on_the_way", "delivered"]
+    if status not in allowed:
+        raise HTTPException(status_code=409, detail="Bu buyurtma uchun mumkin emas / Для этого заказа нельзя")
     if order.taxi_phone:
         raise HTTPException(status_code=409, detail="Buyurtma taksichida / Заказ уже у таксиста")
 

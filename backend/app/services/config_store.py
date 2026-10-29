@@ -12,7 +12,18 @@ DEFAULTS = {
     "patta_amount": "20000",
     "admin_tg_id": "",
     "support_phone": "",
+    # Customer pays the aravachi for carrying, and the taxi for the ride home
+    "porter_fee": "5000",
+    "taxi_fee": "10000",
 }
+
+# Where an aravachi hands the order to the customer or the taxi
+HANDOFF_POINTS = [
+    {"id": "main_gate", "name_uz": "Asosiy darvoza", "name_ru": "Главные ворота", "name_en": "Main gate"},
+    {"id": "parking", "name_uz": "Avtoturargoh", "name_ru": "Парковка", "name_en": "Parking"},
+    {"id": "back_gate", "name_uz": "Orqa darvoza", "name_ru": "Задние ворота", "name_en": "Back gate"},
+]
+HANDOFF_POINT_IDS = {p["id"] for p in HANDOFF_POINTS}
 
 
 async def get_setting(db: AsyncSession, key: str) -> str:
