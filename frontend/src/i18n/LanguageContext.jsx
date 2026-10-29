@@ -9,18 +9,28 @@ const LanguageContext = createContext();
 
 export function LanguageProvider({ children }) {
   const [lang, setLangState] = useState(() => {
-    // 1. Check URL param ?lang=...
+    const known = (value) => ['uz', 'ru', 'en'].includes(value);
+    // 1. The bot opens the app with ?lang=… (the language picked in the chat); remember it,
+    //    so buttons in order messages and later visits open in the same language
     try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlLang = urlParams.get('lang');
-      if (urlLang && ['uz', 'ru', 'en'].includes(urlLang)) {
+      const urlLang = new URLSearchParams(window.location.search).get('lang');
+      if (known(urlLang)) {
+        try { localStorage.setItem('yunusobod_lang', urlLang); } catch {}
         return urlLang;
       }
     } catch {}
 
-    // 2. Check LocalStorage
-    const saved = localStorage.getItem('yunusobod_lang');
-    return saved && ['uz', 'ru', 'en'].includes(saved) ? saved : 'uz';
+    // 2. The language chosen before
+    try {
+      const saved = localStorage.getItem('yunusobod_lang');
+      if (known(saved)) return saved;
+    } catch {}
+
+    // 3. First visit: the language of the person's Telegram app
+    const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || '';
+    if (tgLang.startsWith('ru')) return 'ru';
+    if (tgLang.startsWith('en')) return 'en';
+    return 'uz';
   });
 
   // Tell the browser which language the page is really in
@@ -31,7 +41,7 @@ export function LanguageProvider({ children }) {
   const setLang = (newLang) => {
     if (['uz', 'ru', 'en'].includes(newLang)) {
       setLangState(newLang);
-      localStorage.setItem('yunusobod_lang', newLang);
+      try { localStorage.setItem('yunusobod_lang', newLang); } catch {}
     }
   };
 

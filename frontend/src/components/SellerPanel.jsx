@@ -8,18 +8,34 @@ import { Store, DollarSign, CheckCircle2, ToggleLeft, ToggleRight, RefreshCw, Pa
 import { triggerHaptic } from '../services/telegram';
 import { formatUnit } from './ProductCard';
 import { ClickLogo, PaymeLogo } from './PaymentLogos';
+import { stallLabel, itemName } from '../services/stall';
 
 const PHOTO_PRESETS = [
-  { name: '🥩 Go\'sht / Мясо', image: '/img/p/ef38b94878f0.jpg', video: '' },
-  { name: '🍅 Pomidor / Овощи', image: '/img/p/66ff63f3f334.jpg', video: '' },
-  { name: '🍈 Qovun / Фрукты', image: '/img/p/d2ef82ecd095.jpg', video: '' },
-  { name: '🥖 Non / Выпечка', image: '/img/p/f3cdfa490b92.jpg', video: '' },
-  { name: '🥜 Quruq meva / Орехи', image: '/img/p/4474d3c91c5b.jpg', video: '' },
-  { name: '🧀 Qaymoq / Молочка', image: '/img/p/1b2087837e43.jpg', video: '' },
+  { name: { uz: "🥩 Go'sht", ru: '🥩 Мясо', en: '🥩 Meat' }, image: '/img/p/ef38b94878f0.jpg', video: '' },
+  { name: { uz: '🍅 Sabzavot', ru: '🍅 Овощи', en: '🍅 Vegetables' }, image: '/img/p/66ff63f3f334.jpg', video: '' },
+  { name: { uz: '🍈 Meva', ru: '🍈 Фрукты', en: '🍈 Fruit' }, image: '/img/p/d2ef82ecd095.jpg', video: '' },
+  { name: { uz: '🥖 Non', ru: '🥖 Выпечка', en: '🥖 Bakery' }, image: '/img/p/f3cdfa490b92.jpg', video: '' },
+  { name: { uz: '🥜 Quruq meva', ru: '🥜 Орехи', en: '🥜 Nuts' }, image: '/img/p/4474d3c91c5b.jpg', video: '' },
+  { name: { uz: '🧀 Sut mahsulotlari', ru: '🧀 Молочка', en: '🧀 Dairy' }, image: '/img/p/1b2087837e43.jpg', video: '' },
 ];
+
+// Messages the seller cabinet shows outside the shared dictionaries
+const MSG = {
+  video_failed: { uz: 'Videoni yuklab bo\'lmadi', ru: 'Не удалось загрузить видео', en: 'Could not upload the video' },
+  price_failed: { uz: 'Narxni saqlab bo\'lmadi', ru: 'Не удалось сохранить цену', en: 'Could not save the price' },
+  error: { uz: 'Xatolik yuz berdi', ru: 'Произошла ошибка', en: 'Something went wrong' },
+  added: { uz: 'qo\'shildi!', ru: 'добавлен!', en: 'added!' },
+  no_orders: {
+    uz: "Hozircha yangi buyurtmalar yo'q. Xaridorlar buyurtma berishi bilan bu yerda va Telegramda ko'rinadi!",
+    ru: 'Новых заказов пока нет. Как только покупатели закажут, заказ появится здесь и в Telegram!',
+    en: 'No new orders yet. As soon as customers order, you will see it here and in Telegram!',
+  },
+  pin_example: { uz: 'Masalan: 2222', ru: 'Например: 2222', en: 'For example: 2222' },
+};
 
 export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onSignOut }) {
   const { getLocalized, t, language } = useLanguage();
+  const msg = (key) => MSG[key][language] || MSG[key].uz;
   const [selectedStoreId, setSelectedStoreId] = useState(null);
   const [storeData, setStoreData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -143,7 +159,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
       triggerHaptic('light');
       setProductForm(prev => ({ ...prev, video_url: res.url }));
     } catch (err) {
-      alert('Video yuklashda xatolik yuz berdi');
+      alert(msg('video_failed'));
     } finally {
       setVideoUploading(false);
     }
@@ -165,7 +181,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
       setTimeout(() => setSuccessMsg(''), 2500);
       if (onProductPriceUpdated) onProductPriceUpdated();
     } catch (e) {
-      alert('Narxni saqlashda xatolik');
+      alert(msg('price_failed'));
     }
   };
 
@@ -220,7 +236,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
       setSuccessMsg(`✅ Ma'lumotlar saqlandi: ${res.store.owner_name} (${res.store.owner_phone})`);
       setTimeout(() => setSuccessMsg(''), 3500);
     } catch (err) {
-      alert(err.message || 'Xatolik');
+      alert(err.message || msg('error'));
     } finally {
       setEditStoreLoading(false);
     }
@@ -240,11 +256,11 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
       triggerHaptic('success');
       setShowAddProductModal(false);
       await selectStore(selectedStoreId);
-      setSuccessMsg(`🎉 "${res.product.name_uz}" muvaffaqiyatli qo'shildi!`);
+      setSuccessMsg(`🎉 "${getLocalized(res.product, 'name')}" ${msg('added')}`);
       setTimeout(() => setSuccessMsg(''), 3000);
       if (onProductPriceUpdated) onProductPriceUpdated();
     } catch (err) {
-      alert(err.message || 'Xatolik');
+      alert(err.message || msg('error'));
     } finally {
       setAddProductLoading(false);
     }
@@ -279,7 +295,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             {storeData?.store && (
               <span style={{ background: '#334155', color: '#ffffff', padding: '8px 12px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 700 }}>
-                {storeData.store.stall_number} — {getLocalized(storeData.store, 'name')}
+                {stallLabel(storeData.store.stall_number, language)} — {getLocalized(storeData.store, 'name')}
               </span>
             )}
 
@@ -344,7 +360,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
                 </button>
               </div>
               <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>
-                📍 {storeData.store.stall_number} | 👤 <strong>{storeData.store.owner_name}</strong> ({storeData.store.owner_phone})
+                📍 {stallLabel(storeData.store.stall_number, language)} | 👤 <strong>{storeData.store.owner_name}</strong> ({storeData.store.owner_phone})
               </div>
             </div>
 
@@ -484,7 +500,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
           {incomingOrders.length === 0 ? (
             <div style={{ padding: '32px', textAlign: 'center', background: '#ffffff', borderRadius: '12px', color: '#64748b' }}>
               <Package size={32} style={{ margin: '0 auto 8px', color: '#94a3b8' }} />
-              <p>Hozircha yangi zakazlar yo'q. Mijozlar buyurtma berishi bilan bu yerda va Telegramda ko'rinadi!</p>
+              <p>{msg('no_orders')}</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -580,7 +596,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
                       type="password"
                       maxLength="4" 
                       className="form-input"
-                      placeholder="Masalan: 2222"
+                      placeholder={msg('pin_example')}
                       value={editStoreForm.pin}
                       onChange={(e) => setEditStoreForm({ ...editStoreForm, pin: e.target.value })}
                     />
@@ -723,7 +739,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
                           textAlign: 'center'
                         }}
                       >
-                        {preset.name}
+                        {preset.name[language] || preset.name.uz}
                       </button>
                     ))}
                   </div>

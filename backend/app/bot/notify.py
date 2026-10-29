@@ -11,27 +11,74 @@ from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import async_session_factory
-from app.models.schemas import OrderModel, StoreModel, StaffModel
+from app.models.schemas import OrderModel, StoreModel, StaffModel, CustomerModel
 from app.services.config_store import HANDOFF_POINTS
 from app.bot.bot import get_bot
 
 logger = logging.getLogger(__name__)
 
+# Customer messages in the language they picked in the bot: (title, subtitle)
 CUSTOMER_TEXTS = {
-    "pending": ("🧾 <b>Buyurtma qabul qilindi</b>", "🧾 <b>Заказ принят</b>", "Bo'sh aravachini qidiryapmiz", "Ищем свободного аравачи"),
-    "picking": ("🛒 <b>Bozorda yig'ilmoqda</b>", "🛒 <b>Собираем на базаре</b>", "{porter} rastalarni aylanmoqda", "{porter} обходит расты"),
-    "ready": ("🛍 <b>Buyurtma tayyor</b>", "🛍 <b>Заказ готов</b>", "Rastalarga kelib oling: {stalls}", "Заберите на растах: {stalls}"),
-    "at_point": ("📍 <b>Aravachi sizni kutmoqda</b>", "📍 <b>Аравачи ждёт вас</b>", "{point} · {porter}", "{point} · {porter}"),
-    "handed_over": ("🤝 <b>Taksichiga topshirildi</b>", "🤝 <b>Передан таксисту</b>", "{taxi}", "{taxi}"),
-    "on_the_way": ("🚗 <b>Kuryer yo'lda</b>", "🚗 <b>Курьер в пути</b>", "Buyurtmangizni olib kelmoqda", "Везём заказ к вам"),
-    "delivered": ("🎉 <b>Yetkazildi!</b>", "🎉 <b>Заказ доставлен!</b>", "Yoqimli ishtaha! Rahmat", "Приятного аппетита! Спасибо"),
-    "cancelled": ("✖️ <b>Buyurtma bekor qilindi</b>", "✖️ <b>Заказ отменён</b>", "", ""),
+    "uz": {
+        "pending": ("🧾 <b>Buyurtma qabul qilindi</b>", "Bo'sh aravachini qidiryapmiz"),
+        "pending_self": ("🧾 <b>Buyurtma qabul qilindi</b>", "Sotuvchilar tayyorlamoqda"),
+        "picking": ("🛒 <b>Bozorda yig'ilmoqda</b>", "{porter} rastalarni aylanmoqda"),
+        "ready": ("🛍 <b>Buyurtma tayyor</b>", "Rastalarga kelib oling: {stalls}"),
+        "at_point": ("📍 <b>Aravachi sizni kutmoqda</b>", "{point} · {porter}"),
+        "handed_over": ("🤝 <b>Taksichiga topshirildi</b>", "{taxi}"),
+        "handed_over_wait": ("🤝 <b>Taksichiga topshirildi</b>", "Taksichi tez orada oladi"),
+        "on_the_way": ("🚗 <b>Kuryer yo'lda</b>", "Buyurtmangizni olib kelmoqda"),
+        "delivered": ("🎉 <b>Yetkazildi!</b>", "Yoqimli ishtaha! Rahmat"),
+        "delivered_confirm": ("🎉 <b>Yetkazildi!</b>", "Olganingizni tasdiqlang va baholang"),
+        "cancelled": ("✖️ <b>Buyurtma bekor qilindi</b>", ""),
+        "button": "📦 Buyurtma",
+    },
+    "ru": {
+        "pending": ("🧾 <b>Заказ принят</b>", "Ищем свободного аравачи"),
+        "pending_self": ("🧾 <b>Заказ принят</b>", "Продавцы собирают заказ"),
+        "picking": ("🛒 <b>Собираем на базаре</b>", "{porter} обходит расты"),
+        "ready": ("🛍 <b>Заказ готов</b>", "Заберите на растах: {stalls}"),
+        "at_point": ("📍 <b>Аравачи ждёт вас</b>", "{point} · {porter}"),
+        "handed_over": ("🤝 <b>Передан таксисту</b>", "{taxi}"),
+        "handed_over_wait": ("🤝 <b>Передан таксисту</b>", "Таксист скоро заберёт"),
+        "on_the_way": ("🚗 <b>Курьер в пути</b>", "Везём заказ к вам"),
+        "delivered": ("🎉 <b>Заказ доставлен!</b>", "Приятного аппетита! Спасибо"),
+        "delivered_confirm": ("🎉 <b>Заказ доставлен!</b>", "Подтвердите получение и оцените"),
+        "cancelled": ("✖️ <b>Заказ отменён</b>", ""),
+        "button": "📦 Заказ",
+    },
+    "en": {
+        "pending": ("🧾 <b>Order received</b>", "Looking for a free porter"),
+        "pending_self": ("🧾 <b>Order received</b>", "The sellers are packing it"),
+        "picking": ("🛒 <b>Collecting at the bazaar</b>", "{porter} is visiting the stalls"),
+        "ready": ("🛍 <b>Your order is ready</b>", "Collect it at: {stalls}"),
+        "at_point": ("📍 <b>The porter is waiting</b>", "{point} · {porter}"),
+        "handed_over": ("🤝 <b>Handed to the taxi</b>", "{taxi}"),
+        "handed_over_wait": ("🤝 <b>Handed to the taxi</b>", "The taxi will pick it up soon"),
+        "on_the_way": ("🚗 <b>Courier on the way</b>", "Bringing your order to you"),
+        "delivered": ("🎉 <b>Delivered!</b>", "Enjoy your meal! Thank you"),
+        "delivered_confirm": ("🎉 <b>Delivered!</b>", "Confirm you got it and rate it"),
+        "cancelled": ("✖️ <b>Order cancelled</b>", ""),
+        "button": "📦 Order",
+    },
 }
+STALL_WORDS = {"ru": ("Раста", "место"), "en": ("Row", "Stall")}
 
 
-def point_name(point_id) -> str:
+def stall_in(lang: str, stall: str) -> str:
+    """"Rasta 14, Joy №2" in the customer's language."""
+    words = STALL_WORDS.get(lang)
+    if not words:
+        return stall
+    return re.sub(r"\bJoy\b", words[1], re.sub(r"\bRasta\b", words[0], stall))
+
+
+def point_name(point_id, lang: str = None) -> str:
+    """One language for a customer, "uz / ru" for bazaar workers."""
     point = next((p for p in HANDOFF_POINTS if p["id"] == point_id), None)
-    return f"{point['name_uz']} / {point['name_ru']}" if point else ""
+    if not point:
+        return ""
+    return point.get(f"name_{lang}") or point["name_uz"] if lang else f"{point['name_uz']} / {point['name_ru']}"
 
 
 def _webapp_button(text: str, query: str) -> InlineKeyboardMarkup:
@@ -61,24 +108,27 @@ async def _customer_status(order_id: int):
         stall_rows = (await db.execute(
             select(StoreModel.stall_number).where(StoreModel.id.in_({i.store_id for i in order.items}))
         )).scalars().all()
-        stalls = escape(", ".join(stall_rows))
-        point = escape(point_name(order.handoff_point))
-        texts = CUSTOMER_TEXTS.get(order.status)
-        if not texts:
+        customer = (await db.execute(select(CustomerModel).where(CustomerModel.tg_id == order.customer_tg_id))).scalars().first()
+        lang = customer.lang if customer and customer.lang in CUSTOMER_TEXTS else "uz"
+        texts = CUSTOMER_TEXTS[lang]
+        key = order.status
+        if key == "pending" and order.fulfillment == "self":
+            key = "pending_self"
+        if key == "handed_over" and not order.taxi_name:
+            key = "handed_over_wait"
+        if key == "delivered" and not order.customer_confirmed_at:
+            key = "delivered_confirm"
+        if key not in texts:
             return
-        title_uz, title_ru, sub_uz, sub_ru = texts
-        porter = escape(order.porter_name or "Aravachi")
-        taxi = escape(order.taxi_name) if order.taxi_name else ""
-        if order.status == "handed_over" and not taxi:
-            sub_uz, sub_ru = "Taksichi tez orada oladi", "Таксист скоро заберёт"
-        if order.status == "on_the_way" and taxi:
-            sub_uz, sub_ru = f"🚕 {taxi}", ""
-        if order.status == "delivered" and not order.customer_confirmed_at:
-            sub_uz, sub_ru = "Olganingizni tasdiqlang va baholang", "Подтвердите получение и оцените"
-        parts = [x.format(porter=porter, taxi=taxi, stalls=stalls, point=point) for x in (sub_uz, sub_ru) if x]
-        sub = " / ".join(dict.fromkeys(parts))
-        text = f"{title_uz} · {title_ru.replace('<b>', '').replace('</b>', '')}\n#{order.order_number}" + (f"\n{sub}" if sub else "")
-        await _send(order.customer_tg_id, text, _webapp_button("📦 Buyurtma / Заказ", f"tab=orders&order={order.order_number}"))
+        title, sub = texts[key]
+        if order.status == "on_the_way" and order.taxi_name:
+            sub = f"🚕 {escape(order.taxi_name)}"
+        stalls = escape(", ".join(stall_in(lang, s) for s in stall_rows))
+        point = escape(point_name(order.handoff_point, lang))
+        porter = escape(order.porter_name or {"ru": "Аравачи", "en": "Porter"}.get(lang, "Aravachi"))
+        sub = sub.format(porter=porter, taxi=escape(order.taxi_name or ""), stalls=stalls, point=point)
+        text = f"{title}\n#{order.order_number}" + (f"\n{sub}" if sub else "")
+        await _send(order.customer_tg_id, text, _webapp_button(texts["button"], f"tab=orders&order={order.order_number}&lang={lang}"))
 
 
 async def _new_order(order_id: int):

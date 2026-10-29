@@ -19,7 +19,7 @@ from app.models.schemas import (
     StoreModel, ProductModel, OrderModel, OrderItemModel, CategoryModel,
     ProductSchema, StoreSchema, UpdatePriceSchema, ToggleAvailabilitySchema,
     SellerLoginSchema, StoreRegisterSchema, StoreUpdateSchema, ProductCreateSchema, OrderSchema,
-    MediaModel, PromoModel, PromoCreateSchema
+    MediaModel, PromoModel, PromoCreateSchema, OrderItemSchema, OrderBonusSchema
 )
 
 router = APIRouter(prefix="/api/seller", tags=["seller"])
@@ -301,15 +301,15 @@ async def get_store_orders(store: StoreModel = Depends(current_store), db: Async
 
     orders_res = await db.execute(
         select(OrderModel).where(OrderModel.id.in_(order_ids)).order_by(OrderModel.id.desc()).limit(100)
-        .options(selectinload(OrderModel.items), selectinload(OrderModel.bonuses))
+        .options(selectinload(OrderModel.items).selectinload(OrderItemModel.product), selectinload(OrderModel.bonuses))
     )
 
     response = []
     for o in orders_res.scalars().all():
         o_dict = OrderSchema.from_orm(o)
         # A seller sees only their own part of a multi-stall order
-        o_dict.items = [item for item in o.items if item.store_id == store.id]
-        o_dict.bonuses = [b for b in o.bonuses if b.store_id == store.id]
+        o_dict.items = [OrderItemSchema.from_orm(item) for item in o.items if item.store_id == store.id]
+        o_dict.bonuses = [OrderBonusSchema.from_orm(b) for b in o.bonuses if b.store_id == store.id]
         response.append(o_dict)
     return response
 

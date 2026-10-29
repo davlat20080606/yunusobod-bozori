@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { api } from '../services/api';
+import { stallLabel, itemName } from '../services/stall';
 
 const T = {
   kicker: { uz: 'XARIDORLAR FIKRI', ru: 'ОТЗЫВЫ ПОКУПАТЕЛЕЙ', en: 'CUSTOMER REVIEWS' },
@@ -71,7 +72,7 @@ export default function ReviewsSection() {
             <p style={{ fontSize: 14, color: '#334155', margin: '0 0 8px', lineHeight: 1.4 }}>{r.comment}</p>
             <div style={{ fontSize: 12, color: '#94a3b8' }}>
               {r.created_at ? new Date(`${r.created_at}Z`).toLocaleDateString([], { day: 'numeric', month: 'short' }) : ''}
-              {r.stalls.length ? ` · ${r.stalls.join(', ')}` : ''}
+              {r.stalls.length ? ` · ${r.stalls.map((x) => stallLabel(x, language)).join(', ')}` : ''}
             </div>
           </div>
         ))}

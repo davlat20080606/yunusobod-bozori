@@ -4,6 +4,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useCart } from '../context/CartContext';
 import { triggerHaptic } from '../services/telegram';
 import ProductCard, { formatUnit } from './ProductCard';
+import { stallLabel, itemName } from '../services/stall';
 
 // Yandex Go style product sheet: slides up over the shop, choose amount, "Add"
 export default function ProductSheet({ product, store, categoryName, otherProducts = [], isSaved, onToggleSave, onClose, onOpenStore, onSelectProduct, savedProductIds = [] }) {
@@ -102,7 +103,7 @@ export default function ProductSheet({ product, store, categoryName, otherProduc
             <button type="button" onClick={() => onOpenStore?.(store)} style={{ width: 'calc(100% - 24px)', margin: '12px 12px 0', display: 'flex', alignItems: 'center', gap: 12, padding: 14, borderRadius: 20, border: 'none', background: '#ffffff', cursor: 'pointer', textAlign: 'left' }}>
               <img src={store.avatar_url} alt="" style={{ width: 46, height: 46, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, background: '#e2e8f0' }} />
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 12, color: '#047857', fontWeight: 700 }}>{lang === 'ru' ? 'Продавец' : (lang === 'en' ? 'Seller' : "Do'konchi")} · {store.stall_number}</span>
+                <span style={{ display: 'block', fontSize: 12, color: '#047857', fontWeight: 700 }}>{lang === 'ru' ? 'Продавец' : (lang === 'en' ? 'Seller' : "Do'konchi")} · {stallLabel(store.stall_number, lang)}</span>
                 <span style={{ display: 'block', fontSize: 15, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{store.owner_name} — {getLocalized(store, 'name')}</span>
               </span>
               <ChevronRight size={20} color="#94a3b8" />

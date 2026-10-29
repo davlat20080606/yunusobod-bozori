@@ -164,6 +164,23 @@ class OrderItemModel(Base):
     product = relationship("ProductModel", back_populates="order_items")
     store = relationship("StoreModel", back_populates="order_items")
 
+    def _localized_name(self, lang: str):
+        # The order keeps the Uzbek name; other languages come from the product when the query loaded it
+        if "product" in sa_inspect(self).unloaded or not self.product:
+            return None
+        name = getattr(self.product, f"name_{lang}", None)
+        if not name:
+            return None
+        return f"🎁 {name}" if (self.product_name or "").startswith("🎁") else name
+
+    @property
+    def product_name_ru(self):
+        return self._localized_name("ru")
+
+    @property
+    def product_name_en(self):
+        return self._localized_name("en")
+
 
 class ReviewModel(Base):
     """A customer's rating of a delivered order; it counts for every stall in that order."""
@@ -252,6 +269,8 @@ class OrderBonusModel(Base):
     store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
     kind = Column(String(20), nullable=False)
     text = Column(String(200), nullable=True)
+    text_ru = Column(String(200), nullable=True)
+    text_en = Column(String(200), nullable=True)
     amount = Column(Float, default=0.0)
 
     order = relationship("OrderModel", back_populates="bonuses")
@@ -395,6 +414,8 @@ class OrderItemSchema(BaseModel):
     unit: str
     total_price: float
     is_picked: bool
+    product_name_ru: Optional[str] = None
+    product_name_en: Optional[str] = None
     seller_ready: bool = False
     seller_handed: bool = False
 
@@ -406,6 +427,8 @@ class OrderBonusSchema(BaseModel):
     store_id: int
     kind: str
     text: Optional[str] = None
+    text_ru: Optional[str] = None
+    text_en: Optional[str] = None
     amount: float = 0.0
 
     class Config:

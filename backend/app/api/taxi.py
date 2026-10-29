@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.database import get_db
-from app.models.schemas import OrderModel, StaffModel
+from app.models.schemas import OrderModel, OrderItemModel, StaffModel
 from app.api.auth import staff_with_role
 from app.api.porter import serialize_order, get_porter_order
 from app.bot.notify import notify_status
@@ -26,7 +26,7 @@ async def list_taxi_orders(taxi: StaffModel = Depends(current_taxi), db: AsyncSe
         .where(OrderModel.status.in_(["handed_over", "on_the_way"]))
         .order_by(OrderModel.id.desc())
         .limit(100)
-        .options(selectinload(OrderModel.items), selectinload(OrderModel.bonuses))
+        .options(selectinload(OrderModel.items).selectinload(OrderItemModel.product), selectinload(OrderModel.bonuses))
     )
     orders = res.scalars().all()
     available = [o for o in orders if o.status == "handed_over" and not o.taxi_phone]

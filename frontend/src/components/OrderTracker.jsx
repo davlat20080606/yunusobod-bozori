@@ -6,6 +6,7 @@ import { triggerHaptic } from '../services/telegram';
 import { formatUnit } from './ProductCard';
 import { slotLabel } from '../services/slots';
 import { fulfillmentLabel, pointName, bonusLabel } from '../services/offers';
+import { stallLabel, itemName } from '../services/stall';
 
 const BAZAAR = { lat: 41.36467, lng: 69.29089 };
 const MY_ORDERS_KEY = 'yunusobod_my_orders';
@@ -219,7 +220,8 @@ function RouteMap({ order }) {
 const card = { background: '#ffffff', borderRadius: 20, padding: 16, marginBottom: 12, boxShadow: '0 1px 4px rgba(15,23,42,0.06)' };
 
 export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrderNotFound }) {
-  const { language } = useLanguage();
+  const { language, t: tr } = useLanguage();
+  const brandName = tr('brand.name');
   const lang = language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz');
   const t = (key) => T[key]?.[lang] || T[key]?.uz || key;
   const st = (status) => STATUS[status] || STATUS.pending;
@@ -444,7 +446,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 800, fontSize: 16 }}>{openOrder.porter_name}</div>
-              <div style={{ fontSize: 13, color: '#64748b' }}>{t('porter')} · Yunusobod Dehqon Bozori</div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>{t('porter')} · {brandName}</div>
             </div>
             {openOrder.porter_phone && isActive && (
               <a href={`tel:${openOrder.porter_phone.replace(/[^\d+]/g, '')}`} style={{ width: 44, height: 44, borderRadius: '50%', background: '#059669', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} aria-label={t('call')}>
@@ -489,7 +491,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
                   <div style={{ width: 22, height: 22, borderRadius: '50%', background: isDone(item) ? '#059669' : (item.seller_ready ? '#a7f3d0' : '#e2e8f0'), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {isDone(item) && <Check size={14} color="#ffffff" />}
                   </div>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#0f172a' }}>{item.product_name}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#0f172a' }}>{itemName(item, lang)}</span>
                   <span style={{ fontSize: 13, color: '#64748b', whiteSpace: 'nowrap' }}>{Number.isInteger(item.quantity) ? item.quantity : item.quantity.toFixed(1)} {formatUnit(item.unit, language)}</span>
                   <span style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap' }}>{Math.round(item.total_price).toLocaleString()}</span>
                 </div>

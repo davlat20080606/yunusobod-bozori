@@ -3,6 +3,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Plus, Minus, Heart } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { triggerHaptic } from '../services/telegram';
+import { stallLabel, itemName } from '../services/stall';
 
 export function formatUnit(unit, language) {
   if (!unit) return '';
@@ -118,7 +119,7 @@ export default function ProductCard({
           {getLocalized(product, 'name')}
         </div>
         <div style={{ fontSize: compact ? 12 : 13, color: '#94a3b8', marginTop: 2 }}>
-          {qtyLabel(min)}{product.stall_number && !compact ? ` · ${product.stall_number}` : ''}
+          {qtyLabel(min)}{product.stall_number && !compact ? ` · ${stallLabel(product.stall_number, language)}` : ''}
         </div>
       </div>
     </article>

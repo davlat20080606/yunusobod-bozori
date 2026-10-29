@@ -34,6 +34,7 @@ async def day_report(db: AsyncSession, day: str) -> dict:
                 "stall_number": s.stall_number,
                 "name_uz": s.name_uz,
                 "name_ru": s.name_ru,
+                "name_en": s.name_en,
                 "owner_name": s.owner_name,
                 "owner_phone": s.owner_phone,
                 "paid": s.id in paid,

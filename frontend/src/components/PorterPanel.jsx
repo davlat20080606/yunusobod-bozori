@@ -7,6 +7,7 @@ import StaffLogin from './StaffLogin';
 import { formatUnit } from './ProductCard';
 import { triggerHaptic } from '../services/telegram';
 import { fulfillmentLabel, pointName } from '../services/offers';
+import { stallLabel, itemName } from '../services/stall';
 
 const T = {
   title: { uz: 'Aravachi kabineti', ru: 'Кабинет аравачи', en: 'Porter Dashboard' },
@@ -266,7 +267,7 @@ export default function PorterPanel({ onBackToMarket }) {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
               {order.stops.map((stop) => (
                 <span key={stop.store_id} style={{ background: '#fef3c7', color: '#92400e', borderRadius: 8, padding: '3px 8px', fontSize: 12, fontWeight: 700 }}>
-                  {stop.stall_number}
+                  {stallLabel(stop.stall_number, language)}
                 </span>
               ))}
             </div>
@@ -357,9 +358,9 @@ function OrderRoute({ t, language, points, order, busy, error, onBack, onToggleP
                 {stopDone ? '✓' : index + 1}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 16, fontWeight: 800, color: '#92400e' }}>{stop.stall_number}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#92400e' }}>{stallLabel(stop.stall_number, language)}</div>
                 <div style={{ fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Store size={14} style={{ flexShrink: 0 }} /> {language === 'ru' ? stop.store_name_ru : stop.store_name_uz}
+                  <Store size={14} style={{ flexShrink: 0 }} /> {stop[`store_name_${language}`] || stop.store_name_uz}
                 </div>
                 <div style={{ fontSize: 13, color: '#64748b' }}>{t('seller')}: {stop.owner_name}</div>
                 {/* Seller's own confirmation, next to the aravachi's ticks */}
@@ -394,7 +395,7 @@ function OrderRoute({ t, language, points, order, busy, error, onBack, onToggleP
                 }}
               >
                 {item.is_picked ? <CheckCircle2 size={24} color="#16a34a" style={{ flexShrink: 0 }} /> : <Circle size={24} color="#94a3b8" style={{ flexShrink: 0 }} />}
-                <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#0f172a', textDecoration: item.is_picked ? 'line-through' : 'none' }}>{item.product_name}</span>
+                <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#0f172a', textDecoration: item.is_picked ? 'line-through' : 'none' }}>{itemName(item, language)}</span>
                 <span style={{ fontSize: 15, fontWeight: 800, color: '#047857', whiteSpace: 'nowrap' }}>{formatQty(item, language)}</span>
               </button>
             ))}
@@ -405,7 +406,7 @@ function OrderRoute({ t, language, points, order, busy, error, onBack, onToggleP
       {order.gifts?.length > 0 && (
         <div style={{ ...card, background: '#f0fdf4', borderColor: '#86efac' }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: '#047857', marginBottom: 4 }}>🎁 {t('gifts')}</div>
-          {order.gifts.map((g) => <div key={`${g.stall_number}-${g.text}`} style={{ fontSize: 14, fontWeight: 700 }}>{g.stall_number}: {g.text}</div>)}
+          {order.gifts.map((g) => <div key={`${g.stall_number}-${g.text}`} style={{ fontSize: 14, fontWeight: 700 }}>{stallLabel(g.stall_number, language)}: {g[`text_${language}`] || g.text}</div>)}
         </div>
       )}
 

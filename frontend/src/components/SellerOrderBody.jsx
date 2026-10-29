@@ -4,6 +4,7 @@ import { triggerHaptic } from '../services/telegram';
 import { formatUnit } from './ProductCard';
 import { fulfillmentLabel, bonusLabel } from '../services/offers';
 import { statusTitle } from './OrderTracker';
+import { stallLabel, itemName } from '../services/stall';
 
 // One order in the seller cabinet: their items, gifts to add, and the "Ready" / "Handed over" confirmations
 export default function SellerOrderBody({ order, language, onChanged }) {
@@ -54,7 +55,7 @@ export default function SellerOrderBody({ order, language, onChanged }) {
       <div style={{ background: 'var(--bg-subtle)', padding: 10, borderRadius: 8, fontSize: 14, marginBottom: 10 }}>
         {items.map((item) => (
           <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 4 }}>
-            <span>{item.seller_handed ? '✅' : (item.seller_ready ? '📦' : '•')} {item.product_name} — {item.quantity} {formatUnit(item.unit, language)}</span>
+            <span>{item.seller_handed ? '✅' : (item.seller_ready ? '📦' : '•')} {itemName(item, lang)} — {item.quantity} {formatUnit(item.unit, language)}</span>
             <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{Math.round(item.total_price).toLocaleString()}</span>
           </div>
         ))}

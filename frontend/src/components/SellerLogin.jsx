@@ -26,14 +26,14 @@ const T = {
 };
 
 const CATEGORIES = [
-  ['shop', '🏪 Magazinchi / Магазин'],
-  ['fruits', '🍇 Mevachi / Фрукты'],
-  ['poliz', '🍉 Polizchi / Бахча'],
-  ['meat', "🥩 Go'shtchi / Мясо"],
-  ['vegetables', '🍅 Sabzavotchi / Овощи'],
-  ['bakery', '🥖 Non / Хлеб'],
-  ['dry_fruits', '🥜 Quruq mevalar / Сухофрукты'],
-  ['dairy', '🧀 Sut mahsulotlari / Молочка'],
+  ['shop', { uz: '🏪 Magazinchi', ru: '🏪 Магазин', en: '🏪 Grocery' }],
+  ['fruits', { uz: '🍇 Mevachi', ru: '🍇 Фрукты', en: '🍇 Fruit' }],
+  ['poliz', { uz: '🍉 Polizchi', ru: '🍉 Бахча', en: '🍉 Melons' }],
+  ['meat', { uz: "🥩 Go'shtchi", ru: '🥩 Мясо', en: '🥩 Meat' }],
+  ['vegetables', { uz: '🍅 Sabzavotchi', ru: '🍅 Овощи', en: '🍅 Vegetables' }],
+  ['bakery', { uz: '🥖 Non', ru: '🥖 Хлеб', en: '🥖 Bakery' }],
+  ['dry_fruits', { uz: '🥜 Quruq mevalar', ru: '🥜 Сухофрукты', en: '🥜 Dried fruit & nuts' }],
+  ['dairy', { uz: '🧀 Sut mahsulotlari', ru: '🧀 Молочка', en: '🧀 Dairy' }],
 ];
 
 const page = {
@@ -138,7 +138,7 @@ export default function SellerLogin({ onSignedIn, onCancel, onOpenPorter }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
             {CATEGORIES.map(([slug, name]) => (
               <button key={slug} type="button" onClick={() => setReg({ ...reg, category_slug: slug })} style={{ padding: '12px 8px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', color: '#ffffff', border: reg.category_slug === slug ? '2px solid #10b981' : '1.5px solid rgba(255,255,255,0.15)', background: reg.category_slug === slug ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)' }}>
-                {name.split(' / ')[language === 'ru' ? 1 : 0]}
+                {name[language] || name.uz}
               </button>
             ))}
           </div>

@@ -5,6 +5,7 @@ import ProductCard from './ProductCard';
 import { triggerHaptic } from '../services/telegram';
 import { api } from '../services/api';
 import { promoLabel } from '../services/offers';
+import { stallLabel, itemName } from '../services/stall';
 
 export default function StoreDetailView({ store, products: propProducts, onBack, onAddToCart, onOpenMediaModal, savedProductIds, onToggleSave }) {
   const { getLocalized, t, language } = useLanguage();
@@ -75,7 +76,7 @@ export default function StoreDetailView({ store, products: propProducts, onBack,
           />
           <div style={{ position: 'absolute', top: '12px', left: '12px', display: 'flex', gap: '8px' }}>
             <span style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700 }}>
-              📍 {store.stall_number}
+              📍 {stallLabel(store.stall_number, language)}
             </span>
             <span style={{ background: store.is_open ? '#10b981' : '#ef4444', padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700 }}>
               {store.is_open ? openText : closedText}

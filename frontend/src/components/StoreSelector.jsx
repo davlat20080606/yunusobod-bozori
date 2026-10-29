@@ -2,9 +2,10 @@ import React from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Star, ChevronRight, User, MapPin } from 'lucide-react';
 import { triggerHaptic } from '../services/telegram';
+import { stallLabel, itemName } from '../services/stall';
 
 export default function StoreSelector({ stores, onSelectStore }) {
-  const { getLocalized, t } = useLanguage();
+  const { getLocalized, t, language } = useLanguage();
 
   return (
     <section className="med-stores-section">
@@ -38,7 +39,7 @@ export default function StoreSelector({ stores, onSelectStore }) {
                 className="med-store-banner-img"
               />
               <div className="med-store-stall-badge">
-                📍 {store.stall_number}
+                📍 {stallLabel(store.stall_number, language)}
               </div>
               <div className={`med-store-open-badge ${store.is_open ? 'open' : 'closed'}`}>
                 {store.is_open ? t('stores.open') : t('stores.closed')}

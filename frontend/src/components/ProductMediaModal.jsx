@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { triggerHaptic } from '../services/telegram';
 import { formatUnit } from './ProductCard';
+import { stallLabel, itemName } from '../services/stall';
 
 export default function ProductMediaModal({ 
   isOpen, 
@@ -96,7 +97,7 @@ export default function ProductMediaModal({
 
 
   const storeName = (language === 'ru' ? product.store_name_ru : (language === 'en' ? product.store_name_en : null)) || product.store_name_uz;
-  const storeLabel = product.stall_number ? `${storeName} (${product.stall_number})` : 'Yunusobod Dehqon Bozori';
+  const storeLabel = product.stall_number ? `${storeName} (${stallLabel(product.stall_number, language)})` : t('brand.name');
 
   return (
     <div className="modal-center-backdrop" onClick={onClose}>
@@ -238,7 +239,7 @@ export default function ProductMediaModal({
                   type="button" 
                   onClick={() => onToggleSave && onToggleSave(product.id)}
                   className={`med-uzum-icon-btn ${isSaved ? 'saved' : ''}`}
-                  title="Saqlash"
+                  title={language === 'ru' ? 'Сохранить' : (language === 'en' ? 'Save' : 'Saqlash')}
                 >
                   <Heart size={16} className={isSaved ? "fill-rose-500 text-rose-500" : "text-slate-500"} />
                 </button>

@@ -4,6 +4,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { api, adminSession } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 import { ROLE_INFO } from './StaffLogin';
+import { stallLabel, itemName } from '../services/stall';
 
 const T = {
   title: { uz: 'Bozorkom kabineti', ru: 'Кабинет базаркома', en: 'Bazaar administration' },
@@ -14,13 +15,13 @@ const T = {
   tabs: {
     uz: ['Umumiy', 'Arizalar', 'Rastalar', 'Xodimlar', 'Buyurtmalar', 'Patta', 'Sozlamalar'],
     ru: ['Обзор', 'Заявки', 'Расты', 'Работники', 'Заказы', 'Патта', 'Настройки'],
-    en: ['Overview', 'Requests', 'Stalls', 'Workers', 'Orders', 'Patta', 'Settings'],
+    en: ['Overview', 'Requests', 'Stalls', 'Workers', 'Orders', 'Stall fees', 'Settings'],
   },
   pending: { uz: 'Yangi arizalar', ru: 'Новые заявки', en: 'New requests' },
   stalls: { uz: 'Faol rastalar', ru: 'Активные расты', en: 'Active stalls' },
   orders24: { uz: 'Buyurtmalar (24 soat)', ru: 'Заказы (24 часа)', en: 'Orders (24h)' },
   revenue: { uz: 'Savdo (24 soat)', ru: 'Продажи (24 часа)', en: 'Sales (24h)' },
-  patta_today: { uz: 'Bugungi patta', ru: 'Патта сегодня', en: 'Patta today' },
+  patta_today: { uz: 'Bugungi patta', ru: 'Патта сегодня', en: 'Stall fees today' },
   radius: { uz: 'Yetkazish radiusi', ru: 'Радиус доставки', en: 'Delivery radius' },
   approve: { uz: 'Tasdiqlash', ru: 'Одобрить', en: 'Approve' },
   reject: { uz: 'Rad etish', ru: 'Отклонить', en: 'Reject' },
@@ -35,7 +36,7 @@ const T = {
   save: { uz: 'Saqlash', ru: 'Сохранить', en: 'Save' },
   saved: { uz: 'Saqlandi', ru: 'Сохранено', en: 'Saved' },
   km: { uz: 'km (bozordan)', ru: 'км (от базара)', en: 'km (from the bazaar)' },
-  patta_amount: { uz: 'Kunlik patta summasi', ru: 'Ежедневная сумма патты', en: 'Daily patta amount' },
+  patta_amount: { uz: 'Kunlik patta summasi', ru: 'Ежедневная сумма патты', en: 'Daily stall fee' },
   support_phone: { uz: 'Yordam telefoni (xaridorlar uchun)', ru: 'Телефон поддержки (для покупателей)', en: 'Help phone (for customers)' },
   porter_fee: { uz: "Aravachi narxi (so'm)", ru: 'Цена аравачи (сум)', en: 'Porter fee (UZS)' },
   taxi_fee: { uz: "Taksi narxi (so'm)", ru: 'Цена такси (сум)', en: 'Taxi fee (UZS)' },
@@ -179,10 +180,10 @@ export default function AdminPanel({ onBackToMarket }) {
   const storeCard = (s) => (
     <div key={`store-${s.id}`} style={card}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-        <b style={{ fontSize: 15 }}>🏪 {s.stall_number}</b>
+        <b style={{ fontSize: 15 }}>🏪 {stallLabel(s.stall_number, language)}</b>
         <span style={pill(STATUS_COLOR[s.status])}>{statusName(s.status)}</span>
       </div>
-      <div style={{ fontSize: 14 }}>{s.name_uz}</div>
+      <div style={{ fontSize: 14 }}>{s[`name_${language}`] || s.name_uz}</div>
       <div style={{ fontSize: 13, color: '#64748b' }}>{s.owner_name} · <a href={`tel:${s.owner_phone.replace(/[^\d+]/g, '')}`} style={{ color: 'inherit' }}>{s.owner_phone}</a> · {categoryName(s.category_slug)}</div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         {statusButtons(s, api.adminStoreStatus)}
@@ -291,7 +292,7 @@ export default function AdminPanel({ onBackToMarket }) {
           {patta.stores.map((s) => (
             <div key={s.store_id} style={{ ...card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, background: s.paid ? '#f0fdf4' : '#ffffff' }}>
               <div style={{ minWidth: 0 }}>
-                <b>{s.stall_number}</b> <span style={{ color: '#64748b', fontSize: 13 }}>{s.owner_name}</span>
+                <b>{stallLabel(s.stall_number, language)}</b> <span style={{ color: '#64748b', fontSize: 13 }}>{s.owner_name}</span>
                 {s.paid && <div style={{ fontSize: 12, color: '#15803d' }}>{s.collector}</div>}
               </div>
               <span style={pill(s.paid ? '#16a34a' : '#dc2626')}>{s.paid ? `${t('paid')} · ${Math.round(s.amount).toLocaleString()}` : t('not_paid')}</span>

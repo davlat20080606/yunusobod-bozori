@@ -834,6 +834,10 @@ async def init_db_and_seed():
         for col, col_type in [("amount", "FLOAT"), ("gift_product_id", "INTEGER"), ("gift_qty", "FLOAT")]:
             if col not in promo_cols:
                 await conn.exec_driver_sql(f"ALTER TABLE promos ADD COLUMN {col} {col_type}")
+        bonus_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("order_bonuses")})
+        for col in ("text_ru", "text_en"):
+            if col not in bonus_cols:
+                await conn.exec_driver_sql(f"ALTER TABLE order_bonuses ADD COLUMN {col} VARCHAR(200)")
         item_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("order_items")})
         for col in ("seller_ready", "seller_handed"):
             if col not in item_cols:

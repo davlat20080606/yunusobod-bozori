@@ -21,7 +21,9 @@ router = APIRouter(prefix="/api/orders", tags=["orders"])
 
 
 def load_order(where):
-    return select(OrderModel).where(where).options(selectinload(OrderModel.items), selectinload(OrderModel.bonuses))
+    return select(OrderModel).where(where).options(
+        selectinload(OrderModel.items).selectinload(OrderItemModel.product), selectinload(OrderModel.bonuses)
+    )
 
 
 @router.post("/quote")
@@ -111,7 +113,8 @@ async def create_order(
     for item_data in order_items_to_create:
         db.add(OrderItemModel(order_id=new_order.id, is_picked=False, **item_data))
     for bonus in quote["bonuses"]:
-        db.add(OrderBonusModel(order_id=new_order.id, store_id=bonus["store_id"], kind=bonus["kind"], text=bonus["text"], amount=bonus["amount"]))
+        db.add(OrderBonusModel(order_id=new_order.id, store_id=bonus["store_id"], kind=bonus["kind"], text=bonus["text"],
+                               text_ru=bonus.get("text_ru"), text_en=bonus.get("text_en"), amount=bonus["amount"]))
 
     store_ids = set([i["store_id"] for i in order_items_to_create])
     for s_id in store_ids:

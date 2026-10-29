@@ -22,7 +22,7 @@ admin_only = [Depends(current_admin)]
 
 def store_public(s: StoreModel) -> dict:
     return {
-        "id": s.id, "name_uz": s.name_uz, "name_ru": s.name_ru, "stall_number": s.stall_number,
+        "id": s.id, "name_uz": s.name_uz, "name_ru": s.name_ru, "name_en": s.name_en, "stall_number": s.stall_number,
         "owner_name": s.owner_name, "owner_phone": s.owner_phone, "category_slug": s.category_slug,
         "status": s.status, "is_open": s.is_open,
         "created_at": s.created_at.isoformat() if s.created_at else None,

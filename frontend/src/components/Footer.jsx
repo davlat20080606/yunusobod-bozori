@@ -6,30 +6,40 @@ import { Phone, Clock, MapPin, Send, ShieldCheck, ShoppingBag, Sparkles } from '
 const PHOTO_CREDITS = [
   {
     "what": "Go'shtli Tandir Somsa (Varaqi)",
+    "what_ru": "Самса с мясом из тандыра (Слоеная)",
+    "what_en": "Tandoor Flaky Meat Somsa",
     "author": "Davide Mauro",
     "license": "CC BY-SA 4.0",
     "url": "https://commons.wikimedia.org/wiki/File:Samsa_of_Khiva.jpg"
   },
   {
     "what": "Quva Qizil Shirin Anori",
+    "what_ru": "Сладкий гранат из Кувы (Рубиновый)",
+    "what_en": "Quva Sweet Red Pomegranate",
     "author": "Ivar Leidus",
     "license": "CC BY-SA 4.0",
     "url": "https://commons.wikimedia.org/wiki/File:Pomegranate_fruit_-_whole_and_piece_with_arils.jpg"
   },
   {
     "what": "Haqiqiy Choyxona Oshi Seti (10-15 kishilik Maxsus To'plam)",
+    "what_ru": "Набор для Настоящего Чайханского Плова (на 10-15 человек)",
+    "what_en": "Authentic Choyxona Plov Master Set (10-15 servings)",
     "author": "Adam Harangozó",
     "license": "CC BY-SA 4.0",
     "url": "https://commons.wikimedia.org/wiki/File:Central_Asian_Plov_Centre_in_Tashkent.jpg"
   },
   {
     "what": "Shohona Palov & Qazi VIP To'plami (5-7 kishilik)",
+    "what_ru": "Шахский Плов & Казы VIP Сет (на 5-7 человек)",
+    "what_en": "Royal Plov & Qazi VIP Set",
     "author": "赤猫法師",
     "license": "CC BY-SA 4.0",
     "url": "https://commons.wikimedia.org/wiki/File:Uzbekistan_style_plov_in_Japan.jpg"
   },
   {
     "what": "Toza Suzma / Chaqqa (Sho'r & Mayin)",
+    "what_ru": "Натуральная сузьма / чакка (Свежая)",
+    "what_en": "Organic Suzma / Strained Fresh Yogurt",
     "author": "Leslie Seaton from Seattle, WA, USA",
     "license": "CC BY 2.0",
     "url": "https://commons.wikimedia.org/wiki/File:Labneh_(5196911587).jpg"
@@ -169,7 +179,7 @@ export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateS
           <ul style={{ margin: '6px 0 0', paddingLeft: 16, lineHeight: 1.6 }}>
             {PHOTO_CREDITS.map((c) => (
               <li key={c.url}>
-                {c.what}: <a href={c.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>{c.author}</a>, {c.license} (Wikimedia Commons)
+                {c[`what_${language}`] || c.what}: <a href={c.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>{c.author}</a>, {c.license} (Wikimedia Commons)
               </li>
             ))}
           </ul>

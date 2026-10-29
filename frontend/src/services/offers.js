@@ -26,7 +26,7 @@ export function bonusLabel(b, lang) {
   if (b.kind === 'covers_taxi' || b.kind === 'free_taxi') return `🚕 ${pick(lang, "Taksi to'lovi qoplandi", 'Такси оплачено', 'Taxi paid')}`;
   if (b.kind === 'covers_porter') return `🛒 ${pick(lang, "Aravachi to'lovi qoplandi", 'Аравачи оплачен', 'Porter paid')}`;
   if (b.kind === 'delivery_discount') return `💰 ${pick(lang, 'Yetkazish bonusi → chegirma', 'Бонус доставки → скидка', 'Delivery bonus → discount')}`;
-  return `🎁 ${b.text}`;
+  return `🎁 ${b[`text_${lang}`] || b.text}`;
 }
 
 // "From 400 000 so'm — free taxi" for a stall's offer

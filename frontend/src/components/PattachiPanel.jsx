@@ -4,6 +4,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { api, staffSession } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 import StaffLogin from './StaffLogin';
+import { stallLabel, itemName } from '../services/stall';
 
 const T = {
   title: { uz: 'Pattachi kabineti', ru: 'Кабинет паттачи', en: 'Fee collector' },
@@ -85,8 +86,8 @@ export default function PattachiPanel({ onBackToMarket }) {
     <div key={s.store_id} style={{ ...card, display: 'flex', alignItems: 'center', gap: 10, background: s.paid ? '#f0fdf4' : '#ffffff', borderColor: s.paid ? '#bbf7d0' : '#e2e8f0' }}>
       {s.paid ? <CheckCircle2 size={26} color="#16a34a" style={{ flexShrink: 0 }} /> : <Circle size={26} color="#cbd5e1" style={{ flexShrink: 0 }} />}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 800, fontSize: 15 }}>{s.stall_number}</div>
-        <div style={{ fontSize: 13, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.owner_name} · {lang === 'ru' ? s.name_ru : s.name_uz}</div>
+        <div style={{ fontWeight: 800, fontSize: 15 }}>{stallLabel(s.stall_number, lang)}</div>
+        <div style={{ fontSize: 13, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.owner_name} · {s[`name_${lang}`] || s.name_uz}</div>
         {s.paid && <div style={{ fontSize: 12, color: '#15803d' }}>{Math.round(s.amount).toLocaleString()} UZS · {s.collector}</div>}
       </div>
       <a href={`tel:${(s.owner_phone || '').replace(/[^\d+]/g, '')}`} aria-label="call" style={{ width: 38, height: 38, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

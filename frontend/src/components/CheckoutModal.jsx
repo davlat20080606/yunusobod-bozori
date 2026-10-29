@@ -8,6 +8,7 @@ import MapPicker, { distanceKm } from './MapPicker';
 import { getCurrentPosition, reverseGeocode, loadAddresses, rememberAddress } from '../services/location';
 import { ClickLogo, PaymeLogo } from './PaymentLogos';
 import { FULFILLMENTS, pointName, bonusLabel, hintLabel } from '../services/offers';
+import { stallLabel, itemName } from '../services/stall';
 
 export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', grandTotal, onSubmitOrder, onOrderSuccess, pickerNotes = '' }) {
   const { t, language } = useLanguage();
@@ -172,10 +173,10 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
       delivery_address: !isCourier ? null : [
         place?.main,
         place?.details,
-        entrance && `${language === 'ru' ? 'подъезд' : 'podyezd'} ${entrance}`,
-        floor && `${language === 'ru' ? 'этаж' : 'qavat'} ${floor}`,
-        apartment && `${language === 'ru' ? 'кв.' : 'xonadon'} ${apartment}`,
-        doorPhone && `${language === 'ru' ? 'домофон' : 'domofon'} ${doorPhone}`,
+        entrance && `${tr('podyezd', 'подъезд', 'entrance')} ${entrance}`,
+        floor && `${tr('qavat', 'этаж', 'floor')} ${floor}`,
+        apartment && `${tr('xonadon', 'кв.', 'apt')} ${apartment}`,
+        doorPhone && `${tr('domofon', 'домофон', 'door phone')} ${doorPhone}`,
       ].filter(Boolean).join(', '),
       landmark: (isCourier && landmark.trim()) || null,
       delivery_time_slot: timeSlot,
@@ -184,7 +185,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
       delivery_lng: isCourier ? (deliveryCoords?.lng ?? null) : null,
       notes: [
         notes || pickerNotes,
-        isCourier && leaveAtDoor && (language === 'ru' ? 'Оставить у двери' : "Eshik oldiga qoldirish"),
+        isCourier && leaveAtDoor && tr('Eshik oldiga qoldirish', 'Оставить у двери', 'Leave at the door'),
       ].filter(Boolean).join(' · ') || null,
       items: cart.map(i => ({
         product_id: i.product.id,
@@ -215,7 +216,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
         onClose();
       }
     } catch (err) {
-      setError(err.message || 'Xatolik yuz berdi');
+      setError(err.message || (language === 'ru' ? 'Произошла ошибка' : (language === 'en' ? 'Something went wrong' : 'Xatolik yuz berdi')));
       triggerHaptic('error');
     } finally {
       setLoading(false);
@@ -299,7 +300,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                 'Sellers pack your order. When you get the "Ready" message, collect it at the stalls.'
               )}
               <div style={{ marginTop: 6, fontWeight: 700 }}>
-                🏪 {[...new Set(cart.map((i) => i.product.stall_number).filter(Boolean))].join(', ')}
+                🏪 {[...new Set(cart.map((i) => i.product.stall_number).filter(Boolean))].map((x) => stallLabel(x, lang)).join(', ')}
               </div>
             </div>
           )}
@@ -455,14 +456,14 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
               quote && quote.taxi_fee > 0 ? [tr('Taksi', 'Такси', 'Taxi'), `${Math.round(quote.taxi_fee).toLocaleString()} ${cur}`] : null,
               !quote ? [tr('Yetkazish', 'Доставка', 'Delivery'), `${Math.round(deliveryFee).toLocaleString()} ${cur}`] : null,
               quote && fulfillment === 'self' ? [tr('Yetkazish', 'Доставка', 'Delivery'), tr('Yo\'q', 'Нет', 'None')] : null,
-              ...stallDiscounts.map((b) => [`${bonusLabel(b, lang)} · ${b.stall_number}`, `−${Math.round(b.amount).toLocaleString()} ${cur}`, '#047857']),
+              ...stallDiscounts.map((b) => [`${bonusLabel(b, lang)} · ${stallLabel(b.stall_number, lang)}`, `−${Math.round(b.amount).toLocaleString()} ${cur}`, '#047857']),
             ].filter(Boolean).map(([label, value, color]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, padding: '6px 0' }}>
                 <span>{label}</span><span style={{ color: color || '#0f172a' }}>{value}</span>
               </div>
             ))}
             {gifts.map((b) => (
-              <div key={`${b.store_id}-${b.text}`} style={{ fontSize: 15, padding: '6px 0', color: '#047857', fontWeight: 700 }}>{bonusLabel(b, lang)} · {b.stall_number}</div>
+              <div key={`${b.store_id}-${b.text}`} style={{ fontSize: 15, padding: '6px 0', color: '#047857', fontWeight: 700 }}>{bonusLabel(b, lang)} · {stallLabel(b.stall_number, lang)}</div>
             ))}
             {(quote?.hints || []).map((hint) => (
               <div key={`${hint.store_id}-${hint.kind}`} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 14, background: '#f0fdf4', color: '#166534', fontSize: 13, fontWeight: 600 }}>

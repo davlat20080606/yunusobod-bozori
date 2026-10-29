@@ -15,6 +15,17 @@ from app.models.schemas import ProductModel, StoreModel, PromoModel
 from app.services.config_store import get_setting
 
 
+# Units as stored on products, shown in the customer's language
+UNITS = {
+    "ru": {"kg": "кг", "dona": "шт.", "bog'lam": "пучок", "to'plam (сет)": "набор", "to'plam": "набор", "litr": "л"},
+    "en": {"kg": "kg", "dona": "pcs", "bog'lam": "bunch", "to'plam (сет)": "set", "to'plam": "set", "litr": "l"},
+}
+
+
+def unit_in(lang: str, unit: str) -> str:
+    return UNITS.get(lang, {}).get(unit or "", unit or "")
+
+
 def delivery_value(promo: PromoModel, taxi_fee: float) -> float:
     # "free_taxi" offers made before delivery bonuses had a value are worth one taxi ride
     return float(promo.amount or (taxi_fee if promo.kind == "free_taxi" else 0))
@@ -77,7 +88,12 @@ async def compute_quote(db: AsyncSession, items: List, fulfillment: str) -> dict
                     "product_id": gift_prod.id, "store_id": store_id, "product_name": f"🎁 {gift_prod.name_uz}",
                     "price": 0.0, "quantity": qty, "unit": gift_prod.unit, "total_price": 0.0,
                 })
-                bonuses.append({"store_id": store_id, "kind": "gift", "text": f"{gift_prod.name_uz} · {qty:g} {gift_prod.unit}", "amount": 0.0})
+                bonuses.append({
+                    "store_id": store_id, "kind": "gift", "amount": 0.0,
+                    "text": f"{gift_prod.name_uz} · {qty:g} {gift_prod.unit}",
+                    "text_ru": f"{gift_prod.name_ru or gift_prod.name_uz} · {qty:g} {unit_in('ru', gift_prod.unit)}",
+                    "text_en": f"{gift_prod.name_en or gift_prod.name_uz} · {qty:g} {unit_in('en', gift_prod.unit)}",
+                })
             elif best.gift_text:
                 bonuses.append({"store_id": store_id, "kind": "gift", "text": best.gift_text, "amount": 0.0})
         deliveries = [p for p in reached if p.kind in ("delivery", "free_taxi")]

@@ -34,6 +34,7 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
             "store_id": item.store_id,
             "store_name_uz": store.name_uz if store else "",
             "store_name_ru": store.name_ru if store else "",
+            "store_name_en": store.name_en if store else "",
             "stall_number": store.stall_number if store else "",
             "owner_name": store.owner_name if store else "",
             "owner_phone": store.owner_phone if store else "",
@@ -42,6 +43,8 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
         stop["items"].append({
             "id": item.id,
             "product_name": item.product_name,
+            "product_name_ru": item.product_name_ru,
+            "product_name_en": item.product_name_en,
             "quantity": item.quantity,
             "unit": item.unit,
             "total_price": item.total_price,
@@ -77,7 +80,8 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
         "handoff_point": order.handoff_point,
         # Gifts must travel with the order, so the aravachi collects them too
         "gifts": [
-            {"text": b.text, "stall_number": stores[b.store_id].stall_number if b.store_id in stores else ""}
+            {"text": b.text, "text_ru": b.text_ru, "text_en": b.text_en,
+             "stall_number": stores[b.store_id].stall_number if b.store_id in stores else ""}
             for b in order.bonuses if b.kind == "gift"
         ],
         "created_at": order.created_at.isoformat() if order.created_at else None,
@@ -89,7 +93,7 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
 
 async def get_porter_order(order_id: int, db: AsyncSession) -> OrderModel:
     res = await db.execute(
-        select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items), selectinload(OrderModel.bonuses))
+        select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items).selectinload(OrderItemModel.product), selectinload(OrderModel.bonuses))
     )
     order = res.scalars().first()
     if not order:
@@ -110,7 +114,7 @@ async def list_porter_orders(porter: StaffModel = Depends(current_porter), db: A
         .where(OrderModel.status.in_(OPEN_STATUSES + ACTIVE_STATUSES))
         .order_by(OrderModel.id.desc())
         .limit(100)
-        .options(selectinload(OrderModel.items), selectinload(OrderModel.bonuses))
+        .options(selectinload(OrderModel.items).selectinload(OrderItemModel.product), selectinload(OrderModel.bonuses))
     )
     orders = res.scalars().all()
     # Self-pickup orders never need an aravachi

@@ -5,6 +5,7 @@ import { api, staffSession } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 import StaffLogin from './StaffLogin';
 import { pointName } from '../services/offers';
+import { stallLabel, itemName } from '../services/stall';
 
 const T = {
   title: { uz: 'Taksichi kabineti', ru: 'Кабинет таксиста', en: 'Taxi dashboard' },
@@ -134,7 +135,7 @@ export default function TaxiPanel({ onBackToMarket }) {
             </div>
             <div style={{ fontSize: 13, color: '#475569', marginBottom: 6 }}>
               🛒 {o.porter_name} — {o.handoff_point ? `📍 ${pointName(points, o.handoff_point, language)}` : t('at_gate')} · {o.items_count} {t('items')}
-              {o.gifts?.length > 0 && <div style={{ color: '#047857', fontWeight: 700 }}>🎁 {o.gifts.map((g) => g.text).join(', ')}</div>}
+              {o.gifts?.length > 0 && <div style={{ color: '#047857', fontWeight: 700 }}>🎁 {o.gifts.map((g) => g[`text_${language}`] || g.text).join(', ')}</div>}
             </div>
             <div style={{ fontSize: 14, color: '#0f172a', marginBottom: 6, display: 'flex', gap: 4 }}>
               <MapPin size={15} style={{ flexShrink: 0, marginTop: 2 }} />

@@ -5,6 +5,7 @@ import { triggerHaptic } from '../services/telegram';
 import ProductCard, { formatUnit } from './ProductCard';
 import { api } from '../services/api';
 import { bonusLabel, hintLabel } from '../services/offers';
+import { stallLabel, itemName } from '../services/stall';
 
 // Full-screen cart like Yandex Go: items, note, "Anything else?", floating Checkout
 export default function CartDrawer({ isOpen, onClose, cart, onUpdateQuantity, onClearCart, onCheckout, pickerNotes, setPickerNotes, products = [], onOpenProduct }) {
@@ -91,7 +92,7 @@ export default function CartDrawer({ isOpen, onClose, cart, onUpdateQuantity, on
                     <img src={product.image_url} alt="" onClick={() => onOpenProduct?.(product)} style={{ width: 64, height: 64, borderRadius: 14, objectFit: 'cover', background: '#f1f5f9', flexShrink: 0, cursor: 'pointer' }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{getLocalized(product, 'name')}</div>
-                      {product.stall_number && <div style={{ fontSize: 12, color: '#94a3b8' }}>{product.stall_number}</div>}
+                      {product.stall_number && <div style={{ fontSize: 12, color: '#94a3b8' }}>{stallLabel(product.stall_number, language)}</div>}
                       <div style={{ fontSize: 14, marginTop: 2 }}>
                         <b style={{ color: old ? '#047857' : '#0f172a' }}>{Math.round(product.price * quantity).toLocaleString()} {cur}</b>
                         {old && <s style={{ color: '#94a3b8', marginLeft: 6, fontSize: 12 }}>{Math.round(old).toLocaleString()}</s>}
@@ -147,7 +148,7 @@ export default function CartDrawer({ isOpen, onClose, cart, onUpdateQuantity, on
             <div style={{ padding: '18px 16px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(quote?.bonuses || []).map((b) => (
                 <div key={`${b.store_id}-${b.kind}`} style={{ padding: '10px 12px', borderRadius: 14, background: '#ecfdf5', color: '#047857', fontSize: 14, fontWeight: 700, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                  <span>{bonusLabel(b, lang)} · {b.stall_number}</span>
+                  <span>{bonusLabel(b, lang)} · {stallLabel(b.stall_number, lang)}</span>
                   {b.amount > 0 && <span style={{ whiteSpace: 'nowrap' }}>−{Math.round(b.amount).toLocaleString()}</span>}
                 </div>
               ))}
