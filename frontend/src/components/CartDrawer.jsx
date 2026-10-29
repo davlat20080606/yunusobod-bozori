@@ -145,16 +145,17 @@ export default function CartDrawer({ isOpen, onClose, cart, onUpdateQuantity, on
             )}
 
             <div style={{ padding: '18px 16px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {(quote?.bonuses || []).filter((b, i, all) => b.kind !== 'free_taxi' || all.findIndex((x) => x.kind === 'free_taxi') === i).map((b) => (
-                <div key={`${b.store_id}-${b.kind}`} style={{ padding: '10px 12px', borderRadius: 14, background: '#ecfdf5', color: '#047857', fontSize: 14, fontWeight: 700 }}>
-                  {bonusLabel(b, lang)}{b.kind !== 'free_taxi' && b.stall_number ? ` · ${b.stall_number}` : ''}
+              {(quote?.bonuses || []).map((b) => (
+                <div key={`${b.store_id}-${b.kind}`} style={{ padding: '10px 12px', borderRadius: 14, background: '#ecfdf5', color: '#047857', fontSize: 14, fontWeight: 700, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <span>{bonusLabel(b, lang)} · {b.stall_number}</span>
+                  {b.amount > 0 && <span style={{ whiteSpace: 'nowrap' }}>−{Math.round(b.amount).toLocaleString()}</span>}
                 </div>
               ))}
               {(quote?.hints || []).map((h) => (
                 <div key={`${h.store_id}-${h.kind}`} style={{ padding: '10px 12px', borderRadius: 14, background: '#f0fdf4', color: '#166534', fontSize: 13, fontWeight: 600 }}>💡 {hintLabel(h, lang)}</div>
               ))}
               <div style={{ fontSize: 13, color: '#64748b' }}>
-                {lang === 'ru' ? 'Доставка домой' : (lang === 'en' ? 'Home delivery' : 'Uyga yetkazish')}: {quote ? (quote.taxi_free ? `${Math.round(quote.delivery_fee).toLocaleString()} ${cur} (${lang === 'ru' ? 'такси бесплатно' : (lang === 'en' ? 'taxi free' : 'taksi bepul')})` : `${Math.round(quote.delivery_fee).toLocaleString()} ${cur}`) : '…'}
+                {lang === 'ru' ? 'Доставка домой' : (lang === 'en' ? 'Home delivery' : 'Uyga yetkazish')}: {quote ? `${Math.round(quote.delivery_fee).toLocaleString()} ${cur}` : '…'}
                 {' · '}{lang === 'ru' ? 'самовывоз бесплатно' : (lang === 'en' ? 'pickup is free' : "o'zingiz olsangiz bepul")}
               </div>
             </div>

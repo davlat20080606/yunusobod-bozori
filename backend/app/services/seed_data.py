@@ -830,6 +830,10 @@ async def init_db_and_seed():
                          ("discount_amount", "FLOAT DEFAULT 0"), ("customer_confirmed_at", datetime_type)]:
             if col not in cols:
                 await conn.exec_driver_sql(f"ALTER TABLE orders ADD COLUMN {col} {col_type}")
+        promo_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("promos")})
+        for col, col_type in [("amount", "FLOAT"), ("gift_product_id", "INTEGER"), ("gift_qty", "FLOAT")]:
+            if col not in promo_cols:
+                await conn.exec_driver_sql(f"ALTER TABLE promos ADD COLUMN {col} {col_type}")
         item_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("order_items")})
         for col in ("seller_ready", "seller_handed"):
             if col not in item_cols:

@@ -4,12 +4,12 @@ import { api } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 import { promoLabel } from '../services/offers';
 
-// A stall's offers for big orders: discount, free taxi or a gift
-export default function SellerPromos({ language }) {
+// A stall's offers for big orders: delivery bonus, discount or a gift product
+export default function SellerPromos({ language, products = [] }) {
   const lang = language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz');
   const tr = (uz, ru, en) => (lang === 'ru' ? ru : (lang === 'en' ? en : uz));
   const [promos, setPromos] = useState([]);
-  const [form, setForm] = useState({ kind: 'free_taxi', min_amount: '400000', percent: '5', gift_text: '' });
+  const [form, setForm] = useState({ kind: 'delivery', min_amount: '450000', amount: '18000', percent: '5', gift_product_id: '', gift_qty: '1' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,10 +23,11 @@ export default function SellerPromos({ language }) {
         kind: form.kind,
         min_amount: Number(String(form.min_amount).replace(/\D/g, '')),
         percent: form.kind === 'discount' ? Number(form.percent) : null,
-        gift_text: form.kind === 'gift' ? form.gift_text : null,
+        amount: form.kind === 'delivery' ? Number(String(form.amount).replace(/\D/g, '')) : null,
+        gift_product_id: form.kind === 'gift' && form.gift_product_id ? Number(form.gift_product_id) : null,
+        gift_qty: form.kind === 'gift' ? Number(form.gift_qty) || 1 : null,
       });
       setPromos((prev) => [...prev, promo].sort((a, b) => a.min_amount - b.min_amount));
-      setForm((f) => ({ ...f, gift_text: '' }));
       triggerHaptic('success');
     } catch (e) {
       setError(e.message);
@@ -44,7 +45,7 @@ export default function SellerPromos({ language }) {
 
   const input = { height: 44, borderRadius: 12, border: '1.5px solid #e2e8f0', padding: '0 12px', fontSize: 15, minWidth: 0, boxSizing: 'border-box', background: '#ffffff' };
   const kinds = [
-    ['free_taxi', tr('🚕 Bepul taksi', '🚕 Бесплатное такси', '🚕 Free taxi')],
+    ['delivery', tr('🚚 Yetkazish bonusi', '🚚 Бонус на доставку', '🚚 Delivery bonus')],
     ['discount', tr('🏷 Chegirma %', '🏷 Скидка %', '🏷 Discount %')],
     ['gift', tr("🎁 Sovg'a", '🎁 Подарок', '🎁 Gift')],
   ];
@@ -54,9 +55,9 @@ export default function SellerPromos({ language }) {
       <h3 style={{ margin: '0 0 4px', fontSize: 18 }}>🎁 {tr('Aksiyalar', 'Акции', 'Offers')}</h3>
       <p style={{ margin: '0 0 12px', fontSize: 13, color: '#64748b' }}>
         {tr(
-          "Xaridor sizdan shu summadan ko'p olsa, bonus avtomatik qo'shiladi. Bir buyurtmaga bitta taksi: bir nechta rasta bersa, narxini teng bo'lishasiz.",
-          'Если покупатель берёт у вас на эту сумму, бонус добавится сам. Одно такси на заказ: если его дают несколько раст, цену делите поровну.',
-          'When a customer buys this much from you, the bonus is added automatically. One taxi per order: if several stalls offer it, you split its cost.'
+          "Xaridor sizdan shu summadan ko'p olsa, bonus o'zi qo'shiladi. Yetkazish bonusi avval taksini, keyin aravachini to'laydi, qolgani chegirma bo'ladi — bonus yo'qolmaydi.",
+          'Если покупатель берёт у вас на эту сумму, бонус добавится сам. Бонус на доставку сначала оплачивает такси, потом аравачи, остаток идёт в скидку — бонус не пропадает.',
+          'When a customer buys this much from you, the bonus is added automatically. A delivery bonus pays the taxi first, then the porter, and the rest becomes a discount.'
         )}
       </p>
 
@@ -72,11 +73,17 @@ export default function SellerPromos({ language }) {
           <button key={id} type="button" onClick={() => setForm((f) => ({ ...f, kind: id }))} style={{ padding: '8px 12px', borderRadius: 999, border: form.kind === id ? '2px solid #059669' : '1.5px solid #e2e8f0', background: form.kind === id ? '#ecfdf5' : '#ffffff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{label}</button>
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: form.kind === 'free_taxi' ? '1fr auto' : '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
-        <label style={{ fontSize: 12, color: '#64748b', minWidth: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: form.kind === 'gift' ? '1fr 72px' : '1fr 1fr', gap: 8, alignItems: 'end' }}>
+        <label style={{ fontSize: 12, color: '#64748b', minWidth: 0, gridColumn: form.kind === 'gift' ? '1 / -1' : undefined }}>
           {tr('Summadan (so\'m)', 'От суммы (сум)', 'From (UZS)')}
           <input inputMode="numeric" value={form.min_amount} onChange={(e) => setForm((f) => ({ ...f, min_amount: e.target.value }))} style={{ ...input, width: '100%', display: 'block', marginTop: 4 }} />
         </label>
+        {form.kind === 'delivery' && (
+          <label style={{ fontSize: 12, color: '#64748b', minWidth: 0 }}>
+            {tr("Bonus (so'm)", 'Бонус (сум)', 'Bonus (UZS)')}
+            <input inputMode="numeric" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} style={{ ...input, width: '100%', display: 'block', marginTop: 4 }} />
+          </label>
+        )}
         {form.kind === 'discount' && (
           <label style={{ fontSize: 12, color: '#64748b', minWidth: 0 }}>
             %
@@ -84,15 +91,24 @@ export default function SellerPromos({ language }) {
           </label>
         )}
         {form.kind === 'gift' && (
-          <label style={{ fontSize: 12, color: '#64748b', minWidth: 0 }}>
-            {tr("Sovg'a", 'Подарок', 'Gift')}
-            <input value={form.gift_text} maxLength={150} placeholder={tr('1 kg sabzi', '1 кг моркови', '1 kg carrots')} onChange={(e) => setForm((f) => ({ ...f, gift_text: e.target.value }))} style={{ ...input, width: '100%', display: 'block', marginTop: 4 }} />
-          </label>
+          <>
+            <label style={{ fontSize: 12, color: '#64748b', minWidth: 0 }}>
+              {tr("Sovg'a mahsulot (0 so'm)", 'Товар-подарок (0 сум)', 'Gift product (0 UZS)')}
+              <select value={form.gift_product_id} onChange={(e) => setForm((f) => ({ ...f, gift_product_id: e.target.value }))} style={{ ...input, width: '100%', display: 'block', marginTop: 4 }}>
+                <option value="">{tr('Tanlang…', 'Выберите…', 'Choose…')}</option>
+                {products.map((p) => <option key={p.id} value={p.id}>{p.name_uz}</option>)}
+              </select>
+            </label>
+            <label style={{ fontSize: 12, color: '#64748b', minWidth: 0 }}>
+              {tr('Soni', 'Кол-во', 'Qty')}
+              <input inputMode="decimal" value={form.gift_qty} onChange={(e) => setForm((f) => ({ ...f, gift_qty: e.target.value.replace(/[^\d.]/g, '') }))} style={{ ...input, width: '100%', display: 'block', marginTop: 4 }} />
+            </label>
+          </>
         )}
-        <button type="button" onClick={add} disabled={busy} style={{ height: 44, padding: '0 16px', borderRadius: 12, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, cursor: 'pointer', opacity: busy ? 0.6 : 1 }}>
-          + {tr("Qo'shish", 'Добавить', 'Add')}
-        </button>
       </div>
+      <button type="button" onClick={add} disabled={busy || (form.kind === 'gift' && !form.gift_product_id)} style={{ width: '100%', height: 44, marginTop: 8, borderRadius: 12, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, cursor: 'pointer', opacity: busy || (form.kind === 'gift' && !form.gift_product_id) ? 0.6 : 1 }}>
+        + {tr("Aksiya qo'shish", 'Добавить акцию', 'Add offer')}
+      </button>
       {error && <div style={{ marginTop: 8, color: '#b91c1c', fontSize: 13, fontWeight: 600 }}>⚠️ {error}</div>}
     </div>
   );

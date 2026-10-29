@@ -59,6 +59,7 @@ async def list_public_promos(db: AsyncSession = Depends(get_db)):
     """Active stall offers, shown on stall pages: "from 400 000 so'm — free taxi"."""
     res = await db.execute(select(PromoModel).where(PromoModel.is_active.is_(True)).order_by(PromoModel.min_amount))
     return [
-        {"store_id": p.store_id, "kind": p.kind, "min_amount": p.min_amount, "percent": p.percent, "gift_text": p.gift_text}
+        {"store_id": p.store_id, "kind": p.kind, "min_amount": p.min_amount, "percent": p.percent,
+         "amount": p.amount, "gift_text": p.gift_text, "gift_qty": p.gift_qty}
         for p in res.scalars().all()
     ]

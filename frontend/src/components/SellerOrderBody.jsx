@@ -66,7 +66,7 @@ export default function SellerOrderBody({ order, language, onChanged }) {
       {/* What this stall gives for its offers: its discount, or its share of the free taxi */}
       {costs.map((b) => (
         <div key={b.kind} style={{ fontSize: 13, color: '#92400e', background: '#fffbeb', borderRadius: 8, padding: '6px 10px', marginBottom: 8 }}>
-          {bonusLabel(b, lang)}{b.kind === 'free_taxi' && b.text ? ` (${b.text})` : ''}: {tr('sizdan', 'с вас', 'you give')} {Math.round(b.amount).toLocaleString()} {cur}
+          {bonusLabel(b, lang)}: {tr('sizdan', 'с вас', 'you give')} {Math.round(b.amount).toLocaleString()} {cur}
         </div>
       ))}
 

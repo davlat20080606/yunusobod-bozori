@@ -373,7 +373,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
     const isDone = (i) => (mode === 'self' ? i.seller_handed : i.is_picked);
     const picked = items.filter(isDone).length;
     const canConfirm = RECEIVABLE[mode]?.includes(openOrder.status) && !openOrder.customer_confirmed_at;
-    const bonuses = (openOrder.bonuses || []).filter((b, i, all) => b.kind !== 'free_taxi' || all.findIndex((x) => x.kind === 'free_taxi') === i);
+    const bonuses = openOrder.bonuses || [];
     const pointLabel = pointName(points, openOrder.handoff_point, lang);
     const eta = etaText(openOrder, lang);
     const isActive = ACTIVE_STATUSES.includes(openOrder.status);
@@ -546,7 +546,10 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
           <div style={card}>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>{t('bonuses')}</div>
             {bonuses.map((b) => (
-              <div key={`${b.store_id}-${b.kind}`} style={{ fontSize: 14, fontWeight: 700, color: '#047857', padding: '3px 0' }}>{bonusLabel(b, lang)}</div>
+              <div key={`${b.store_id}-${b.kind}`} style={{ fontSize: 14, fontWeight: 700, color: '#047857', padding: '3px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <span>{bonusLabel(b, lang)}</span>
+                {b.amount > 0 && <span style={{ whiteSpace: 'nowrap' }}>−{Math.round(b.amount).toLocaleString()}</span>}
+              </div>
             ))}
           </div>
         )}

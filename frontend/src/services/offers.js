@@ -20,10 +20,12 @@ export function pointName(points, id, lang) {
 
 const money = (n, lang) => `${Math.round(n).toLocaleString()} ${pick(lang, "so'm", 'сум', 'UZS')}`;
 
-// "🚕 Free taxi", "−5%", "🎁 1 kg carrots" for a bonus an order got
+// What an order got from a stall: "−5%", "Taxi paid by the stall", "🎁 1 kg carrots"
 export function bonusLabel(b, lang) {
   if (b.kind === 'discount') return `🏷 ${pick(lang, 'Chegirma', 'Скидка', 'Discount')} ${b.text || ''}`.trim();
-  if (b.kind === 'free_taxi') return `🚕 ${pick(lang, 'Bepul taksi', 'Бесплатное такси', 'Free taxi')}`;
+  if (b.kind === 'covers_taxi' || b.kind === 'free_taxi') return `🚕 ${pick(lang, "Taksi to'lovi qoplandi", 'Такси оплачено', 'Taxi paid')}`;
+  if (b.kind === 'covers_porter') return `🛒 ${pick(lang, "Aravachi to'lovi qoplandi", 'Аравачи оплачен', 'Porter paid')}`;
+  if (b.kind === 'delivery_discount') return `💰 ${pick(lang, 'Yetkazish bonusi → chegirma', 'Бонус доставки → скидка', 'Delivery bonus → discount')}`;
   return `🎁 ${b.text}`;
 }
 
@@ -31,15 +33,17 @@ export function bonusLabel(b, lang) {
 export function promoLabel(p, lang) {
   const from = pick(lang, `${money(p.min_amount, lang)}dan`, `от ${money(p.min_amount, lang)}`, `from ${money(p.min_amount, lang)}`);
   if (p.kind === 'discount') return `${from} — ${pick(lang, 'chegirma', 'скидка', 'discount')} ${p.percent}%`;
-  if (p.kind === 'free_taxi') return `${from} — ${pick(lang, 'bepul taksi', 'бесплатное такси', 'free taxi')} 🚕`;
-  return `${from} — ${pick(lang, "sovg'a", 'подарок', 'gift')}: ${p.gift_text} 🎁`;
+  if (p.kind === 'delivery' || p.kind === 'free_taxi') {
+    return `${from} — ${pick(lang, 'yetkazish bonusi', 'бонус на доставку', 'delivery bonus')}${p.amount ? ` ${money(p.amount, lang)}` : ''} 🚚`;
+  }
+  return `${from} — ${pick(lang, "sovg'a", 'подарок', 'gift')}: ${p.gift_text}${p.gift_qty ? ` (${p.gift_qty})` : ''} 🎁`;
 }
 
 // "Add 50 000 so'm at Dilshod ota for a free taxi"
 export function hintLabel(h, lang) {
   const what = h.kind === 'discount'
     ? pick(lang, `${h.text} chegirma`, `скидку ${h.text}`, `a ${h.text} discount`)
-    : h.kind === 'free_taxi' ? pick(lang, 'bepul taksi', 'бесплатное такси', 'a free taxi')
+    : h.kind === 'delivery' ? pick(lang, `${h.text} so'm yetkazish bonusi`, `бонус на доставку ${h.text} сум`, `a ${h.text} UZS delivery bonus`)
       : pick(lang, `sovg'a: ${h.text}`, `подарок: ${h.text}`, `a gift: ${h.text}`);
   const store = pick(lang, h.store_name_uz, h.store_name_ru || h.store_name_uz, h.store_name_uz);
   return pick(lang,

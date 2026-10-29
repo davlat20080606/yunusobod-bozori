@@ -363,22 +363,35 @@ async def list_promos(store: StoreModel = Depends(current_store), db: AsyncSessi
 
 
 def promo_dict(p: PromoModel) -> dict:
-    return {"id": p.id, "kind": p.kind, "min_amount": p.min_amount, "percent": p.percent, "gift_text": p.gift_text, "is_active": p.is_active}
+    return {"id": p.id, "kind": p.kind, "min_amount": p.min_amount, "percent": p.percent, "amount": p.amount,
+            "gift_text": p.gift_text, "gift_product_id": p.gift_product_id, "gift_qty": p.gift_qty, "is_active": p.is_active}
 
 
 @router.post("/promos")
 async def create_promo(data: PromoCreateSchema, store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
     if data.kind == "discount" and not data.percent:
         raise HTTPException(status_code=400, detail="Chegirma foizini kiriting / Укажите процент скидки")
-    if data.kind == "gift" and len((data.gift_text or "").strip()) < 2:
-        raise HTTPException(status_code=400, detail="Sovg'ani yozing / Напишите подарок")
+    if data.kind == "delivery" and not data.amount:
+        raise HTTPException(status_code=400, detail="Bonus summasini kiriting / Укажите сумму бонуса")
+    gift_text = (data.gift_text or "").strip()
+    if data.kind == "gift":
+        if data.gift_product_id:
+            gift_prod = await db.get(ProductModel, data.gift_product_id)
+            if not gift_prod or gift_prod.store_id != store.id:
+                raise HTTPException(status_code=404, detail="Mahsulot topilmadi / Товар не найден")
+            gift_text = gift_prod.name_uz
+        elif len(gift_text) < 2:
+            raise HTTPException(status_code=400, detail="Sovg'a mahsulotini tanlang / Выберите товар-подарок")
     count = len((await db.execute(select(PromoModel.id).where(PromoModel.store_id == store.id))).all())
     if count >= 10:
         raise HTTPException(status_code=409, detail="Ko'pi bilan 10 ta aksiya / Не больше 10 акций")
     promo = PromoModel(
         store_id=store.id, kind=data.kind, min_amount=data.min_amount,
         percent=data.percent if data.kind == "discount" else None,
-        gift_text=(data.gift_text or "").strip() if data.kind == "gift" else None,
+        amount=data.amount if data.kind == "delivery" else None,
+        gift_text=gift_text if data.kind == "gift" else None,
+        gift_product_id=data.gift_product_id if data.kind == "gift" else None,
+        gift_qty=(data.gift_qty or 1) if data.kind == "gift" and data.gift_product_id else None,
     )
     db.add(promo)
     await db.commit()

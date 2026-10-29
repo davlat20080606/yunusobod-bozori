@@ -225,21 +225,26 @@ class SettingModel(Base):
 
 
 class PromoModel(Base):
-    """A stall's offer for big orders: a discount, a free taxi or a gift once its part reaches min_amount."""
+    """A stall's offer for big orders once its part reaches min_amount:
+    a % discount, a delivery bonus worth `amount` so'm, or a gift product added for 0 so'm."""
     __tablename__ = "promos"
 
     id = Column(Integer, primary_key=True, index=True)
     store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
-    kind = Column(String(20), nullable=False)  # discount | free_taxi | gift
+    kind = Column(String(20), nullable=False)  # discount | delivery | gift (free_taxi: older name of delivery)
     min_amount = Column(Float, nullable=False)
     percent = Column(Float, nullable=True)  # discount only
-    gift_text = Column(String(150), nullable=True)  # gift only
+    amount = Column(Float, nullable=True)  # delivery bonus value
+    gift_text = Column(String(150), nullable=True)  # gift without a product
+    gift_product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    gift_qty = Column(Float, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class OrderBonusModel(Base):
-    """What an order got from a stall, and what that stall owes for it (its discount, or its share of a free taxi)."""
+    """What an order got from a stall and what that stall owes for it.
+    kind: discount | covers_taxi | covers_porter | delivery_discount | gift"""
     __tablename__ = "order_bonuses"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -371,10 +376,13 @@ class QuoteSchema(BaseModel):
 
 
 class PromoCreateSchema(BaseModel):
-    kind: str = Field(..., pattern=r"^(discount|free_taxi|gift)$")
+    kind: str = Field(..., pattern=r"^(discount|delivery|gift)$")
     min_amount: float = Field(..., gt=0, le=100_000_000)
     percent: Optional[float] = Field(None, gt=0, le=50)
+    amount: Optional[float] = Field(None, gt=0, le=1_000_000)
     gift_text: Optional[str] = Field(None, max_length=150)
+    gift_product_id: Optional[int] = None
+    gift_qty: Optional[float] = Field(None, gt=0, le=100)
 
 
 class OrderItemSchema(BaseModel):

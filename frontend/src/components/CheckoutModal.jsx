@@ -231,7 +231,8 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
   const fullPrice = oldItemsTotal + (quote ? quote.porter_fee + quote.taxi_fee : deliveryFee);
   const payTotal = quote ? quote.total : finalGrandTotal;
   const gifts = (quote?.bonuses || []).filter((b) => b.kind === 'gift');
-  const stallDiscounts = (quote?.bonuses || []).filter((b) => b.kind === 'discount');
+  // Every stall bonus with a value: % discount, paid taxi / aravachi, delivery bonus turned into a discount
+  const stallDiscounts = (quote?.bonuses || []).filter((b) => b.kind !== 'gift' && b.amount > 0);
   const slotInfo = {
     'Express (45-60 min)': [tr('Tezkor', 'Быстро', 'Express'), tr('45–60 daq', '45–60 мин', '45–60 min')],
     'Evening (18:00-20:00)': [tr('Bugun kechqurun', 'Сегодня вечером', 'This evening'), '18:00–20:00'],
@@ -267,11 +268,6 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                 );
               })}
             </div>
-            {quote?.taxi_offer && (
-              <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 14, background: '#fef9c3', color: '#854d0e', fontSize: 13, fontWeight: 700 }}>
-                🚕 {tr('Uyga yetkazishni tanlasangiz — taksi bepul!', 'Выберите доставку домой — такси бесплатно!', 'Choose home delivery — the taxi is free!')}
-              </div>
-            )}
           </div>
 
           {/* Where the aravachi hands the order over */}
@@ -455,11 +451,11 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
             {[
               [tr('Savatdagi mahsulotlar', 'Товары в корзине', 'Items in the cart'), `${Math.round(oldItemsTotal).toLocaleString()} ${cur}`],
               oldItemsTotal > itemsTotal ? [tr('Chegirma', 'Скидка', 'Discount'), `−${Math.round(oldItemsTotal - itemsTotal).toLocaleString()} ${cur}`, '#047857'] : null,
-              ...stallDiscounts.map((b) => [`${bonusLabel(b, lang)} · ${b.stall_number}`, `−${Math.round(b.amount).toLocaleString()} ${cur}`, '#047857']),
               quote && quote.porter_fee > 0 ? [tr('Aravachi', 'Аравачи', 'Porter'), `${Math.round(quote.porter_fee).toLocaleString()} ${cur}`] : null,
-              quote && quote.taxi_fee > 0 ? [tr('Taksi', 'Такси', 'Taxi'), quote.taxi_free ? `🎁 ${tr('Bepul', 'Бесплатно', 'Free')}` : `${Math.round(quote.taxi_fee).toLocaleString()} ${cur}`, quote.taxi_free ? '#047857' : null] : null,
+              quote && quote.taxi_fee > 0 ? [tr('Taksi', 'Такси', 'Taxi'), `${Math.round(quote.taxi_fee).toLocaleString()} ${cur}`] : null,
               !quote ? [tr('Yetkazish', 'Доставка', 'Delivery'), `${Math.round(deliveryFee).toLocaleString()} ${cur}`] : null,
               quote && fulfillment === 'self' ? [tr('Yetkazish', 'Доставка', 'Delivery'), tr('Yo\'q', 'Нет', 'None')] : null,
+              ...stallDiscounts.map((b) => [`${bonusLabel(b, lang)} · ${b.stall_number}`, `−${Math.round(b.amount).toLocaleString()} ${cur}`, '#047857']),
             ].filter(Boolean).map(([label, value, color]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, padding: '6px 0' }}>
                 <span>{label}</span><span style={{ color: color || '#0f172a' }}>{value}</span>
