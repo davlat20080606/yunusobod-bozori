@@ -7,6 +7,7 @@ import { formatUnit } from './ProductCard';
 import { slotLabel } from '../services/slots';
 import { fulfillmentLabel, pointName, bonusLabel } from '../services/offers';
 import { stallLabel, itemName } from '../services/stall';
+import { useLive } from '../services/live';
 
 const BAZAAR = { lat: 41.36467, lng: 69.29089 };
 const MY_ORDERS_KEY = 'yunusobod_my_orders';
@@ -305,11 +306,13 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
 
   // Live updates while the open order is still in progress
   const openOrder = openNumber ? orders[openNumber] : null;
+  const watching = openNumber && (!openOrder || ACTIVE_STATUSES.includes(openOrder.status) || openOrder.status === 'delivered');
+  const live = useLive(watching ? [`order:${openNumber}`] : [], () => load([openNumber]));
   useEffect(() => {
     if (!openNumber || (openOrder && !ACTIVE_STATUSES.includes(openOrder.status))) return;
-    const timer = setInterval(() => load([openNumber]), REFRESH_MS);
+    const timer = setInterval(() => load([openNumber]), live ? 30000 : REFRESH_MS);
     return () => clearInterval(timer);
-  }, [openNumber, openOrder?.status, load]);
+  }, [openNumber, openOrder?.status, load, live]);
 
   // Gentle vibration when the status changes, like delivery apps do
   const lastStatusRef = useRef(null);

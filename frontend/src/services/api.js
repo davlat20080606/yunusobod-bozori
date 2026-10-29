@@ -124,6 +124,7 @@ export const api = {
     if (!res.ok) throw await readError(res, 'Upload failed');
     return res.json();
   },
+  porterTakeBatch: (orderIds) => staffFetch('/porter/batch/take', json('POST', { order_ids: orderIds })),
   porterRelease: (orderId) => staffFetch(`/porter/orders/${orderId}/release`, json('POST', {})),
   taxiOrders: () => staffFetch('/taxi/orders'),
   taxiTake: (orderId, etaMinutes) => staffFetch(`/taxi/orders/${orderId}/take`, json('POST', { eta_minutes: etaMinutes })),

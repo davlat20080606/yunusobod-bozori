@@ -7,6 +7,7 @@ import StaffLogin from './StaffLogin';
 import { pointName } from '../services/offers';
 import { newIdsWatcher } from '../services/sound';
 import { stallLabel, itemName } from '../services/stall';
+import { useLive } from '../services/live';
 
 const T = {
   title: { uz: 'Taksichi kabineti', ru: 'Кабинет таксиста', en: 'Taxi dashboard' },
@@ -73,11 +74,12 @@ export default function TaxiPanel({ onBackToMarket }) {
     }
   }, [session]);
 
+  const live = useLive(session ? ['taxi'] : [], load);
   useEffect(() => {
     load();
-    const timer = setInterval(load, 10000);
+    const timer = setInterval(load, live ? 30000 : 10000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, live]);
 
   const run = async (action) => {
     setBusy(true);

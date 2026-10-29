@@ -9,6 +9,7 @@ import { triggerHaptic } from '../services/telegram';
 import { fulfillmentLabel, pointName } from '../services/offers';
 import { newIdsWatcher } from '../services/sound';
 import { stallLabel, itemName } from '../services/stall';
+import { useLive } from '../services/live';
 
 const T = {
   title: { uz: 'Aravachi kabineti', ru: 'Кабинет аравачи', en: 'Porter Dashboard' },
@@ -77,7 +78,15 @@ const T = {
   cold: { uz: "🌡 Go'sht/sut uzoq kutmasin: o'zingiz olib boring yoki rastaga qaytaring", ru: '🌡 Мясо/молочка не должны ждать: отвезите сами или верните на расту', en: '🌡 Meat/dairy must not wait: deliver it yourself or take it back to the stall' },
   offline: { uz: "📶 Internet yo'q — oxirgi ro'yxat ko'rsatilmoqda. Belgilaringiz saqlanadi va internet kelganda yuboriladi.", ru: '📶 Нет интернета — показан последний список. Отметки сохранятся и уйдут, когда появится связь.', en: '📶 No internet — showing the last list. Your ticks are kept and sent when the connection is back.' },
   need_net: { uz: 'Buning uchun internet kerak', ru: 'Для этого нужен интернет', en: 'This needs internet' },
+  batch_title: { uz: "🔗 Bitta yo'lda {n} ta buyurtma", ru: '🔗 {n} заказа за один проход', en: '🔗 {n} orders in one walk' },
+  batch_take: { uz: '🛒 Hammasini olaman', ru: '🛒 Беру все', en: '🛒 Take them all' },
+  batch_rows: { uz: 'Qatorlar', ru: 'Ряды', en: 'Rows' },
+  combined: { uz: "🔗 Umumiy yo'nalish ({n} ta buyurtma)", ru: '🔗 Общий маршрут ({n} заказа)', en: '🔗 Combined route ({n} orders)' },
+  combined_hint: { uz: "Har bir mahsulotni o'z paketiga soling: harf paketda yozilsin", ru: 'Кладите каждый товар в свой пакет: буква — на пакете', en: 'Put each item in its own bag: the letter goes on the bag' },
+  bag: { uz: 'Paket', ru: 'Пакет', en: 'Bag' },
 };
+
+const BAG_LETTERS = 'ABCDEFGH';
 
 const CACHE_KEY = 'porter_orders_cache';
 const QUEUE_KEY = 'porter_offline_queue';
@@ -160,6 +169,7 @@ export default function PorterPanel({ onBackToMarket }) {
   const [busy, setBusy] = useState(false);
   const [points, setPoints] = useState([]);
   const [offline, setOffline] = useState(false);
+  const [combined, setCombined] = useState(false);
   const watchNew = useRef(newIdsWatcher()).current;
   useEffect(() => { api.getConfig().then((cfg) => setPoints(cfg.handoff_points || [])).catch(() => {}); }, []);
 
@@ -204,12 +214,13 @@ export default function PorterPanel({ onBackToMarket }) {
     }
   }, [session]);
 
-  // Refresh every 10 seconds so new orders appear without touching the screen
+  // New orders arrive instantly over SSE; polling is the safety net when the stream is down
+  const live = useLive(session ? ['porter'] : [], loadOrders);
   useEffect(() => {
     loadOrders();
-    const timer = setInterval(loadOrders, 10000);
+    const timer = setInterval(loadOrders, live ? 30000 : 10000);
     return () => clearInterval(timer);
-  }, [loadOrders]);
+  }, [loadOrders, live]);
 
   const runAction = async (action) => {
     setBusy(true);
@@ -231,6 +242,28 @@ export default function PorterPanel({ onBackToMarket }) {
   }
 
   const openOrder = orders.mine.find((o) => o.id === openOrderId);
+  // Each order being collected gets a bag letter, so a batch never gets mixed up
+  const picking = orders.mine.filter((o) => o.status === 'picking').sort((a, b) => a.id - b.id);
+  const bagOf = (id) => { const i = picking.findIndex((o) => o.id === id); return i >= 0 ? BAG_LETTERS[i] : null; };
+
+  if (combined && picking.length > 1) {
+    return (
+      <CombinedRoute
+        t={t}
+        language={language}
+        orders={picking}
+        bagOf={bagOf}
+        busy={busy}
+        offline={offline}
+        onBack={() => setCombined(false)}
+        onOpen={(id) => { setCombined(false); setOpenOrderId(id); }}
+        onTogglePicked={async (item) => {
+          triggerHaptic(item.is_picked ? 'light' : 'success');
+          try { await api.porterPicked(item.id, !item.is_picked); await loadOrders(); } catch (err) { setError(err.message); }
+        }}
+      />
+    );
+  }
 
   if (openOrder) {
     return (
@@ -239,6 +272,7 @@ export default function PorterPanel({ onBackToMarket }) {
         language={language}
         points={points}
         order={openOrder}
+        bag={bagOf(openOrder.id)}
         busy={busy}
         error={error}
         onBack={() => setOpenOrderId(null)}
@@ -337,6 +371,29 @@ export default function PorterPanel({ onBackToMarket }) {
       {error && <ErrorBox text={error} />}
       {offline && <div style={{ ...card, background: '#fffbeb', borderColor: '#fde68a', color: '#92400e', fontSize: 13, fontWeight: 700 }}>{t('offline')}</div>}
 
+      {tab === 'new' && (orders.batches || []).map((b) => (
+        <div key={b.order_ids.join('-')} style={{ ...card, background: '#ecfdf5', borderColor: '#6ee7b7' }}>
+          <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>{t('batch_title').replace('{n}', b.order_ids.length)}</div>
+          <div style={{ fontSize: 13, color: '#065f46', marginBottom: 10 }}>
+            {t('batch_rows')}: {b.rows.join(', ')} · {b.stalls} {t('stalls')} · {b.items_count} {t('items')}
+            {b.handoff_point ? ` · 📍 ${pointName(points, b.handoff_point, language)}` : ''}
+            <div style={{ marginTop: 2, fontWeight: 700 }}>{b.order_numbers.map((num) => `#${num}`).join(' · ')}</div>
+          </div>
+          <button type="button" disabled={busy} onClick={() => runAction(async () => {
+            await api.porterTakeBatch(b.order_ids);
+            triggerHaptic('success');
+            setTab('mine');
+            setCombined(true);
+          })} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }}>{t('batch_take')}</button>
+        </div>
+      ))}
+
+      {tab === 'mine' && picking.length > 1 && (
+        <button type="button" onClick={() => setCombined(true)} style={{ ...primaryBtn, marginBottom: 12, background: '#047857' }}>
+          {t('combined').replace('{n}', picking.length)}
+        </button>
+      )}
+
       {list.length === 0 && (
         <div style={{ ...card, textAlign: 'center', color: '#64748b', padding: '28px 16px', fontSize: 14 }}>
           {tab === 'new' ? t('empty_new') : t('empty_mine')}
@@ -348,7 +405,7 @@ export default function PorterPanel({ onBackToMarket }) {
         return (
           <div key={order.id} style={card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8, gap: 8 }}>
-              <span style={{ fontWeight: 800, fontSize: 16 }}>#{order.order_number}</span>
+              <span style={{ fontWeight: 800, fontSize: 16 }}>{tab === 'mine' && bagOf(order.id) ? `📦 ${bagOf(order.id)} · ` : ''}#{order.order_number}</span>
               <span style={{ fontSize: 12, color: '#64748b', whiteSpace: 'nowrap' }}>
                 {tab === 'mine' ? t(`status_${order.status}`) : (minutes !== null && `${minutes} ${t('min_ago')}`)}
               </span>
@@ -407,7 +464,54 @@ function ErrorBox({ text }) {
   );
 }
 
-function OrderRoute({ t, language, points, order, busy, error, offline, onBack, onTogglePicked, onWeight, onMissing, onSetStatus, onRelease }) {
+// All stalls of a batch in one walk; every item shows which bag (order) it goes into
+function CombinedRoute({ t, language, orders, bagOf, busy, offline, onBack, onOpen, onTogglePicked }) {
+  const stops = new Map();
+  orders.forEach((o) => o.stops.forEach((st) => {
+    const stop = stops.get(st.store_id) || { ...st, items: [] };
+    st.items.forEach((item) => stop.items.push({ ...item, bag: bagOf(o.id), order_number: o.order_number }));
+    stops.set(st.store_id, stop);
+  }));
+  const route = [...stops.values()].sort((a, b) => (parseInt((a.stall_number.match(/\d+/) || [9999])[0], 10) - parseInt((b.stall_number.match(/\d+/) || [9999])[0], 10)));
+  const total = route.reduce((n, st) => n + st.items.length, 0);
+  const done = route.reduce((n, st) => n + st.items.filter((i) => i.is_picked).length, 0);
+  return (
+    <div className="animate-fade" style={{ paddingTop: 12, paddingBottom: 110 }}>
+      <button type="button" onClick={onBack} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 4, color: '#047857', fontWeight: 700, fontSize: 14, cursor: 'pointer', padding: '4px 0', marginBottom: 8 }}>
+        <ChevronLeft size={18} /> {t('back')}
+      </button>
+      <div style={card}>
+        <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 6 }}>{t('combined').replace('{n}', orders.length)}</div>
+        <div style={{ height: 10, background: '#e2e8f0', borderRadius: 999, overflow: 'hidden', marginBottom: 6 }}>
+          <div style={{ width: `${total ? Math.round((done / total) * 100) : 0}%`, height: '100%', background: '#10b981' }} />
+        </div>
+        <div style={{ fontSize: 13, color: '#475569' }}>{t('collected')}: {done} / {total} · {t('combined_hint')}</div>
+      </div>
+      {offline && <div style={{ ...card, background: '#fffbeb', borderColor: '#fde68a', color: '#92400e', fontSize: 13, fontWeight: 700 }}>{t('offline')}</div>}
+      {route.map((stop, index) => (
+        <div key={stop.store_id} style={card}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#92400e' }}>{index + 1}. {stallLabel(stop.stall_number, language)}</div>
+          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 6 }}>{stop[`store_name_${language}`] || stop.store_name_uz}</div>
+          {stop.items.map((item) => (
+            <button key={item.id} type="button" disabled={busy || item.item_status === 'missing'} onClick={() => onTogglePicked(item)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px', marginTop: 6, borderRadius: 12, border: '1.5px solid ' + (item.is_picked ? '#86efac' : '#e2e8f0'), background: item.is_picked ? '#dcfce7' : '#f8fafc', textAlign: 'left', cursor: 'pointer' }}>
+              <span style={{ width: 34, height: 34, borderRadius: 10, background: '#0f172a', color: '#ffffff', fontWeight: 900, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{item.bag}</span>
+              {item.is_picked ? <CheckCircle2 size={22} color="#16a34a" style={{ flexShrink: 0 }} /> : <Circle size={22} color="#94a3b8" style={{ flexShrink: 0 }} />}
+              <span style={{ flex: 1, fontSize: 15, fontWeight: 700, textDecoration: item.is_picked || item.item_status === 'missing' ? 'line-through' : 'none' }}>{itemName(item, language)}</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: '#047857', whiteSpace: 'nowrap' }}>{formatQty(item, language)}</span>
+            </button>
+          ))}
+        </div>
+      ))}
+      {orders.map((o) => (
+        <button key={o.id} type="button" onClick={() => onOpen(o.id)} style={{ ...secondaryBtn, width: '100%', marginBottom: 8, textAlign: 'left' }}>
+          📦 {t('bag')} {bagOf(o.id)} · #{o.order_number} · {o.picked_count}/{o.items_count} → {t('open')}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function OrderRoute({ t, language, points, order, bag, busy, error, offline, onBack, onTogglePicked, onWeight, onMissing, onSetStatus, onRelease }) {
   const [editing, setEditing] = useState(null); // item whose weight is being typed
   const [weightValue, setWeightValue] = useState('');
   const [weightFile, setWeightFile] = useState(null);
@@ -442,7 +546,7 @@ function OrderRoute({ t, language, points, order, busy, error, offline, onBack, 
 
       <div style={{ ...card }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-          <span style={{ fontWeight: 800, fontSize: 18 }}>#{order.order_number}</span>
+          <span style={{ fontWeight: 800, fontSize: 18 }}>{bag ? `📦 ${bag} · ` : ''}#{order.order_number}</span>
           <span style={{ fontSize: 13, fontWeight: 700, color: '#047857' }}>{t(`status_${order.status}`)}</span>
         </div>
         <div style={{ height: 10, background: '#e2e8f0', borderRadius: 999, overflow: 'hidden', marginBottom: 6 }}>

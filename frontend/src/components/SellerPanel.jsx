@@ -10,6 +10,7 @@ import { triggerHaptic } from '../services/telegram';
 import { formatUnit } from './ProductCard';
 import { ClickLogo, PaymeLogo } from './PaymentLogos';
 import { stallLabel, itemName } from '../services/stall';
+import { useLive } from '../services/live';
 
 const PHOTO_PRESETS = [
   { name: { uz: "🥩 Go'sht", ru: '🥩 Мясо', en: '🥩 Meat' }, image: '/img/p/ef38b94878f0.jpg', video: '' },
@@ -118,11 +119,12 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
   const reloadOrders = () => api.getStoreOrders().then((list) => { setIncomingOrders(list); watchNew(list.map((o) => o.id)); }).catch(() => {});
 
   // New orders and other stalls' progress arrive while the cabinet is open
+  const live = useLive(selectedStoreId ? [`store:${selectedStoreId}`] : [], reloadOrders);
   useEffect(() => {
     if (!selectedStoreId) return undefined;
-    const timer = setInterval(reloadOrders, 20000);
+    const timer = setInterval(reloadOrders, live ? 60000 : 20000);
     return () => clearInterval(timer);
-  }, [selectedStoreId]);
+  }, [selectedStoreId, live]);
 
   const handleLogout = () => {
     setSellerSession(null);

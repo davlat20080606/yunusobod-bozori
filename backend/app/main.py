@@ -218,6 +218,32 @@ async def public_config(db: AsyncSession = Depends(get_db)):
 
 bot_status = {"bot": "not started"}
 
+
+@app.get("/api/events")
+async def events(ch: str = ""):
+    """Server-Sent Events: "refresh" the moment an order on these channels changes."""
+    from fastapi.responses import StreamingResponse
+    from app.services.events import subscribe, unsubscribe
+    allowed = ("order:", "store:", "porter", "taxi", "admin")
+    channels = [c for c in ch.split(",")[:20] if c and c.startswith(allowed) and len(c) <= 40]
+
+    async def stream():
+        queue = subscribe(channels)
+        try:
+            yield "retry: 3000\n\n"
+            while True:
+                try:
+                    channel = await asyncio.wait_for(queue.get(), timeout=20)
+                    yield f"data: {channel}\n\n"
+                except asyncio.TimeoutError:
+                    # Keeps proxies from closing a quiet connection
+                    yield ": ping\n\n"
+        finally:
+            unsubscribe(channels, queue)
+
+    return StreamingResponse(stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV, **bot_status}

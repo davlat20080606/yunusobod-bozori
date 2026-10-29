@@ -13,6 +13,7 @@ from app.api.auth import staff_with_role
 from app.bot.notify import notify_status, notify_taxis, notify_adjustment
 from app.services.adjust import set_weight, set_missing, check_code
 from app.services.storage import save_media
+from app.services.events import order_changed
 
 router = APIRouter(prefix="/api/porter", tags=["porter"])
 
@@ -105,6 +106,53 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
     }
 
 
+# One aravachi trip: orders from the same rows, going to the same bazaar point, placed close in time
+BATCH_MAX_ORDERS = 3
+BATCH_MAX_ITEMS = 20
+BATCH_WINDOW_MINUTES = 20
+
+
+def stall_row(stall_number: str):
+    match = re.search(r"Rasta\s*(\d+)", stall_number or "", re.I) or re.search(r"\d+", stall_number or "")
+    return int(match.group(1) if match.re.groups else match.group()) if match else None
+
+
+def make_batches(orders: list) -> list:
+    """Greedy grouping of waiting orders that one aravachi can collect in a single walk."""
+    def rows(o):
+        return {r for r in (stall_row(st["stall_number"]) for st in o["stops"]) if r is not None}
+
+    def created(o):
+        return datetime.fromisoformat(o["created_at"]) if o.get("created_at") else datetime.utcnow()
+
+    pending = sorted(orders, key=created)
+    used, batches = set(), []
+    for first in pending:
+        if first["id"] in used:
+            continue
+        group, group_rows, items = [first], set(rows(first)), first["items_count"]
+        for other in pending:
+            if other["id"] in used or other is first or len(group) >= BATCH_MAX_ORDERS:
+                continue
+            close_in_time = abs((created(other) - created(first)).total_seconds()) <= BATCH_WINDOW_MINUTES * 60
+            same_exit = other.get("handoff_point") == first.get("handoff_point")
+            if close_in_time and same_exit and rows(other) & group_rows and items + other["items_count"] <= BATCH_MAX_ITEMS:
+                group.append(other)
+                group_rows |= rows(other)
+                items += other["items_count"]
+        if len(group) > 1:
+            used.update(o["id"] for o in group)
+            batches.append({
+                "order_ids": [o["id"] for o in group],
+                "order_numbers": [o["order_number"] for o in group],
+                "rows": sorted(group_rows),
+                "stalls": len({st["store_id"] for o in group for st in o["stops"]}),
+                "items_count": items,
+                "handoff_point": first.get("handoff_point"),
+            })
+    return batches
+
+
 async def get_porter_order(order_id: int, db: AsyncSession) -> OrderModel:
     res = await db.execute(
         select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items).selectinload(OrderItemModel.product), selectinload(OrderModel.bonuses))
@@ -138,9 +186,11 @@ async def list_porter_orders(porter: StaffModel = Depends(current_porter), db: A
         o for o in orders
         if o.porter_phone == porter.phone and (o.status in ("picking", "handed_over", "at_point") or not o.taxi_phone)
     ]
+    available_data = [await serialize_order(o, db) for o in available]
     return {
-        "available": [await serialize_order(o, db) for o in available],
+        "available": available_data,
         "mine": [await serialize_order(o, db) for o in mine],
+        "batches": make_batches(available_data),
     }
 
 
@@ -180,6 +230,7 @@ async def set_item_picked(
 
     item.is_picked = is_picked
     await db.commit()
+    order_changed(order.id)
     return {"success": True, "is_picked": item.is_picked}
 
 
@@ -231,6 +282,7 @@ async def release_order(order_id: int, porter: StaffModel = Depends(current_port
     for item in order.items:
         item.is_picked = False
     await db.commit()
+    order_changed(order.id)
     return {"success": True}
 
 
@@ -282,3 +334,22 @@ async def porter_photo(file: UploadFile = File(...), porter: StaffModel = Depend
     if not content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Faqat rasm / Только фото")
     return {"url": await save_media(db, f"scale-{uuid.uuid4().hex}.jpg", content_type, data)}
+
+
+@router.post("/batch/take")
+async def take_batch(order_ids: list = Body(..., embed=True), porter: StaffModel = Depends(current_porter), db: AsyncSession = Depends(get_db)):
+    """Take a whole trip at once; orders another aravachi grabbed meanwhile are skipped."""
+    taken = []
+    for order_id in [int(i) for i in order_ids[:BATCH_MAX_ORDERS]]:
+        order = await get_porter_order(order_id, db)
+        if order.fulfillment == "self" or order.status not in OPEN_STATUSES or (order.porter_phone and order.porter_phone != porter.phone):
+            continue
+        order.porter_name = porter.name
+        order.porter_phone = porter.phone
+        order.porter_accepted_at = datetime.utcnow()
+        order.status = "picking"
+        taken.append(order_id)
+    await db.commit()
+    for order_id in taken:
+        notify_status(order_id)
+    return {"taken": taken}

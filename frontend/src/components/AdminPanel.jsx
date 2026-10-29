@@ -5,6 +5,7 @@ import { api, adminSession } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 import { ROLE_INFO } from './StaffLogin';
 import { stallLabel, itemName } from '../services/stall';
+import { useLive } from '../services/live';
 
 const T = {
   title: { uz: 'Bozorkom kabineti', ru: 'Кабинет базаркома', en: 'Bazaar administration' },
@@ -131,11 +132,12 @@ export default function AdminPanel({ onBackToMarket }) {
     }
   }, [signedIn]);
 
+  const live = useLive(signedIn ? ['admin'] : [], load);
   useEffect(() => {
     load();
-    const timer = setInterval(load, 20000);
+    const timer = setInterval(load, live ? 60000 : 20000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, live]);
 
   const act = async (action, message) => {
     setError('');

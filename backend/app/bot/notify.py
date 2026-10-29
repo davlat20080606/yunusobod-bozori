@@ -14,6 +14,7 @@ from app.database import async_session_factory
 from app.models.schemas import OrderModel, StoreModel, StaffModel, CustomerModel
 from app.services.config_store import HANDOFF_POINTS
 from app.bot.bot import get_bot
+from app.services.events import order_changed
 
 logger = logging.getLogger(__name__)
 
@@ -319,15 +320,18 @@ def _background(coro):
 
 
 def notify_status(order_id: int):
+    order_changed(order_id)
     _background(_customer_status(order_id))
 
 
 def notify_new_order(order_id: int):
+    order_changed(order_id)
     _background(_new_order(order_id))
     _background(_customer_status(order_id))
 
 
 def notify_adjustment(order_id: int, item_id: int, kind: str):
+    order_changed(order_id)
     _background(_adjustment(order_id, item_id, kind))
 
 
