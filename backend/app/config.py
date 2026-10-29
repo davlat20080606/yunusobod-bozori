@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     ADMIN_PIN: str = ""
     # "polling" (local Mac), "webhook" (cloud) or "auto" (webhook when running on Render)
     BOT_MODE: str = "auto"
+    # Cloudflare R2 for seller photos/videos; empty = keep them in the database
+    R2_ACCOUNT_ID: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    R2_BUCKET: str = ""
+    R2_PUBLIC_URL: str = ""  # e.g. https://img.bozorbot.uz or https://pub-xxx.r2.dev
     
     class Config:
         env_file = ".env"
@@ -28,6 +34,10 @@ RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "").strip()
 if RENDER_EXTERNAL_URL and "localhost" in settings.WEBAPP_URL:
     settings.WEBAPP_URL = RENDER_EXTERNAL_URL
 settings.WEBAPP_URL = settings.WEBAPP_URL.rstrip("/")
+# Telegram calls the server itself, even when the site is served from Vercel
+API_URL = (os.getenv("API_URL", "").strip() or RENDER_EXTERNAL_URL or settings.WEBAPP_URL).rstrip("/")
+R2_ENABLED = all([settings.R2_ACCOUNT_ID, settings.R2_ACCESS_KEY_ID, settings.R2_SECRET_ACCESS_KEY, settings.R2_BUCKET, settings.R2_PUBLIC_URL])
+settings.R2_PUBLIC_URL = settings.R2_PUBLIC_URL.strip().rstrip("/")
 
 # Neon / Render give "postgres://...?sslmode=require"; SQLAlchemy async needs the asyncpg driver
 IS_POSTGRES = settings.DATABASE_URL.startswith(("postgres://", "postgresql://", "postgresql+asyncpg://"))

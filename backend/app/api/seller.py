@@ -14,6 +14,7 @@ from app.api.auth import (
     check_not_locked, record_failure
 )
 from app.bot.notify import notify_admin_application, notify_status
+from app.services.storage import save_media
 from app.models.schemas import (
     StoreModel, ProductModel, OrderModel, OrderItemModel, CategoryModel,
     ProductSchema, StoreSchema, UpdatePriceSchema, ToggleAvailabilitySchema,
@@ -206,12 +207,11 @@ async def upload_seller_media(file: UploadFile = File(...), store: StoreModel = 
 
     file_ext = Path(file.filename or "").suffix.lower()[:10] or ".jpg"
     unique_name = f"{uuid.uuid4().hex}{file_ext}"
-    db.add(MediaModel(filename=unique_name, content_type=content_type, data=data))
-    await db.commit()
+    url = await save_media(db, unique_name, content_type, data)
 
     return {
         "success": True,
-        "url": f"/uploads/{unique_name}",
+        "url": url,
         "filename": unique_name
     }
 

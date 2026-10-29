@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from aiogram.types import MenuButtonWebApp, WebAppInfo, BotCommand
-from app.config import settings, USE_WEBHOOK
+from app.config import settings, USE_WEBHOOK, API_URL
 from app.database import engine, Base, get_db
 from app.models.schemas import MediaModel
 from app.services.seed_data import init_db_and_seed
@@ -64,6 +64,11 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Database seeded with authentic Yunusobod stores & fresh products.")
     except Exception as e:
         logger.error(f"Seeding notice: {e}")
+
+    # Old uploads leave the database for R2 once R2 is set up
+    from app.services.storage import move_db_media_to_r2
+    from app.database import async_session_factory
+    asyncio.create_task(move_db_media_to_r2(async_session_factory))
 
     # Close orders nobody took in time, so customers are not stuck with a "live" order
     maintenance_task = asyncio.create_task(maintenance.run_forever())
@@ -115,11 +120,11 @@ async def lifespan(app: FastAPI):
             # Cloud mode: Telegram calls us, which also wakes a sleeping free server
             try:
                 await bot.set_webhook(
-                    url=f"{settings.WEBAPP_URL}{WEBHOOK_PATH}",
+                    url=f"{API_URL}{WEBHOOK_PATH}",
                     secret_token=WEBHOOK_SECRET,
                     allowed_updates=["message", "callback_query"]
                 )
-                logger.info(f"🤖 Telegram Bot webhook set: {settings.WEBAPP_URL}{WEBHOOK_PATH}")
+                logger.info(f"🤖 Telegram Bot webhook set: {API_URL}{WEBHOOK_PATH}")
                 bot_status["webhook"] = "ok"
             except Exception as e:
                 logger.error(f"Webhook setup failed: {e}")
