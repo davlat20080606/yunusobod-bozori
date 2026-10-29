@@ -70,6 +70,11 @@ async def lifespan(app: FastAPI):
     from app.database import async_session_factory
     asyncio.create_task(move_db_media_to_r2(async_session_factory))
 
+    async def check_r2():
+        from app.services.storage import r2_self_check
+        bot_status["r2"] = await r2_self_check()
+    asyncio.create_task(check_r2())
+
     # Close orders nobody took in time, so customers are not stuck with a "live" order
     maintenance_task = asyncio.create_task(maintenance.run_forever())
 

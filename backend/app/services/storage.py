@@ -45,6 +45,26 @@ async def save_media(db: AsyncSession, filename: str, content_type: str, data: b
     return f"/uploads/{filename}"
 
 
+async def r2_self_check() -> str:
+    """Write a tiny file to R2 and read it back through the public URL, so /api/health shows whether R2 works."""
+    if not R2_ENABLED:
+        missing = [k for k in ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_PUBLIC_URL") if not getattr(settings, k)]
+        return "off (missing: " + ", ".join(missing) + ")"
+    try:
+        url = await put_r2("healthcheck.txt", "text/plain", b"ok")
+    except Exception as e:
+        # Wrong keys show up as SignatureDoesNotMatch / InvalidAccessKeyId, a wrong account id as a connection error
+        return f"upload failed: {type(e).__name__}: {str(e)[:120]}"
+    try:
+        import urllib.request
+        # Cloudflare turns away the default Python user agent
+        req = urllib.request.Request(url, headers={"User-Agent": "bozorbot-healthcheck"})
+        with await run_in_threadpool(urllib.request.urlopen, req, None, 10) as res:
+            return "ok" if res.status == 200 else f"uploaded, public URL gives {res.status}"
+    except Exception as e:
+        return f"uploaded, but public URL failed: {str(e)[:120]}"
+
+
 async def move_db_media_to_r2(session_factory):
     """Once R2 is set up, move older uploads out of the database and point products/stalls at R2."""
     if not R2_ENABLED:
