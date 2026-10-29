@@ -47,7 +47,7 @@ const T = {
   weight_yes: { uz: '✅ Roziman', ru: '✅ Согласен', en: '✅ Yes' },
   weight_no: { uz: '✂️ Buyurtma vaznida qolsin', ru: '✂️ Оставить заказанный вес', en: '✂️ Keep the ordered weight' },
   photo: { uz: 'tarozi rasmi', ru: 'фото весов', en: 'scale photo' },
-  ran_out: { uz: 'tugagan', ru: 'закончился', en: 'ran out' },
+  ran_out: { uz: 'tugagan', ru: 'нет в наличии', en: 'ran out' },
   received: { uz: '✅ Buyurtmani oldim', ru: '✅ Я получил заказ', en: '✅ I got my order' },
   received_hint: { uz: "Olganingizni tasdiqlang, so'ng baholang", ru: 'Подтвердите получение, затем оцените', en: 'Confirm you got it, then rate it' },
   how: { uz: 'Qanday olasiz', ru: 'Как получить', en: 'How you get it' },
