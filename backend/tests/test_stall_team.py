@@ -21,7 +21,7 @@ def init_data(uid, first, last=""):
     return urlencode(fields)
 
 
-def test_stall_team(api, ok):
+def test_stall_team(api, ok, admin, relaxed_limits):
     OWNER, HELPER, STRANGER = 1001, 2002, 3003
     c,r=api("POST","/seller/login",{"phone_or_slug":"+998 93 222-33-44","pin":"2222"},{"x-telegram-init-data":init_data(OWNER,"Karen","Aka")})
     ok(c==200 and r["role"]=="owner", "owner signs in once with PIN inside Telegram")

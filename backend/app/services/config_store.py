@@ -15,6 +15,11 @@ DEFAULTS = {
     # Customer pays the aravachi for carrying, and the taxi for the ride home
     "porter_fee": "5000",
     "taxi_fee": "10000",
+    # Fake-order protection: a customer who has not received an order yet gets one open order and a cap
+    "max_open_orders": "3",
+    "new_customer_max_open": "1",
+    "new_customer_max_total": "500000",
+    "orders_per_10_min": "10",
 }
 
 # Where an aravachi hands the order to the customer or the taxi

@@ -1,13 +1,14 @@
 import random
 from datetime import datetime
 import re
-from fastapi import APIRouter, Depends, HTTPException, Body, Header
+from fastapi import APIRouter, Depends, HTTPException, Body, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.database import get_db
-from app.api.auth import current_admin
+from app.api.auth import current_admin, client_ip
+from app.services.customer_guard import phone_key, check_not_blocked, check_order_limits, rate_limit
 from app.services.config_store import get_setting, distance_km, HANDOFF_POINT_IDS
 from app.services.promos import compute_quote
 from app.services.adjust import recalc
@@ -30,8 +31,9 @@ def load_order(where):
 
 
 @router.post("/quote")
-async def quote_order(data: QuoteSchema, db: AsyncSession = Depends(get_db)):
+async def quote_order(data: QuoteSchema, request: Request, db: AsyncSession = Depends(get_db)):
     """Price before ordering: discounts, gifts, free taxi and what is missing for the next offer."""
+    rate_limit(f"quote:{client_ip(request)}", 120, 60)
     quote = await compute_quote(db, data.items, data.fulfillment)
     quote.pop("lines")
     return quote
@@ -40,6 +42,7 @@ async def quote_order(data: QuoteSchema, db: AsyncSession = Depends(get_db)):
 @router.post("", response_model=OrderSchema)
 async def create_order(
     data: OrderCreateSchema,
+    request: Request,
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db)
 ):
@@ -58,6 +61,14 @@ async def create_order(
         raise HTTPException(status_code=400, detail="Telefon raqamingizni yuboring / Отправьте номер телефона")
     if len((data.customer_name or "").strip()) < 2:
         raise HTTPException(status_code=400, detail="Ismingizni kiriting / Введите имя")
+
+    tg_id = str(tg_user["id"]) if tg_user else None
+    key = phone_key(data.customer_phone)
+    # Many people share one mobile address, so the address limit is much looser than the account one
+    per_account = int(await get_setting(db, "orders_per_10_min"))
+    rate_limit(f"order:{tg_id or key}", per_account, 600)
+    rate_limit(f"order-ip:{client_ip(request)}", per_account * 6, 600)
+    await check_not_blocked(db, tg_id, key)
 
     # The bazaar works 06:00–20:00 Tashkent time (UTC+5)
     now = datetime.utcnow()
@@ -86,12 +97,14 @@ async def create_order(
 
     quote = await compute_quote(db, data.items, data.fulfillment)
     order_items_to_create = quote["lines"]
+    await check_order_limits(db, tg_id, key, quote["total"])
 
     new_order = OrderModel(
         order_number=order_number,
         customer_name=data.customer_name,
         customer_phone=data.customer_phone,
-        customer_tg_id=str(tg_user["id"]) if tg_user else None,
+        customer_tg_id=tg_id,
+        phone_key=key,
         customer_tg_username=(tg_user or {}).get("username"),
         delivery_address=data.delivery_address,
         delivery_district=data.delivery_district,

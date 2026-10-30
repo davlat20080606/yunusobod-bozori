@@ -3,21 +3,23 @@ import hmac
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Body, Header, Request
-from sqlalchemy import select
+from sqlalchemy import select, func, case, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database import get_db
-from app.models.schemas import StoreModel, StaffModel, OrderModel, OrderEventModel, PIN_PATTERN
+from app.models.schemas import StoreModel, StaffModel, OrderModel, OrderEventModel, CustomerModel, CustomerBlockModel, PIN_PATTERN
 from app.api.auth import make_admin_token, current_admin, check_not_locked, record_failure, client_ip
 from app.api.tg_auth import telegram_user
 from app.api.patta import day_report, tashkent_day
 from app.api.staff import staff_public
 from app.services.config_store import get_setting, set_setting
+from app.services.customer_guard import phone_key
 from app.bot.notify import notify_status, notify_store_decision, notify_staff_decision
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_only = [Depends(current_admin)]
+LIMIT_SETTINGS = ("max_open_orders", "new_customer_max_open", "new_customer_max_total", "orders_per_10_min")
 
 
 def store_public(s: StoreModel) -> dict:
@@ -74,6 +76,7 @@ async def overview(db: AsyncSession = Depends(get_db)):
         "support_phone": await get_setting(db, "support_phone"),
         "porter_fee": float(await get_setting(db, "porter_fee")),
         "taxi_fee": float(await get_setting(db, "taxi_fee")),
+        **{key: float(await get_setting(db, key)) for key in LIMIT_SETTINGS},
     }
 
 
@@ -177,6 +180,83 @@ async def order_events(order_id: int, db: AsyncSession = Depends(get_db)):
     ]
 
 
+@router.get("/customers", dependencies=admin_only)
+async def list_customers(q: str = "", db: AsyncSession = Depends(get_db)):
+    """Customers by phone, latest first: how many orders, received, cancelled, and whether blocked."""
+    query = (
+        select(
+            OrderModel.phone_key,
+            func.count(OrderModel.id),
+            func.sum(case((OrderModel.status == "delivered", 1), else_=0)),
+            func.sum(case((OrderModel.status == "cancelled", 1), else_=0)),
+            func.max(OrderModel.id),
+        )
+        .where(OrderModel.phone_key.is_not(None))
+        .group_by(OrderModel.phone_key)
+        .order_by(func.max(OrderModel.id).desc())
+        .limit(200)
+    )
+    digits = "".join(ch for ch in q if ch.isdigit())
+    if digits:
+        query = query.where(OrderModel.phone_key.contains(digits[-9:]))
+    elif q.strip():
+        query = query.where(OrderModel.customer_name.ilike(f"%{q.strip()}%"))
+    rows = (await db.execute(query)).all()
+    last_orders = {o.id: o for o in (await db.execute(
+        select(OrderModel).where(OrderModel.id.in_([r[4] for r in rows])))).scalars().all()}
+    blocks = {b.phone_key: b for b in (await db.execute(
+        select(CustomerBlockModel).where(CustomerBlockModel.phone_key.in_([r[0] for r in rows])))).scalars().all()}
+    result = []
+    for key, total, delivered, cancelled, last_id in rows:
+        last = last_orders[last_id]
+        block = blocks.get(key)
+        result.append({
+            "phone_key": key, "name": last.customer_name, "phone": last.customer_phone, "tg_id": last.customer_tg_id,
+            "orders": total, "delivered": delivered or 0, "cancelled": cancelled or 0,
+            "last_order": last.order_number, "last_order_at": last.created_at.isoformat() if last.created_at else None,
+            "blocked": bool(block), "block_reason": block.reason if block else None,
+        })
+    return result
+
+
+@router.post("/customers/block", dependencies=admin_only)
+async def block_customer(
+    phone: str = Body(..., embed=True),
+    reason: Optional[str] = Body(None, embed=True, max_length=200),
+    db: AsyncSession = Depends(get_db),
+):
+    key = phone_key(phone)
+    if not key:
+        raise HTTPException(status_code=400, detail="Telefon raqami noto'g'ri / Неверный номер телефона")
+    # The Telegram account goes on the list too, so a new phone number alone does not get round it
+    tg_id = (await db.execute(
+        select(OrderModel.customer_tg_id).where(OrderModel.phone_key == key, OrderModel.customer_tg_id.is_not(None))
+        .order_by(OrderModel.id.desc()).limit(1))).scalar()
+    if not tg_id:
+        for customer in (await db.execute(select(CustomerModel).where(CustomerModel.phone.is_not(None)))).scalars():
+            if phone_key(customer.phone) == key:
+                tg_id = customer.tg_id
+                break
+    block = (await db.execute(select(CustomerBlockModel).where(CustomerBlockModel.phone_key == key))).scalars().first()
+    if not block:
+        block = CustomerBlockModel(phone_key=key)
+        db.add(block)
+    block.tg_id = tg_id
+    block.reason = (reason or "").strip() or None
+    await db.commit()
+    return {"success": True, "phone_key": key, "tg_id": tg_id}
+
+
+@router.delete("/customers/block/{key}", dependencies=admin_only)
+async def unblock_customer(key: str, db: AsyncSession = Depends(get_db)):
+    block = (await db.execute(select(CustomerBlockModel).where(CustomerBlockModel.phone_key == key))).scalars().first()
+    if not block:
+        raise HTTPException(status_code=404, detail="Topilmadi / Не найдено")
+    await db.delete(block)
+    await db.commit()
+    return {"success": True}
+
+
 @router.get("/patta", dependencies=admin_only)
 async def patta_report(day: Optional[str] = None, db: AsyncSession = Depends(get_db)):
     return await day_report(db, day or tashkent_day())
@@ -189,6 +269,10 @@ async def update_settings(
     support_phone: Optional[str] = Body(None, max_length=30, pattern=r"^[\d\s()+-]*$"),
     porter_fee: Optional[float] = Body(None, ge=0, le=1_000_000),
     taxi_fee: Optional[float] = Body(None, ge=0, le=1_000_000),
+    max_open_orders: Optional[int] = Body(None, ge=1, le=20),
+    new_customer_max_open: Optional[int] = Body(None, ge=1, le=20),
+    new_customer_max_total: Optional[float] = Body(None, ge=10_000, le=100_000_000),
+    orders_per_10_min: Optional[int] = Body(None, ge=1, le=1000),
     db: AsyncSession = Depends(get_db)
 ):
     if delivery_radius_km is not None:
@@ -197,7 +281,9 @@ async def update_settings(
         await set_setting(db, "patta_amount", f"{patta_amount:g}")
     if support_phone is not None:
         await set_setting(db, "support_phone", support_phone.strip())
-    for key, value in (("porter_fee", porter_fee), ("taxi_fee", taxi_fee)):
+    for key, value in (("porter_fee", porter_fee), ("taxi_fee", taxi_fee), ("max_open_orders", max_open_orders),
+                       ("new_customer_max_open", new_customer_max_open), ("new_customer_max_total", new_customer_max_total),
+                       ("orders_per_10_min", orders_per_10_min)):
         if value is not None:
             await set_setting(db, key, f"{value:g}")
     return {
@@ -206,4 +292,5 @@ async def update_settings(
         "support_phone": await get_setting(db, "support_phone"),
         "porter_fee": float(await get_setting(db, "porter_fee")),
         "taxi_fee": float(await get_setting(db, "taxi_fee")),
+        **{key: float(await get_setting(db, key)) for key in LIMIT_SETTINGS},
     }

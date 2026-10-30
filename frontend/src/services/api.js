@@ -152,6 +152,9 @@ export const api = {
   adminCancelOrder: (id) => adminFetch(`/admin/orders/${id}/cancel`, json('POST', {})),
   adminPatta: (day) => adminFetch(`/admin/patta${day ? `?day=${day}` : ''}`),
   adminSettings: (values) => adminFetch('/admin/settings', json('PUT', values)),
+  adminCustomers: (q = '') => adminFetch(`/admin/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  adminBlockCustomer: (phone, reason) => adminFetch('/admin/customers/block', json('POST', { phone, reason })),
+  adminUnblockCustomer: (key) => adminFetch(`/admin/customers/block/${key}`, json('DELETE')),
 
   // Stores & Categories
   async getStores(category = '') {

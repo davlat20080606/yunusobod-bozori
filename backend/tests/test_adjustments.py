@@ -5,7 +5,7 @@ import sqlite3
 from conftest import DB_FILE
 
 
-def test_adjustments(api, ok, admin, sellers, make_staff):
+def test_adjustments(api, ok, admin, sellers, make_staff, relaxed_limits):
     S1, S2 = sellers[0], sellers[1]
     P = make_staff("porter"); T = make_staff("taxi")
     base={"customer_name":"Test","customer_phone":"+998901234567","delivery_time_slot":"Morning (09:00-11:00)","payment_method":"cash"}

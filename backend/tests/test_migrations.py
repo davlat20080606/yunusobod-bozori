@@ -76,6 +76,10 @@ def test_database_made_before_migrations(url):
         Base.metadata.create_all(conn, tables=[t for n, t in Base.metadata.tables.items() if n not in AFTER_BASELINE])
         conn.execute(text("ALTER TABLE orders DROP COLUMN handoff_code"))
         conn.execute(text("ALTER TABLE order_items DROP COLUMN weight_status"))
+        # Added by migration 0003, so a database from before migrations does not have them
+        conn.execute(text("DROP INDEX ix_orders_phone_key"))
+        conn.execute(text("DROP INDEX ix_orders_customer_tg_id"))
+        conn.execute(text("ALTER TABLE orders DROP COLUMN phone_key"))
         conn.execute(text(
             "INSERT INTO orders (order_number, customer_name, customer_phone, delivery_address, delivery_time_slot, total_amount, delivery_fee,"
             " payment_method, payment_status, status, created_at)"
@@ -87,5 +91,7 @@ def test_database_made_before_migrations(url):
     assert run(url, version) == HEAD
     columns = run(url, lambda c: {col["name"] for col in inspect(c).get_columns("orders")})
     assert "handoff_code" in columns
+    # Old orders get their phone key from the number as it was typed
+    assert run(url, lambda c: c.execute(text("SELECT phone_key FROM orders WHERE order_number = 'YB-OLD-1'")).scalar()) == "900000000"
     assert run(url, lambda c: c.execute(text("SELECT customer_name FROM orders WHERE order_number = 'YB-OLD-1'")).scalar()) == "Eski"
     assert "order_events" in run(url, lambda c: inspect(c).get_table_names())

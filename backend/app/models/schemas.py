@@ -114,7 +114,9 @@ class OrderModel(Base):
     order_number = Column(String(30), unique=True, index=True, nullable=False)
     customer_name = Column(String(100), nullable=False)
     customer_phone = Column(String(50), nullable=False)
-    customer_tg_id = Column(String(50), nullable=True)
+    customer_tg_id = Column(String(50), nullable=True, index=True)
+    # Last 9 digits of the phone: the same customer however the number was typed (limits, blocking)
+    phone_key = Column(String(9), nullable=True, index=True)
     customer_tg_username = Column(String(100), nullable=True)
     delivery_address = Column(String(300), nullable=False)
     delivery_district = Column(String(100), default="Yunusobod")
@@ -213,6 +215,18 @@ class CustomerModel(Base):
     lang = Column(String(5), nullable=True)
     phone = Column(String(30), nullable=True)
     name = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CustomerBlockModel(Base):
+    """A customer the bazaar administration stopped from ordering (fake orders, never collects).
+    Matched by phone and, when known, by Telegram account, so a new number alone does not get round it."""
+    __tablename__ = "customer_blocks"
+
+    id = Column(Integer, primary_key=True)
+    phone_key = Column(String(9), nullable=False, unique=True)
+    tg_id = Column(String(50), nullable=True, index=True)
+    reason = Column(String(200), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

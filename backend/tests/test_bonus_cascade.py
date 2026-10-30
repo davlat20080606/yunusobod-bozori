@@ -1,7 +1,7 @@
 """Delivery bonuses from several stalls: taxi first, then the aravachi, the rest is a discount (the bazaar's table)."""
 
 
-def test_bonus_cascade(api, ok, admin, sellers):
+def test_bonus_cascade(api, ok, admin, sellers, relaxed_limits):
     api("PUT","/admin/settings",{"porter_fee":12500,"taxi_fee":18000},admin)
     H = sellers
     items=[]; sub={}

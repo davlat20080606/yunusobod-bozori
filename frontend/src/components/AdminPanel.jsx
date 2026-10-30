@@ -14,9 +14,9 @@ const T = {
   back: { uz: 'Orqaga', ru: 'Назад', en: 'Back' },
   logout: { uz: 'Chiqish', ru: 'Выйти', en: 'Sign out' },
   tabs: {
-    uz: ['Umumiy', 'Arizalar', 'Rastalar', 'Xodimlar', 'Buyurtmalar', 'Patta', 'Sozlamalar'],
-    ru: ['Обзор', 'Заявки', 'Расты', 'Работники', 'Заказы', 'Патта', 'Настройки'],
-    en: ['Overview', 'Requests', 'Stalls', 'Workers', 'Orders', 'Stall fees', 'Settings'],
+    uz: ['Umumiy', 'Arizalar', 'Rastalar', 'Xodimlar', 'Buyurtmalar', 'Patta', 'Sozlamalar', 'Xaridorlar'],
+    ru: ['Обзор', 'Заявки', 'Расты', 'Работники', 'Заказы', 'Патта', 'Настройки', 'Покупатели'],
+    en: ['Overview', 'Requests', 'Stalls', 'Workers', 'Orders', 'Stall fees', 'Settings', 'Customers'],
   },
   pending: { uz: 'Yangi arizalar', ru: 'Новые заявки', en: 'New requests' },
   stalls: { uz: 'Faol rastalar', ru: 'Активные расты', en: 'Active stalls' },
@@ -41,6 +41,20 @@ const T = {
   support_phone: { uz: 'Yordam telefoni (xaridorlar uchun)', ru: 'Телефон поддержки (для покупателей)', en: 'Help phone (for customers)' },
   porter_fee: { uz: "Aravachi narxi (so'm)", ru: 'Цена аравачи (сум)', en: 'Porter fee (UZS)' },
   taxi_fee: { uz: "Taksi narxi (so'm)", ru: 'Цена такси (сум)', en: 'Taxi fee (UZS)' },
+  limits: { uz: 'Soxta buyurtmalardan himoya', ru: 'Защита от фейковых заказов', en: 'Fake-order protection' },
+  new_customer_max_total: { uz: "Birinchi buyurtma, so'mgacha", ru: 'Первый заказ, до (сум)', en: 'First order, up to (UZS)' },
+  new_customer_max_open: { uz: 'Yangi xaridor: ochiq buyurtma', ru: 'Новый покупатель: открытых заказов', en: 'New customer: open orders' },
+  max_open_orders: { uz: 'Har kim: ochiq buyurtma', ru: 'Любой покупатель: открытых заказов', en: 'Any customer: open orders' },
+  orders_per_10_min: { uz: 'Urinishlar, 10 daqiqada', ru: 'Попыток за 10 минут', en: 'Tries per 10 minutes' },
+  limits_hint: { uz: "Yangi xaridor — hali birorta buyurtmani olmagan odam.", ru: 'Новый покупатель — тот, кто ещё не получил ни одного заказа.', en: 'A new customer is one who has not received an order yet.' },
+  search: { uz: 'Telefon yoki ism', ru: 'Телефон или имя', en: 'Phone or name' },
+  orders_count: { uz: 'buyurtma', ru: 'заказов', en: 'orders' },
+  received: { uz: 'olgan', ru: 'получено', en: 'received' },
+  cancelled: { uz: 'bekor', ru: 'отменено', en: 'cancelled' },
+  block_prompt: { uz: 'Bloklash sababi (ixtiyoriy):', ru: 'Причина блокировки (необязательно):', en: 'Reason for blocking (optional):' },
+  blocked_done: { uz: 'Bloklandi', ru: 'Заблокирован', en: 'Blocked' },
+  unblocked_done: { uz: 'Blokdan chiqarildi', ru: 'Разблокирован', en: 'Unblocked' },
+  no_customers: { uz: "Xaridor topilmadi", ru: 'Покупатели не найдены', en: 'No customers found' },
   paid: { uz: "To'lagan", ru: 'Оплатили', en: 'Paid' },
   not_paid: { uz: "To'lamagan", ru: 'Не оплатили', en: 'Not paid' },
   status: {
@@ -54,6 +68,7 @@ const T = {
   },
 };
 
+const LIMIT_KEYS = ['new_customer_max_total', 'new_customer_max_open', 'max_open_orders', 'orders_per_10_min'];
 const STATUS_COLOR = { pending: '#d97706', approved: '#16a34a', rejected: '#64748b', blocked: '#dc2626' };
 const card = { background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 12, marginBottom: 8 };
 const pill = (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 800, color, background: `${color}1a` });
@@ -107,6 +122,8 @@ export default function AdminPanel({ onBackToMarket }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [settingsForm, setSettingsForm] = useState({ radius: '', patta: '', phone: '', porterFee: '', taxiFee: '' });
+  const [customers, setCustomers] = useState([]);
+  const [customerQuery, setCustomerQuery] = useState('');
   const [categories, setCategories] = useState({});
 
   useEffect(() => {
@@ -124,7 +141,11 @@ export default function AdminPanel({ onBackToMarket }) {
         api.adminOverview(), api.adminStores(), api.adminStaff(), api.adminOrders(), api.adminPatta()
       ]);
       setData({ overview, stores, staff, orders, patta });
-      setSettingsForm((prev) => prev.radius ? prev : { radius: String(overview.delivery_radius_km), patta: String(overview.patta_amount), phone: overview.support_phone || '', porterFee: String(overview.porter_fee ?? 5000), taxiFee: String(overview.taxi_fee ?? 10000) });
+      setSettingsForm((prev) => prev.radius ? prev : {
+        radius: String(overview.delivery_radius_km), patta: String(overview.patta_amount), phone: overview.support_phone || '',
+        porterFee: String(overview.porter_fee ?? 5000), taxiFee: String(overview.taxi_fee ?? 10000),
+        ...Object.fromEntries(LIMIT_KEYS.map((key) => [key, String(overview[key] ?? '')])),
+      });
       setError('');
     } catch (err) {
       if (err.status === 401) setSignedIn(false);
@@ -154,6 +175,17 @@ export default function AdminPanel({ onBackToMarket }) {
     }
     load();
   };
+
+  const loadCustomers = (q = customerQuery) => api.adminCustomers(q).then(setCustomers).catch((err) => setError(err.message));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (signedIn && tab === 7) loadCustomers(); }, [signedIn, tab]);
+
+  const blockCustomer = (c) => {
+    const reason = window.prompt(t('block_prompt'));
+    if (reason === null) return;
+    act(() => api.adminBlockCustomer(c.phone, reason).then(() => loadCustomers()), t('blocked_done'));
+  };
+  const unblockCustomer = (c) => act(() => api.adminUnblockCustomer(c.phone_key).then(() => loadCustomers()), t('unblocked_done'));
 
   const resetPin = (fn) => {
     const pin = window.prompt(t('pin_prompt'));
@@ -304,7 +336,7 @@ export default function AdminPanel({ onBackToMarket }) {
       )}
 
       {tab === 6 && (
-        <form onSubmit={(e) => { e.preventDefault(); act(() => api.adminSettings({ delivery_radius_km: Number(settingsForm.radius), patta_amount: Number(settingsForm.patta), support_phone: settingsForm.phone, porter_fee: Number(settingsForm.porterFee || 0), taxi_fee: Number(settingsForm.taxiFee || 0) }), t('saved')); }} style={card}>
+        <form onSubmit={(e) => { e.preventDefault(); act(() => api.adminSettings({ delivery_radius_km: Number(settingsForm.radius), patta_amount: Number(settingsForm.patta), support_phone: settingsForm.phone, porter_fee: Number(settingsForm.porterFee || 0), taxi_fee: Number(settingsForm.taxiFee || 0), ...Object.fromEntries(LIMIT_KEYS.filter((key) => settingsForm[key]).map((key) => [key, Number(settingsForm[key])])) }), t('saved')); }} style={card}>
           <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>{t('radius')} ({t('km')})</label>
           <input value={settingsForm.radius} onChange={(e) => setSettingsForm({ ...settingsForm, radius: e.target.value.replace(/[^\d.]/g, '') })} inputMode="decimal" style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 16, marginBottom: 12 }} />
           <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>{t('patta_amount')} (UZS)</label>
@@ -319,8 +351,48 @@ export default function AdminPanel({ onBackToMarket }) {
               </label>
             ))}
           </div>
+          <div style={{ fontSize: 15, fontWeight: 800, margin: '4px 0 2px' }}>🛡 {t('limits')}</div>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>{t('limits_hint')}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {LIMIT_KEYS.map((key) => (
+              <label key={key} style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', minWidth: 0 }}>
+                {t(key)}
+                <input value={settingsForm[key] ?? ''} onChange={(e) => setSettingsForm({ ...settingsForm, [key]: e.target.value.replace(/\D/g, '') })} inputMode="numeric" style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 16, marginTop: 6, marginBottom: 12 }} />
+              </label>
+            ))}
+          </div>
           <button type="submit" style={{ width: '100%', height: 48, borderRadius: 14, border: 'none', background: '#0f172a', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>{t('save')}</button>
         </form>
+      )}
+
+      {tab === 7 && (
+        <>
+          <form onSubmit={(e) => { e.preventDefault(); loadCustomers(customerQuery); }} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <input value={customerQuery} onChange={(e) => setCustomerQuery(e.target.value)} placeholder={t('search')} style={{ flex: 1, minWidth: 0, padding: 12, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 16 }} />
+            <button type="submit" aria-label="search" style={{ ...smallBtn('#0f172a'), padding: '0 14px' }}>🔍</button>
+          </form>
+          {customers.length === 0 && <div style={{ ...card, textAlign: 'center', color: '#64748b', padding: 24 }}>{t('no_customers')}</div>}
+          {customers.map((c) => (
+            <div key={c.phone_key} style={{ ...card, background: c.blocked ? '#fef2f2' : '#ffffff' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <b style={{ fontSize: 15, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.tg_id ? '✈️ ' : ''}{c.name}</b>
+                {c.blocked && <span style={pill('#dc2626')}>{statusName('blocked')}</span>}
+              </div>
+              <div style={{ fontSize: 13, color: '#475569' }}>
+                <a href={`tel:${c.phone.replace(/[^\d+]/g, '')}`} style={{ color: 'inherit' }}><Phone size={11} /> {c.phone}</a>
+              </div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>
+                {c.orders} {t('orders_count')} · ✅ {c.delivered} {t('received')} · ✖️ {c.cancelled} {t('cancelled')} · #{c.last_order}
+              </div>
+              {c.blocked && c.block_reason && <div style={{ fontSize: 13, color: '#b91c1c' }}>{c.block_reason}</div>}
+              <div style={{ marginTop: 8 }}>
+                {c.blocked
+                  ? <button type="button" style={smallBtn('#dcfce7', '#15803d')} onClick={() => unblockCustomer(c)}>{t('unblock')}</button>
+                  : <button type="button" style={smallBtn('#fee2e2', '#b91c1c')} onClick={() => blockCustomer(c)}>{t('block')}</button>}
+              </div>
+            </div>
+          ))}
+        </>
       )}
     </div>
   );

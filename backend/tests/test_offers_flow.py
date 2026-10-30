@@ -1,7 +1,7 @@
 """Stall offers in the quote and every handover step for self pickup and an aravachi to a point."""
 
 
-def test_offers_and_handover(api, ok, admin, sellers, make_staff):
+def test_offers_and_handover(api, ok, admin, sellers, make_staff, relaxed_limits):
     S1, S2 = sellers[0], sellers[1]
     A = admin
     st1=api("GET","/seller/my-store",headers=S1)[1]; st2=api("GET","/seller/my-store",headers=S2)[1]

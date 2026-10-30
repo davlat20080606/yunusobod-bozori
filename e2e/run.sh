@@ -14,8 +14,13 @@ server() { # $1 suite name: fresh database, real app with a fake bot
   rm -f "$S/$1.db" "$S/sent.log"; touch "$S/sent.log"
   (cd "$BE" && PYTHONPATH=".:tests" SENT_LOG="$S/sent.log" BOT_MODE=webhook TELEGRAM_BOT_TOKEN=$FAKE_TOKEN \
     DATABASE_URL="sqlite+aiosqlite:///$S/$1.db" ADMIN_PIN=909090 nohup "$PY" -m uvicorn fake_bot_app:app --port 8099 > "$S/$1.log" 2>&1 &)
-  for _ in $(seq 60); do curl -sf http://127.0.0.1:8099/api/health > /dev/null && return; sleep 0.5; done
+  for _ in $(seq 60); do curl -sf http://127.0.0.1:8099/api/health > /dev/null && { relax_limits; return; }; sleep 0.5; done
   echo "server did not start, see $S/$1.log"; exit 1
+}
+relax_limits() { # the journeys place many orders from one test phone; the limits have their own API tests
+  local token; token=$(curl -s -X POST http://127.0.0.1:8099/api/admin/login -H 'Content-Type: application/json' -d '{"pin":"909090"}' | sed 's/.*"token":"\([^"]*\)".*/\1/')
+  curl -s -o /dev/null -X PUT http://127.0.0.1:8099/api/admin/settings -H 'Content-Type: application/json' -H "x-admin-token: $token" \
+    -d '{"max_open_orders":20,"new_customer_max_open":20,"new_customer_max_total":100000000,"orders_per_10_min":1000}'
 }
 chrome() { rm -rf "$S/chrome"; "$CHROME" --headless=new --remote-debugging-port=9333 --user-data-dir="$S/chrome" --no-first-run about:blank > /dev/null 2>&1 & sleep 3; }
 report() { # $1 name, $2 output with PASS/FAIL lines
@@ -40,6 +45,9 @@ stop; server geo; chrome; "$PY" "$E/location.py" "$S" > "$S/geo.raw" 2>&1
 awk '/Mac Telegram\] map opened: Telegram asked for location 0/{print "PASS Mac: map opens without asking"} /Mac Telegram\] «my location» button on the map: False/{print "PASS Mac: no location button"} /iPhone.*map opened: Telegram asked for location 0/{print "PASS iPhone: map opens without asking"} /iPhone.*settings opened: 1/{print "PASS iPhone: «Allow location» opens settings"}' "$S/geo.raw" > "$S/geo.txt"
 [ "$(grep -c PASS "$S/geo.txt")" -eq 4 ] || echo "FAIL location checks (see $S/geo.raw)" >> "$S/geo.txt"
 report "Location on Mac and iPhone" "$S/geo.txt"
+
+stop; server guard; chrome; "$PY" "$E/customer_guard_ui.py" "$S" > "$S/guard.txt" 2>&1
+report "Blocking a customer (Bozorkom + shop)" "$S/guard.txt"
 
 "$PY" "$E/language_kept.py" > "$S/persist.raw" 2>&1
 awk '/lang=ru \| Юнус/{c++} /lang=en \| Yunusobod Farmers/{e++} END{print (c==3?"PASS":"FAIL")" Russian kept after reopening ("c"/3)"; print (e==2?"PASS":"FAIL")" English kept after reopening ("e"/2)"}' "$S/persist.raw" > "$S/persist.txt"

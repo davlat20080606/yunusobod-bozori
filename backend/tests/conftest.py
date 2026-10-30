@@ -149,3 +149,10 @@ BASE_ORDER = {"customer_name": "Test Xaridor", "customer_phone": "+998901234567"
               "delivery_time_slot": "Morning (09:00-11:00)", "payment_method": "cash"}
 COURIER = {"fulfillment": "courier", "handoff_point": "main_gate", "delivery_address": "Yunusobod 4, 12",
            "delivery_lat": 41.36, "delivery_lng": 69.29}
+
+
+@pytest.fixture(scope="module")
+def relaxed_limits(api, admin):
+    """Flow tests place many orders from one test phone; fake-order limits have their own test."""
+    api("PUT", "/admin/settings", {"max_open_orders": 20, "new_customer_max_open": 20,
+                                   "new_customer_max_total": 100_000_000, "orders_per_10_min": 1000}, admin)

@@ -10,6 +10,13 @@ import { ClickLogo, PaymeLogo } from './PaymentLogos';
 import { FULFILLMENTS, pointName, bonusLabel, hintLabel } from '../services/offers';
 import { stallLabel, itemName } from '../services/stall';
 
+// Server messages come as "o'zbekcha / по-русски"; show the customer's half
+function inLanguage(message, language) {
+  const parts = String(message).split(' / ');
+  if (parts.length !== 2) return message;
+  return language === 'uz' ? parts[0] : parts[1];
+}
+
 export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', grandTotal, onSubmitOrder, onOrderSuccess, pickerNotes = '' }) {
   const { t, language } = useLanguage();
   const tgUser = getTelegramUser();
@@ -479,13 +486,14 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
             ))}
           </div>
 
-          {error && (
-            <div style={{ margin: '0 12px', padding: '12px 14px', background: '#fee2e2', color: '#b91c1c', borderRadius: 14, fontSize: 14, fontWeight: 600 }}>⚠️ {error}</div>
-          )}
         </div>
 
         {/* Total + big button */}
         <div style={{ background: '#ffffff', padding: '12px 16px calc(14px + env(safe-area-inset-bottom))', borderRadius: '26px 26px 0 0', boxShadow: '0 -4px 16px rgba(15,23,42,0.06)' }}>
+          {/* Next to the button, so a refused order is never explained somewhere out of sight */}
+          {error && (
+            <div role="alert" style={{ marginBottom: 10, padding: '10px 12px', background: '#fee2e2', color: '#b91c1c', borderRadius: 14, fontSize: 14, fontWeight: 600 }}>⚠️ {inLanguage(error, language)}</div>
+          )}
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 24, fontWeight: 800 }}>{tr('Jami', 'Итого', 'Total')}</span>
             <span>

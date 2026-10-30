@@ -9,7 +9,7 @@ def events(api, admin, order_id):
     return api("GET", f"/admin/orders/{order_id}/events", h=admin)[1]
 
 
-def test_courier_order_history(api, ok, admin, sellers, make_staff):
+def test_courier_order_history(api, ok, admin, sellers, make_staff, relaxed_limits):
     porter, taxi = make_staff("porter"), make_staff("taxi")
     # beef 1 kg from stall 2, tomato 1 kg from stall 1
     items = [{"product_id": 11, "store_id": 2, "quantity": 1}, {"product_id": 6, "store_id": 1, "quantity": 1}]
@@ -56,7 +56,7 @@ def test_courier_order_history(api, ok, admin, sellers, make_staff):
     ok(api("GET", f"/admin/orders/{oid}/events", h=porter)[0] == 401, "a worker cannot read it")
 
 
-def test_cancel_and_system_events(api, ok, admin):
+def test_cancel_and_system_events(api, ok, admin, relaxed_limits):
     c, order = api("POST", "/orders", {**BASE_ORDER, "fulfillment": "self", "items": [{"product_id": 10, "store_id": 2, "quantity": 1}]})
     api("POST", f"/orders/{order['order_number']}/cancel")
     log = events(api, admin, order["id"])
