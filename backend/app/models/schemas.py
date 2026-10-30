@@ -251,6 +251,29 @@ class SettingModel(Base):
     value = Column(String(200), nullable=False)
 
 
+class StoreMemberModel(Base):
+    """A Telegram account that works in a stall: the owner, or a helper (son, apprentice, brother)."""
+    __tablename__ = "store_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    tg_id = Column(String(50), nullable=False, index=True)
+    name = Column(String(100), nullable=True)
+    role = Column(String(20), default="helper")  # owner | helper
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class StoreInviteModel(Base):
+    """One-time QR code that adds a helper to a stall; it lives 15 minutes."""
+    __tablename__ = "store_invites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String(40), unique=True, index=True, nullable=False)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+
+
 class PromoModel(Base):
     """A stall's offer for big orders once its part reaches min_amount:
     a % discount, a delivery bonus worth `amount` so'm, or a gift product added for 0 so'm."""

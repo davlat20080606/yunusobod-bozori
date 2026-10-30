@@ -55,6 +55,20 @@ def get_bot() -> Optional[Bot]:
             bot = None
     return bot
 
+_bot_username = None
+
+
+async def get_bot_username():
+    """@name of the bot, for t.me links in QR codes (asked from Telegram once)."""
+    global _bot_username
+    if _bot_username is None and get_bot():
+        try:
+            _bot_username = (await get_bot().get_me()).username
+        except Exception as e:
+            logger.info(f"Bot name note: {e}")
+    return _bot_username
+
+
 def build_keyboard(lang: str = "uz"):
     """Only the language switcher: the bazaar opens from the chat's menu button, like modern Mini App bots."""
     def label(code, text):
@@ -209,12 +223,60 @@ async def continue_registration(message: types.Message, customer, tg_first_name:
         await send_welcome(message, lang)
 
 
+JOIN_TEXTS = {
+    "ok": {
+        "uz": "✅ Siz <b>{store}</b> ({stall}) rastasiga yordamchi bo'lib qo'shildingiz.\nYangi buyurtmalar sizga ham keladi.",
+        "ru": "✅ Вы добавлены помощником в расту <b>{store}</b> ({stall}).\nНовые заказы будут приходить и вам.",
+        "en": "✅ You were added as a helper of <b>{store}</b> ({stall}).\nNew orders will come to you too.",
+    },
+    "bad": {
+        "uz": "❌ QR kod eskirgan yoki ishlatilgan. Rasta egasidan yangisini so'rang.",
+        "ru": "❌ QR-код устарел или уже использован. Попросите у владельца расты новый.",
+        "en": "❌ This QR code has expired or was already used. Ask the stall owner for a new one.",
+    },
+    "button": {"uz": "🏪 Kabinetni ochish", "ru": "🏪 Открыть кабинет", "en": "🏪 Open the cabinet"},
+}
+
+
+async def join_stall(message: types.Message, token: str):
+    """Link this Telegram account to the stall whose owner showed the QR code."""
+    from datetime import datetime
+    from sqlalchemy import select
+    from app.database import async_session_factory
+    from app.models.schemas import StoreInviteModel, StoreModel
+    from app.api.seller import add_member
+    customer = await get_customer(message.from_user.id)
+    lang = (customer.lang if customer and customer.lang else None) or {"ru": "ru", "en": "en"}.get((message.from_user.language_code or "")[:2], "uz")
+    async with async_session_factory() as db:
+        invite = (await db.execute(select(StoreInviteModel).where(StoreInviteModel.token == token[:40]))).scalars().first()
+        store = await db.get(StoreModel, invite.store_id) if invite else None
+        if not invite or invite.used_at or invite.expires_at < datetime.utcnow() or not store:
+            await message.answer(JOIN_TEXTS["bad"][lang])
+            return
+        user = message.from_user
+        await add_member(db, store.id, {"id": user.id, "first_name": user.first_name, "last_name": user.last_name, "username": user.username}, "helper")
+        invite.used_at = datetime.utcnow()
+        await db.commit()
+        store_name = getattr(store, f"name_{lang}", None) or store.name_uz
+    keyboard = None
+    if settings.WEBAPP_URL.startswith("https://"):
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+            text=JOIN_TEXTS["button"][lang], web_app=WebAppInfo(url=f"{settings.WEBAPP_URL}?tab=seller_cabinet&lang={lang}")
+        )]])
+    await message.answer(JOIN_TEXTS["ok"][lang].format(store=escape(store_name), stall=escape(store.stall_number)), reply_markup=keyboard, parse_mode="HTML")
+
+
 def setup_dispatcher() -> Dispatcher:
     global dp
     dp = Dispatcher()
 
     @dp.message(CommandStart())
     async def cmd_start(message: types.Message):
+        # A helper scanned the owner's QR code: t.me/<bot>?start=join_<token>
+        args = (message.text or "").split(maxsplit=1)
+        if len(args) > 1 and args[1].startswith("join_"):
+            await join_stall(message, args[1][5:])
+            return
         customer = await get_customer(message.from_user.id)
         if not customer or not customer.lang:
             # First visit: language first, like Evos / Bellissimo

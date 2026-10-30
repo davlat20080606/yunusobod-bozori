@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.api.tg_auth import telegram_user
 from app.api.auth import (
-    current_store, make_seller_token, normalize_phone,
+    current_store, current_owner_store, make_seller_token, make_member_token, seller_identity, normalize_phone,
     check_not_locked, record_failure
 )
 from app.bot.notify import notify_admin_application, notify_status
@@ -21,7 +21,8 @@ from app.models.schemas import (
     StoreModel, ProductModel, OrderModel, OrderItemModel, CategoryModel,
     ProductSchema, StoreSchema, UpdatePriceSchema, ToggleAvailabilitySchema,
     SellerLoginSchema, StoreRegisterSchema, StoreUpdateSchema, ProductCreateSchema, OrderSchema,
-    MediaModel, PromoModel, PromoCreateSchema, OrderItemSchema, OrderBonusSchema
+    MediaModel, PromoModel, PromoCreateSchema, OrderItemSchema, OrderBonusSchema,
+    StoreMemberModel, StoreInviteModel
 )
 
 router = APIRouter(prefix="/api/seller", tags=["seller"])
@@ -69,14 +70,34 @@ async def seller_login(
     tg_user = telegram_user(x_telegram_init_data)
     if tg_user:
         store.telegram_chat_id = str(tg_user["id"])
+        # The one who knows the PIN is the owner; next time Telegram alone opens the cabinet
+        await add_member(db, store.id, tg_user, "owner")
         await db.commit()
         await db.refresh(store)
 
     return {
         "success": True,
         "token": make_seller_token(store),
-        "store": StoreSchema.from_orm(store)
+        "store": StoreSchema.from_orm(store),
+        "role": "owner",
     }
+
+
+async def add_member(db: AsyncSession, store_id: int, tg_user: dict, role: str) -> StoreMemberModel:
+    tg_id = str(tg_user["id"])
+    name = " ".join(x for x in (tg_user.get("first_name"), tg_user.get("last_name")) if x) or tg_user.get("username") or "—"
+    member = (await db.execute(
+        select(StoreMemberModel).where(StoreMemberModel.store_id == store_id, StoreMemberModel.tg_id == tg_id)
+    )).scalars().first()
+    if member:
+        member.name = name[:100]
+        if role == "owner":
+            member.role = "owner"
+    else:
+        member = StoreMemberModel(store_id=store_id, tg_id=tg_id, name=name[:100], role=role)
+        db.add(member)
+    await db.flush()
+    return member
 
 
 @router.post("/register-store")
@@ -132,7 +153,7 @@ async def register_store(
 
 
 @router.patch("/stores/me")
-async def update_store_profile(data: StoreUpdateSchema, store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
+async def update_store_profile(data: StoreUpdateSchema, store: StoreModel = Depends(current_owner_store), db: AsyncSession = Depends(get_db)):
     if data.owner_phone is not None:
         if len(normalize_phone(data.owner_phone)) < 9:
             raise HTTPException(status_code=400, detail="Telefon raqamini to'liq kiriting / Введите номер телефона полностью")
@@ -444,3 +465,60 @@ async def seller_missing(item_id: int, missing: bool = Body(True, embed=True), s
     if order.status == "cancelled":
         notify_status(order.id)
     return {"success": True, "order_status": order.status}
+
+
+
+@router.post("/tg-login")
+async def seller_tg_login(x_telegram_init_data: Optional[str] = Header(None), db: AsyncSession = Depends(get_db)):
+    """Inside Telegram a stall's owner or helper opens the cabinet without a PIN."""
+    tg_user = telegram_user(x_telegram_init_data)
+    if not tg_user:
+        raise HTTPException(status_code=401, detail="Telegram orqali oching / Откройте через Telegram")
+    members = (await db.execute(
+        select(StoreMemberModel).where(StoreMemberModel.tg_id == str(tg_user["id"])).order_by(StoreMemberModel.id.desc())
+    )).scalars().all()
+    for member in members:
+        store = await db.get(StoreModel, member.store_id)
+        if store and store.status == "approved":
+            return {"success": True, "token": make_member_token(member, store), "store": StoreSchema.from_orm(store), "role": member.role}
+    raise HTTPException(status_code=404, detail="Siz hech qaysi rastaga ulanmagansiz / Вы не привязаны к расте")
+
+
+@router.post("/invite")
+async def create_invite(store: StoreModel = Depends(current_owner_store), db: AsyncSession = Depends(get_db)):
+    """QR code for a helper: a one-time t.me link that lives 15 minutes."""
+    import secrets
+    from datetime import datetime, timedelta
+    from app.bot.bot import get_bot_username
+    username = await get_bot_username()
+    if not username:
+        raise HTTPException(status_code=503, detail="Bot hozir ishlamayapti / Бот сейчас недоступен")
+    invite = StoreInviteModel(token=secrets.token_urlsafe(12), store_id=store.id, expires_at=datetime.utcnow() + timedelta(minutes=15))
+    db.add(invite)
+    await db.commit()
+    return {"link": f"https://t.me/{username}?start=join_{invite.token}", "expires_at": invite.expires_at.isoformat()}
+
+
+@router.get("/members")
+async def list_members(x_seller_token: Optional[str] = Header(None), db: AsyncSession = Depends(get_db)):
+    store, me = await seller_identity(x_seller_token, db)
+    members = (await db.execute(
+        select(StoreMemberModel).where(StoreMemberModel.store_id == store.id).order_by(StoreMemberModel.id)
+    )).scalars().all()
+    return {
+        "my_role": me.role if me else "owner",
+        "members": [{"id": m.id, "name": m.name, "role": m.role, "is_me": bool(me and me.id == m.id)} for m in members],
+    }
+
+
+@router.delete("/members/{member_id}")
+async def remove_member(member_id: int, store: StoreModel = Depends(current_owner_store), db: AsyncSession = Depends(get_db)):
+    """The helper is signed out at once: their session is tied to this record."""
+    member = await db.get(StoreMemberModel, member_id)
+    if not member or member.store_id != store.id:
+        raise HTTPException(status_code=404, detail="Topilmadi / Не найдено")
+    if member.role == "owner":
+        raise HTTPException(status_code=409, detail="Egani o'chirib bo'lmaydi / Владельца удалить нельзя")
+    await db.delete(member)
+    await db.commit()
+    return {"success": True}

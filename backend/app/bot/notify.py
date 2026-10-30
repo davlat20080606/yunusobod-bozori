@@ -226,6 +226,13 @@ async def _new_order(order_id: int):
         porters = (await db.execute(
             select(StaffModel).where(StaffModel.role == "porter", StaffModel.status == "approved", StaffModel.tg_id.isnot(None))
         )).scalars().all()
+        from app.models.schemas import StoreMemberModel
+        member_rows = (await db.execute(
+            select(StoreMemberModel.store_id, StoreMemberModel.tg_id).where(StoreMemberModel.store_id.in_(list(stores)))
+        )).all()
+    team = {}
+    for store_id, tg_id in member_rows:
+        team.setdefault(store_id, set()).add(tg_id)
 
     stalls = ", ".join(escape(s.stall_number) for s in store_rows)
     gifts = {}
@@ -245,7 +252,9 @@ async def _new_order(order_id: int):
         await asyncio.gather(*[_send(p.tg_id, porter_text, keyboard) for p in porters])
 
     for store in store_rows:
-        if not store.telegram_chat_id:
+        # The owner and every helper (son, apprentice, brother) hear about the order
+        chats = team.get(store.id, set()) | ({store.telegram_chat_id} if store.telegram_chat_id else set())
+        if not chats:
             continue
         # "to'plam (сет)" -> "to'plam": the part in brackets is a leftover Russian word
         lines = "\n".join(f"• {escape(i.product_name)} — {i.quantity:g} {escape(re.sub(r'\s*\(.*?\)', '', i.unit or ''))}" for i in stores[store.id])
@@ -256,7 +265,7 @@ async def _new_order(order_id: int):
             f"🔔 <b>Yangi buyurtma · Новый заказ</b> #{order.order_number}\n"
             f"🏪 {escape(store.stall_number)}\n\n{lines}\n\n{who}"
         )
-        await _send(store.telegram_chat_id, seller_text, _webapp_button("🏪 Kabinet / Кабинет", "tab=seller_cabinet"))
+        await asyncio.gather(*[_send(chat, seller_text, _webapp_button("🏪 Kabinet / Кабинет", "tab=seller_cabinet")) for chat in chats])
 
 
 async def _taxis(order_id: int):

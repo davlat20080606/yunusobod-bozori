@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import SellerPromos from './SellerPromos';
+import SellerTeam from './SellerTeam';
 import SellerOrderBody from './SellerOrderBody';
 import { newIdsWatcher } from '../services/sound';
 import { createPortal } from 'react-dom';
@@ -343,6 +344,8 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 800 }}>{getLocalized(storeData.store, 'name')}</h3>
+                {/* Only the owner edits the stall profile and PIN; helpers sell */}
+                {getSellerSession()?.role !== 'helper' && (
                 <button
                   onClick={() => setShowEditStoreModal(true)}
                   style={{
@@ -363,6 +366,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
                   <Edit3 size={13} />
                   <span>{t('seller.edit_profile')}</span>
                 </button>
+                )}
               </div>
               <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>
                 📍 {stallLabel(storeData.store.stall_number, language)} | 👤 <strong>{storeData.store.owner_name}</strong> ({storeData.store.owner_phone})
@@ -496,6 +500,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
           </div>
 
           <SellerPromos language={language} products={storeData?.products || []} />
+          <SellerTeam language={language} />
 
           {/* Incoming Orders Section */}
           <div className="section-header">

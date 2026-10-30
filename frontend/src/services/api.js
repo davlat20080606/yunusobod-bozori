@@ -317,6 +317,15 @@ export const api = {
   async getStoreOrders() {
     return sellerFetch('/orders');
   },
+  // A stall's team: the owner and helpers who joined by QR code
+  async sellerTgLogin() {
+    const res = await fetch(`${API_BASE}/seller/tg-login`, { method: 'POST', headers: tgHeaders() });
+    if (!res.ok) throw await readError(res, 'Not linked');
+    return res.json();
+  },
+  sellerInvite: () => sellerFetch('/invite', { method: 'POST' }),
+  sellerMembers: () => sellerFetch('/members'),
+  sellerRemoveMember: (id) => sellerFetch(`/members/${id}`, { method: 'DELETE' }),
   sellerItemWeight: (itemId, actualQuantity) => sellerFetch(`/items/${itemId}/weight`, { method: 'PATCH', body: JSON.stringify({ actual_quantity: actualQuantity }) }),
   sellerItemMissing: (itemId, missing) => sellerFetch(`/items/${itemId}/missing`, { method: 'POST', body: JSON.stringify({ missing }) }),
   sellerOrderReady: (orderId) => sellerFetch(`/orders/${orderId}/ready`, { method: 'POST' }),

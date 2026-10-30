@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Store, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { api, setSellerSession } from '../services/api';
-import { triggerHaptic } from '../services/telegram';
+import { triggerHaptic, getTelegramInitData } from '../services/telegram';
 
 const T = {
   title: { uz: 'Sotuvchi kabineti', ru: 'Кабинет продавца', en: 'Seller dashboard' },
@@ -73,6 +73,18 @@ export default function SellerLogin({ onSignedIn, onCancel, onOpenPorter }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
+  // Inside Telegram an owner or a helper who joined by QR is let in without the PIN
+  const [autoTrying, setAutoTrying] = useState(() => Boolean(getTelegramInitData()));
+  useEffect(() => {
+    if (!autoTrying) return;
+    api.sellerTgLogin()
+      .then((res) => {
+        setSellerSession({ token: res.token, store: res.store, role: res.role });
+        triggerHaptic('success');
+        onSignedIn();
+      })
+      .catch(() => setAutoTrying(false));
+  }, []);
   const [reg, setReg] = useState({ name_uz: '', stall_number: '', owner_name: '', owner_phone: '+998 ', category_slug: 'shop', pin: '' });
 
   const submitLogin = async (e) => {
@@ -81,7 +93,7 @@ export default function SellerLogin({ onSignedIn, onCancel, onOpenPorter }) {
     setError('');
     try {
       const res = await api.sellerLogin(phone, pin);
-      setSellerSession({ token: res.token, store: res.store });
+      setSellerSession({ token: res.token, store: res.store, role: res.role || 'owner' });
       triggerHaptic('success');
       onSignedIn();
     } catch (err) {
@@ -161,6 +173,10 @@ export default function SellerLogin({ onSignedIn, onCancel, onOpenPorter }) {
   }
 
   const canLogin = phone.replace(/\D/g, '').length >= 9 && pin.length >= 4 && !busy;
+  if (autoTrying) {
+    return <div style={{ ...page, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontSize: 16, fontWeight: 700 }}>🏪 …</div>;
+  }
+
   return (
     <div style={page}>
       <form onSubmit={submitLogin} style={{ maxWidth: 360, margin: '0 auto' }}>

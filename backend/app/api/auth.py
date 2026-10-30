@@ -35,21 +35,61 @@ def make_seller_token(store: StoreModel) -> str:
     return f"{store.id}.{expires}.{_sign(store.id, expires, store.seller_pin)}"
 
 
-async def current_store(
-    x_seller_token: Optional[str] = Header(None),
-    db: AsyncSession = Depends(get_db)
-) -> StoreModel:
+def _sign_member(member_id: int, store_id: int, expires: int, pin: str) -> str:
+    msg = f"member.{member_id}.{store_id}.{expires}.{pin}".encode()
+    return hmac.new(_SECRET, msg, hashlib.sha256).hexdigest()[:40]
+
+
+def make_member_token(member, store: StoreModel) -> str:
+    """Session of one Telegram account in a stall; removing the member ends it at once."""
+    expires = int(time.time()) + TOKEN_TTL_SECONDS
+    return f"m{member.id}.{expires}.{_sign_member(member.id, store.id, expires, store.seller_pin)}"
+
+
+async def seller_identity(x_seller_token: Optional[str], db: AsyncSession):
+    """(stall, member) for a seller token; member is None for a PIN session (the owner)."""
+    from app.models.schemas import StoreMemberModel
     unauthorized = HTTPException(status_code=401, detail="Iltimos, qaytadan kiring / Пожалуйста, войдите снова")
     try:
-        store_id_s, expires_s, signature = (x_seller_token or "").split(".")
-        store_id, expires = int(store_id_s), int(expires_s)
+        first, expires_s, signature = (x_seller_token or "").split(".")
+        expires = int(expires_s)
+        member_id = int(first[1:]) if first.startswith("m") else None
+        store_id = None if member_id else int(first)
     except ValueError:
         raise unauthorized
     if expires < time.time():
         raise unauthorized
+    member = None
+    if member_id:
+        member = await db.get(StoreMemberModel, member_id)
+        if not member:
+            raise unauthorized
+        store_id = member.store_id
     store = await db.get(StoreModel, store_id)
-    if not store or not hmac.compare_digest(signature, _sign(store.id, expires, store.seller_pin)):
+    if not store:
         raise unauthorized
+    expected = _sign_member(member.id, store.id, expires, store.seller_pin) if member else _sign(store.id, expires, store.seller_pin)
+    if not hmac.compare_digest(signature, expected):
+        raise unauthorized
+    return store, member
+
+
+async def current_store(
+    x_seller_token: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
+) -> StoreModel:
+    store, _ = await seller_identity(x_seller_token, db)
+    return store
+
+
+async def current_owner_store(
+    x_seller_token: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
+) -> StoreModel:
+    """Helpers sell and pack; only the owner changes the PIN, the stall profile and the team."""
+    store, member = await seller_identity(x_seller_token, db)
+    if member and member.role != "owner":
+        raise HTTPException(status_code=403, detail="Buni faqat rasta egasi qila oladi / Это может только владелец расты")
     return store
 
 
