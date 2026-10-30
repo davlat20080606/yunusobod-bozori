@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 import { formatUnit } from './ProductCard';
-import { fulfillmentLabel, bonusLabel } from '../services/offers';
+import { fulfillmentLabel, bonusLabel, weightRange, weightOk } from '../services/offers';
 import { statusTitle } from './OrderTracker';
 import { stallLabel, itemName } from '../services/stall';
 
@@ -83,7 +83,14 @@ export default function SellerOrderBody({ order, language, onChanged }) {
                   <input value={weightValue} onChange={(e) => setWeightValue(e.target.value.replace(',', '.').replace(/[^\d.]/g, ''))} inputMode="decimal" autoFocus style={{ width: 90, height: 42, borderRadius: 10, border: '2px solid #93c5fd', fontSize: 18, fontWeight: 800, textAlign: 'center' }} />
                   <span>{formatUnit(item.unit, language)}</span>
                   <button type="button" onClick={() => setEditing(null)} style={smallBtn}>✕</button>
-                  <button type="button" disabled={busy || !(Number(weightValue) > 0)} onClick={() => { run(() => api.sellerItemWeight(item.id, Number(weightValue))); setEditing(null); }} style={{ ...smallBtn, background: '#059669', color: '#ffffff' }}>{tr('Saqlash', 'Сохранить', 'Save')}</button>
+                  <button type="button" disabled={busy || !weightOk(item.quantity, weightValue)} onClick={() => { run(() => api.sellerItemWeight(item.id, Number(weightValue))); setEditing(null); }} style={{ ...smallBtn, background: '#059669', color: '#ffffff', opacity: busy || !weightOk(item.quantity, weightValue) ? 0.5 : 1 }}>{tr('Saqlash', 'Сохранить', 'Save')}</button>
+                </div>
+              )}
+              {editing === item.id && (
+                <div style={{ fontSize: 12, marginTop: 4, fontWeight: 700, color: Number(weightValue) > 0 && !weightOk(item.quantity, weightValue) ? '#b91c1c' : '#475569' }}>
+                  {Number(weightValue) > 0 && !weightOk(item.quantity, weightValue) ? '⚠️ ' : ''}
+                  {tr("Ruxsat", 'Можно', 'Allowed')}: {weightRange(item.quantity).join('–')} {formatUnit(item.unit, language)} (±5%)
+                  {Number(weightValue) > 0 && !weightOk(item.quantity, weightValue) ? ` — ${tr("kesib yoki qo'shib to'g'rilang", 'отрежьте или довесьте', 'trim or add to fix it')}` : ''}
                 </div>
               )}
             </div>

@@ -1,8 +1,9 @@
 """Real scale weights and stalls that ran out: change one line, keep the rest of the order going.
 
-Payment is cash on delivery, so the customer simply pays the new total. A piece within ±5% of the
-ordered weight is accepted automatically (a butcher cannot cut exactly 1.000 kg); a bigger
-difference either way waits for the customer's yes. Stall bonuses stay as given at checkout.
+Payment is cash on delivery, so the customer simply pays the new total. The scale weight must be
+within ±5% of the order (a butcher cannot cut exactly 1.000 kg). Anything further off is refused
+and the seller trims or adds on the spot: asking the customer would hold the order up while they
+are not looking at their phone. Stall bonuses stay as given at checkout.
 """
 from fastapi import HTTPException
 from app.models.schemas import OrderModel, OrderItemModel
@@ -35,17 +36,24 @@ def check_open(order: OrderModel):
         raise HTTPException(status_code=409, detail="Buyurtma yopilgan / Заказ уже закрыт")
 
 
+def weight_range(quantity: float):
+    return round(quantity * (1 - WEIGHT_TOLERANCE), 3), round(quantity * (1 + WEIGHT_TOLERANCE), 3)
+
+
 def set_weight(order: OrderModel, item: OrderItemModel, actual: float, photo_url: str = None):
     check_open(order)
     if item.item_status == "missing":
         raise HTTPException(status_code=409, detail="Bu mahsulot «yo'q» deb belgilangan / Товар отмечен как отсутствующий")
     if item.price == 0:
         raise HTTPException(status_code=409, detail="Sovg'a vazni o'zgarmaydi / Вес подарка не меняется")
-    if not 0 < actual <= item.quantity * 3:
-        raise HTTPException(status_code=400, detail="Vazn noto'g'ri / Неверный вес")
+    low, high = weight_range(item.quantity)
+    if not low <= round(actual, 3) <= high:
+        raise HTTPException(status_code=400, detail=(
+            f"Vazn {low:g}–{high:g} oralig'ida bo'lsin (±5%). Kesib yoki qo'shib to'g'rilang / "
+            f"Вес должен быть {low:g}–{high:g} (±5%). Отрежьте или довесьте"))
     item.actual_quantity = round(actual, 3)
     item.weight_photo_url = photo_url or item.weight_photo_url
-    item.weight_status = "pending" if abs(actual - item.quantity) > item.quantity * WEIGHT_TOLERANCE + 1e-9 else None
+    item.weight_status = None
     recalc(order)
 
 

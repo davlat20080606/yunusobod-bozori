@@ -2,6 +2,18 @@
 
 const pick = (lang, uz, ru, en) => (lang === 'ru' ? ru : (lang === 'en' ? en : uz));
 
+// The scale weight must stay within ±5% of the order; the server refuses anything further off
+export const WEIGHT_TOLERANCE = 0.05;
+export function weightRange(quantity) {
+  const round = (n) => Math.round(n * 1000) / 1000;
+  return [round(quantity * (1 - WEIGHT_TOLERANCE)), round(quantity * (1 + WEIGHT_TOLERANCE))];
+}
+export function weightOk(quantity, value) {
+  const [low, high] = weightRange(quantity);
+  const v = Math.round(Number(value) * 1000) / 1000;
+  return v >= low && v <= high;
+}
+
 export const FULFILLMENTS = [
   { id: 'self', icon: '🙋', title: ['O\'zim olaman', 'Заберу сам', 'I\'ll pick it up'], sub: ['Rastalardan o\'zingiz olasiz', 'Сами забираете на растах', 'Collect it at the stalls'] },
   { id: 'point', icon: '🛒', title: ['Aravachi', 'Аравачи', 'Porter'], sub: ['Bozordagi joyga olib keladi', 'Принесёт к точке на базаре', 'Brings it to a bazaar point'] },

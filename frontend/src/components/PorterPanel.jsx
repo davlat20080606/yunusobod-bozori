@@ -6,7 +6,7 @@ import { api, staffSession } from '../services/api';
 import StaffLogin from './StaffLogin';
 import { formatUnit } from './ProductCard';
 import { triggerHaptic } from '../services/telegram';
-import { fulfillmentLabel, pointName } from '../services/offers';
+import { fulfillmentLabel, pointName, weightRange, weightOk } from '../services/offers';
 import { newIdsWatcher } from '../services/sound';
 import { stallLabel, itemName } from '../services/stall';
 import { useLive } from '../services/live';
@@ -65,7 +65,8 @@ const T = {
   missing_label: { uz: "Tugagan — buyurtmadan olib tashlandi", ru: 'Закончился — убран из заказа', en: 'Ran out — removed from the order' },
   weight_title: { uz: 'Tarozida qancha chiqdi?', ru: 'Сколько показали весы?', en: 'What does the scale show?' },
   weight_photo: { uz: '📷 Tarozi rasmi (ixtiyoriy)', ru: '📷 Фото весов (по желанию)', en: '📷 Photo of the scale (optional)' },
-  weight_hint: { uz: "±5% gacha o'zi qabul qilinadi, ko'p farq xaridor roziligi bilan", ru: 'До ±5% принимается сразу, больше — с согласия покупателя', en: 'Within ±5% is accepted at once, more needs the customer' },
+  weight_hint: { uz: "Ruxsat: {low}–{high} {unit} (±5%)", ru: 'Можно: {low}–{high} {unit} (±5%)', en: 'Allowed: {low}–{high} {unit} (±5%)' },
+  weight_off: { uz: "±5% dan ko'p farq — kesib yoki qo'shib to'g'rilang", ru: 'Больше ±5% — отрежьте или довесьте', en: 'More than ±5% off — trim or add to fix it' },
   weight_pending: { uz: '⏳ Xaridor roziligi kutilmoqda', ru: '⏳ Ждём согласия покупателя', en: '⏳ Waiting for the customer' },
   weight_rejected: { uz: "Xaridor rozi bo'lmadi — buyurtma vazniga moslang", ru: 'Покупатель против — сделайте заказанный вес', en: 'Customer said no — make it the ordered weight' },
   save: { uz: 'Saqlash', ru: 'Сохранить', en: 'Save' },
@@ -636,10 +637,11 @@ function OrderRoute({ t, language, points, order, bag, busy, error, offline, onB
                         {t('weight_photo')}{weightFile ? ' ✓' : ''}
                         <input type="file" accept="image/*" capture="environment" onChange={(e) => setWeightFile(e.target.files?.[0] || null)} style={{ display: 'block', marginTop: 4, fontSize: 12 }} />
                       </label>
-                      <div style={{ fontSize: 12, color: '#475569', marginBottom: 8 }}>{t('weight_hint')}</div>
+                      <div style={{ fontSize: 12, color: '#475569', marginBottom: 8 }}>{t('weight_hint').replace('{low}', weightRange(item.quantity)[0]).replace('{high}', weightRange(item.quantity)[1]).replace('{unit}', formatUnit(item.unit, language))}</div>
+                      {Number(weightValue) > 0 && !weightOk(item.quantity, weightValue) && <div style={{ fontSize: 13, fontWeight: 700, color: '#b91c1c', marginBottom: 8 }}>⚠️ {t('weight_off')}</div>}
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button type="button" onClick={() => setEditing(null)} style={{ ...secondaryBtn, flex: 1 }}>{t('cancel')}</button>
-                        <button type="button" disabled={busy || !(Number(weightValue) > 0)} onClick={() => { onWeight(item, Number(weightValue), weightFile); setEditing(null); }} style={{ ...primaryBtn, flex: 2, opacity: busy || !(Number(weightValue) > 0) ? 0.5 : 1 }}>{t('save')}</button>
+                        <button type="button" disabled={busy || !weightOk(item.quantity, weightValue)} onClick={() => { onWeight(item, Number(weightValue), weightFile); setEditing(null); }} style={{ ...primaryBtn, flex: 2, opacity: busy || !weightOk(item.quantity, weightValue) ? 0.5 : 1 }}>{t('save')}</button>
                       </div>
                     </div>
                   )}
