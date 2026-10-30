@@ -336,11 +336,15 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
           <button type="button" onClick={onClose} style={{ ...roundBtn, width: 48, height: 48 }} aria-label="back">
             <ArrowLeft size={22} />
           </button>
-          <button type="button" onClick={() => locate(false)} disabled={gpsLoading} style={{ ...roundBtn, width: 48, height: 48 }} aria-label="my location">
-            {gpsLoading
-              ? <Loader size={20} color="#2563eb" style={{ animation: 'mp-spin 1s linear infinite' }} />
-              : <Navigation size={20} color="#2563eb" fill="#2563eb" />}
-          </button>
+          {/* Telegram on a computer cannot locate (no GPS) and answers every try with a bare
+              "Permission Denied" toast, so the button is only offered on phones */}
+          {!isDesktopTelegram() && (
+            <button type="button" onClick={() => locate(false)} disabled={gpsLoading} style={{ ...roundBtn, width: 48, height: 48 }} aria-label="my location">
+              {gpsLoading
+                ? <Loader size={20} color="#2563eb" style={{ animation: 'mp-spin 1s linear infinite' }} />
+                : <Navigation size={20} color="#2563eb" fill="#2563eb" />}
+            </button>
+          )}
         </div>
 
         <div style={{

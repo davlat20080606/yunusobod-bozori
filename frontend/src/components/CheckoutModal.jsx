@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti';
 import { triggerHaptic, getTelegramUser, requestPhone } from '../services/telegram';
 import { api } from '../services/api';
 import MapPicker, { distanceKm } from './MapPicker';
-import { getCurrentPosition, lastLocationError, reverseGeocode, loadAddresses, rememberAddress } from '../services/location';
+import { getCurrentPosition, lastLocationError, isDesktopTelegram, reverseGeocode, loadAddresses, rememberAddress } from '../services/location';
 import { ClickLogo, PaymeLogo } from './PaymentLogos';
 import { FULFILLMENTS, pointName, bonusLabel, hintLabel } from '../services/offers';
 import { stallLabel, itemName } from '../services/stall';
@@ -367,10 +367,12 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                     <ChevronRight size={20} color="#94a3b8" />
                   </button>
                 ))}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
-                  <button type="button" onClick={locateMe} disabled={locating} style={{ height: 56, borderRadius: 18, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer', opacity: locating ? 0.7 : 1 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isDesktopTelegram() ? '1fr' : '1fr 1fr', gap: 8, marginTop: 10 }}>
+                  {!isDesktopTelegram() && (
+                    <button type="button" onClick={locateMe} disabled={locating} style={{ height: 56, borderRadius: 18, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer', opacity: locating ? 0.7 : 1 }}>
                     📍 {locating ? tr('Aniqlanmoqda…', 'Определяем…', 'Locating…') : tr('Joylashuvim', 'Где я', 'My location')}
                   </button>
+                  )}
                   <button type="button" onClick={() => setShowMap(true)} style={{ height: 56, borderRadius: 18, border: 'none', background: '#f1f5f9', color: '#0f172a', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
                     🗺 {tr('Xaritadan', 'На карте', 'On the map')}
                   </button>
