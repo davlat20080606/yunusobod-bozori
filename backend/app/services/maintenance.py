@@ -7,8 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.database import async_session_factory
+from app.services import stock
 from app.models.schemas import OrderModel
-from app.bot.notify import notify_status, notify_cold_chain
+from app.bot.notify import notify_status, notify_cold_chain, send_morning_stock
+from app.services.config_store import get_setting, set_setting
 import app.services.order_log  # noqa: F401  (status changes made here are logged as "system")
 
 logger = logging.getLogger(__name__)
@@ -61,11 +63,38 @@ async def check_cold_chain() -> int:
     return len(late)
 
 
+async def settle_stock() -> int:
+    """Whatever an endpoint did not settle (auto-cancel, delivered, ticked by the aravachi)."""
+    async with async_session_factory() as db:
+        done = await stock.settle_all(db)
+        await db.commit()
+    return done
+
+
+MORNING_WINDOW_HOURS = 3
+
+
+async def morning_stock(now: datetime = None) -> bool:
+    """Once a day at the set hour; a server that starts later in the day does not send it."""
+    tashkent = (now or datetime.utcnow()) + timedelta(hours=5)
+    today = tashkent.date().isoformat()
+    async with async_session_factory() as db:
+        hour = int(await get_setting(db, "morning_stock_hour"))
+        if not hour <= tashkent.hour < hour + MORNING_WINDOW_HOURS or await get_setting(db, "morning_stock_sent") == today:
+            return False
+        # Marked first: a crash while sending must not make every stall get it twice
+        await set_setting(db, "morning_stock_sent", today)
+    await send_morning_stock()
+    return True
+
+
 async def run_forever():
     while True:
         try:
             await cancel_stale_orders()
             await check_cold_chain()
+            await settle_stock()
+            await morning_stock()
         except Exception as e:
             logger.warning(f"Stale order check failed: {e}")
         await asyncio.sleep(CHECK_EVERY_SECONDS)

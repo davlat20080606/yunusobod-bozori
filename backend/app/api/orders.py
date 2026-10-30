@@ -15,6 +15,8 @@ from app.services.adjust import recalc
 from app.bot.notify import notify_adjustment
 from app.api.tg_auth import telegram_user
 from app.services.order_log import act_as, log_event
+from app.services import stock
+from app.bot.notify import notify_low_stock
 from app.bot.notify import notify_new_order, notify_status
 from app.models.schemas import (
     OrderModel, OrderItemModel, StoreModel, OrderCreateSchema, OrderSchema, ReviewModel, CustomerModel,
@@ -130,8 +132,10 @@ async def create_order(
     log_event(new_order, "created", None, new_order.status, fulfillment=new_order.fulfillment,
               total=new_order.total_amount, stores=sorted({i["store_id"] for i in order_items_to_create}))
 
-    for item_data in order_items_to_create:
-        db.add(OrderItemModel(order_id=new_order.id, is_picked=False, **item_data))
+    items = [OrderItemModel(order_id=new_order.id, is_picked=False, **item_data) for item_data in order_items_to_create]
+    db.add_all(items)
+    await db.flush()
+    low_stock = await stock.reserve(db, new_order, items)
     for bonus in quote["bonuses"]:
         db.add(OrderBonusModel(order_id=new_order.id, store_id=bonus["store_id"], kind=bonus["kind"], text=bonus["text"],
                                text_ru=bonus.get("text_ru"), text_en=bonus.get("text_en"), amount=bonus["amount"]))
@@ -147,6 +151,8 @@ async def create_order(
 
     full_order = (await db.execute(load_order(OrderModel.id == new_order.id))).scalars().first()
     notify_new_order(full_order.id)
+    for product_id in low_stock:
+        notify_low_stock(product_id)
     return full_order
 
 @router.get("/mine")
@@ -225,6 +231,8 @@ async def cancel_order(order_number: str, db: AsyncSession = Depends(get_db)):
 
     act_as("customer", order.customer_tg_id or order.customer_phone)
     order.status = "cancelled"
+    await db.flush()
+    await stock.settle(db, order.id)
     await db.commit()
     notify_status(order.id)
     return order

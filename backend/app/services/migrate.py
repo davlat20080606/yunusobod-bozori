@@ -13,7 +13,7 @@ from app.database import Base, engine
 
 BASELINE = "0001"
 # Tables created by migrations after the baseline; the legacy bring-up must not make them
-AFTER_BASELINE = {"order_events", "customer_blocks"}
+AFTER_BASELINE = {"order_events", "customer_blocks", "stock_moves"}
 ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 # Columns added before migrations existed (create_all does not alter existing tables)

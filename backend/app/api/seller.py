@@ -2,7 +2,8 @@ import re
 import uuid
 import mimetypes
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Header, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -17,6 +18,7 @@ from app.bot.notify import notify_admin_application, notify_status
 from app.services.storage import save_media
 from app.services.adjust import set_weight, set_missing
 from app.services.order_log import log_event
+from app.services import stock
 from app.bot.notify import notify_adjustment
 from app.models.schemas import (
     StoreModel, ProductModel, OrderModel, OrderItemModel, CategoryModel,
@@ -282,6 +284,27 @@ async def update_product_price(
     }
 
 
+class StockLine(BaseModel):
+    product_id: int
+    is_available: bool
+    quantity: Optional[float] = Field(None, ge=0, le=100000)  # None: this product is not counted
+    low_stock_alert: Optional[float] = Field(None, ge=0, le=100000)
+
+
+@router.post("/stock")
+async def update_stock(lines: List[StockLine] = Body(..., embed=True), store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
+    """The morning list (or any time): what is at the stall today and roughly how much."""
+    own = {p.id: p for p in (await db.execute(select(ProductModel).where(ProductModel.store_id == store.id))).scalars().all()}
+    for line in lines:
+        prod = own.get(line.product_id)
+        if not prod:
+            raise HTTPException(status_code=404, detail="Mahsulot topilmadi / Товар не найден")
+        stock.set_stock(db, prod, line.is_available, line.quantity)
+        prod.low_stock_alert = line.low_stock_alert
+    await db.commit()
+    return [ProductSchema.from_orm(p) for p in own.values()]
+
+
 @router.patch("/products/{product_id}/availability")
 async def toggle_product_availability(
     product_id: int,
@@ -377,6 +400,8 @@ async def mark_handed(order_id: int, store: StoreModel = Depends(current_store),
     log_event(order, "seller_handed", store_id=store.id)
     if order.fulfillment == "self" and all(i.seller_handed for i in order.items):
         order.status = "delivered"
+    await db.flush()
+    await stock.settle(db, order.id)
     await db.commit()
     notify_status(order.id)
     return {"success": True, "status": order.status}
@@ -462,7 +487,9 @@ async def seller_missing(item_id: int, missing: bool = Body(True, embed=True), s
     if missing:
         prod = await db.get(ProductModel, item.product_id)
         if prod:
-            prod.is_available = False
+            await stock.sold_out(db, prod)
+    await db.flush()
+    await stock.settle(db, order.id)
     await db.commit()
     notify_adjustment(order.id, item.id, "missing" if missing else "back")
     if order.status == "cancelled":

@@ -20,6 +20,9 @@ DEFAULTS = {
     "new_customer_max_open": "1",
     "new_customer_max_total": "500000",
     "orders_per_10_min": "10",
+    # Hour (Tashkent) when stalls are asked "what do you have today?"; the day it was last sent
+    "morning_stock_hour": "7",
+    "morning_stock_sent": "",
 }
 
 # Where an aravachi hands the order to the customer or the taxi

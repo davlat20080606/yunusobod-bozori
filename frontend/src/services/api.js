@@ -334,6 +334,7 @@ export const api = {
   sellerOrderReady: (orderId) => sellerFetch(`/orders/${orderId}/ready`, { method: 'POST' }),
   sellerOrderHanded: (orderId) => sellerFetch(`/orders/${orderId}/handed`, { method: 'POST' }),
   sellerPromos: () => sellerFetch('/promos'),
+  sellerStock: (lines) => sellerFetch('/stock', { method: 'POST', body: JSON.stringify({ lines }) }),
   sellerAddPromo: (promo) => sellerFetch('/promos', { method: 'POST', body: JSON.stringify(promo) }),
   sellerDeletePromo: (id) => sellerFetch(`/promos/${id}`, { method: 'DELETE' }),
 

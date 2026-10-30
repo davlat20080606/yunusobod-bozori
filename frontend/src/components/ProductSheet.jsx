@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 import { triggerHaptic } from '../services/telegram';
 import ProductCard, { formatUnit } from './ProductCard';
 import { stallLabel, itemName } from '../services/stall';
+import { isSoldOut, fewLeft, canHave, fewLeftLabel } from '../services/stock';
 
 // Yandex Go style product sheet: slides up over the shop, choose amount, "Add"
 export default function ProductSheet({ product, store, categoryName, otherProducts = [], isSaved, onToggleSave, onClose, onOpenStore, onSelectProduct, savedProductIds = [] }) {
@@ -36,7 +37,7 @@ export default function ProductSheet({ product, store, categoryName, otherProduc
   // 1) same kind (an apple -> fruit): the owner's first, then other sellers'
   // 2) "Boshqa mahsulotlar tanlovi": everything else, the owner's goods first
   const others = otherProducts
-    .filter((p) => p.id !== product.id && p.is_available !== false)
+    .filter((p) => p.id !== product.id && !isSoldOut(p))
     .map((p, index) => ({ p, index }));
   const byOwnerFirst = (a, b) => Number(b.p.store_id === product.store_id) - Number(a.p.store_id === product.store_id) || a.index - b.index;
   const sameKind = others.filter(({ p }) => p.category_slug === product.category_slug).sort(byOwnerFirst).map(({ p }) => p);
@@ -49,11 +50,15 @@ export default function ProductSheet({ product, store, categoryName, otherProduc
   const oldPrice = product.old_price && product.old_price > product.price ? Math.round(product.old_price * qty) : null;
   const discount = product.old_price && product.old_price > product.price ? Math.round(product.old_price - product.price) : null;
   const description = getLocalized(product, 'description') || product.description_uz || '';
-  const unavailable = product.is_available === false;
+  const unavailable = isSoldOut(product);
+  const atLimit = !canHave(product, +(qty + step).toFixed(2));
 
   const change = (dir) => {
     triggerHaptic('light');
-    setQty((q) => Math.max(min, +(q + dir * step).toFixed(2)));
+    setQty((q) => {
+      const next = Math.max(min, +(q + dir * step).toFixed(2));
+      return canHave(product, next) ? next : q;
+    });
   };
 
   const confirm = () => {
@@ -141,6 +146,9 @@ export default function ProductSheet({ product, store, categoryName, otherProduc
             {oldPrice && <span style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through' }}>{oldPrice.toLocaleString()}</span>}
             <span style={{ fontSize: 17, fontWeight: 800, color: '#047857', whiteSpace: 'nowrap' }}>{price.toLocaleString()} {cur}</span>
           </div>
+          {fewLeft(product) && (
+            <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 800, color: '#92400e' }}>⏳ {fewLeftLabel(product, unit, lang)}</div>
+          )}
           {unavailable ? (
             <div style={{ height: 56, borderRadius: 18, background: '#f1f5f9', color: '#94a3b8', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {lang === 'ru' ? 'Нет в наличии' : (lang === 'en' ? 'Out of stock' : "Hozir yo'q")}
@@ -150,7 +158,7 @@ export default function ProductSheet({ product, store, categoryName, otherProduc
               <div style={{ display: 'flex', alignItems: 'center', background: '#f1f5f9', borderRadius: 18, height: 56 }}>
                 <button type="button" onClick={() => change(-1)} disabled={qty <= min} aria-label="minus" style={{ width: 48, height: 56, border: 'none', background: 'none', cursor: 'pointer', opacity: qty <= min ? 0.35 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={20} /></button>
                 <span style={{ minWidth: 56, textAlign: 'center', fontWeight: 800, fontSize: 16 }}>{fmtQty(qty)}</span>
-                <button type="button" onClick={() => change(1)} aria-label="plus" style={{ width: 48, height: 56, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={20} /></button>
+                <button type="button" onClick={() => change(1)} disabled={atLimit} aria-label="plus" style={{ width: 48, height: 56, border: 'none', background: 'none', cursor: 'pointer', opacity: atLimit ? 0.35 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={20} /></button>
               </div>
               <button type="button" onClick={confirm} style={{ flex: 1, height: 56, borderRadius: 18, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 17, cursor: 'pointer' }}>
                 {inCart

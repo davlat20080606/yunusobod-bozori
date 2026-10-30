@@ -6,6 +6,7 @@ import ProductCard, { formatUnit } from './ProductCard';
 import { api } from '../services/api';
 import { bonusLabel, hintLabel } from '../services/offers';
 import { stallLabel, itemName } from '../services/stall';
+import { isSoldOut } from '../services/stock';
 
 // Full-screen cart like Yandex Go: items, note, "Anything else?", floating Checkout
 export default function CartDrawer({ isOpen, onClose, cart, onUpdateQuantity, onClearCart, onCheckout, pickerNotes, setPickerNotes, products = [], onOpenProduct }) {
@@ -42,7 +43,7 @@ export default function CartDrawer({ isOpen, onClose, cart, onUpdateQuantity, on
   const inCartIds = new Set(cart.map((i) => i.product.id));
   const storeIds = new Set(cart.map((i) => i.product.store_id));
   const suggestions = products
-    .filter((p) => !inCartIds.has(p.id) && p.is_available !== false)
+    .filter((p) => !inCartIds.has(p.id) && !isSoldOut(p))
     .sort((a, b) => Number(storeIds.has(b.store_id)) - Number(storeIds.has(a.store_id)))
     .slice(0, 8);
 

@@ -80,6 +80,10 @@ def test_database_made_before_migrations(url):
         conn.execute(text("DROP INDEX ix_orders_phone_key"))
         conn.execute(text("DROP INDEX ix_orders_customer_tg_id"))
         conn.execute(text("ALTER TABLE orders DROP COLUMN phone_key"))
+        # ... and migration 0004
+        for table, column in (("products", "track_stock"), ("products", "stock_reserved"), ("products", "low_stock_alert"),
+                              ("order_items", "stock_reserved_qty")):
+            conn.execute(text(f"ALTER TABLE {table} DROP COLUMN {column}"))
         conn.execute(text(
             "INSERT INTO orders (order_number, customer_name, customer_phone, delivery_address, delivery_time_slot, total_amount, delivery_fee,"
             " payment_method, payment_status, status, created_at)"

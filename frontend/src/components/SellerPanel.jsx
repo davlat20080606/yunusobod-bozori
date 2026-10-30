@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import SellerPromos from './SellerPromos';
 import SellerTeam from './SellerTeam';
+import SellerStock from './SellerStock';
 import SellerOrderBody from './SellerOrderBody';
 import { newIdsWatcher } from '../services/sound';
 import { createPortal } from 'react-dom';
@@ -414,6 +415,8 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
               </button>
             </div>
           </div>
+
+          <SellerStock language={language} products={storeData.products} onSaved={(products) => setStoreData((prev) => ({ ...prev, products }))} />
 
           {/* Products & Real-time Price Management */}
           <div className="section-header">

@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.schemas import ProductModel, StoreModel, PromoModel
 from app.services.config_store import get_setting
+from app.services.stock import check_available
 
 
 # Units as stored on products, shown in the customer's language
@@ -45,6 +46,7 @@ async def compute_quote(db: AsyncSession, items: List, fulfillment: str) -> dict
         if not store or not store.is_open or store.status != "approved":
             raise HTTPException(status_code=409, detail=f"«{store.name_uz if store else prod.name_uz}» rastasi yopiq / раста закрыта")
         stores[store.id] = store
+        check_available(prod, item.quantity)
         item_total = prod.price * item.quantity
         subtotals[store.id] = subtotals.get(store.id, 0.0) + item_total
         lines.append({
@@ -81,8 +83,10 @@ async def compute_quote(db: AsyncSession, items: List, fulfillment: str) -> dict
         if gifts:
             best = max(gifts, key=lambda p: p.min_amount)
             gift_prod = await db.get(ProductModel, best.gift_product_id) if best.gift_product_id else None
-            if gift_prod and gift_prod.store_id == store_id and gift_prod.is_available:
-                qty = best.gift_qty or 1
+            qty = best.gift_qty or 1
+            # A gift the stall has run out of is simply not added; it never blocks the order
+            left = gift_prod.available_quantity if gift_prod else None
+            if gift_prod and gift_prod.store_id == store_id and gift_prod.is_available and (left is None or left >= qty):
                 # The gift travels as a 0 so'm line, so the seller hands it over and the aravachi ticks it like any item
                 lines.append({
                     "product_id": gift_prod.id, "store_id": store_id, "product_name": f"🎁 {gift_prod.name_uz}",

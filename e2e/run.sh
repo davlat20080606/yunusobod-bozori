@@ -49,6 +49,9 @@ report "Location on Mac and iPhone" "$S/geo.txt"
 stop; server guard; chrome; "$PY" "$E/customer_guard_ui.py" "$S" > "$S/guard.txt" 2>&1
 report "Blocking a customer (Bozorkom + shop)" "$S/guard.txt"
 
+stop; server stock; chrome; "$PY" "$E/stock_ui.py" "$S" > "$S/stock.txt" 2>&1
+report "Counted stock (seller + shop)" "$S/stock.txt"
+
 "$PY" "$E/language_kept.py" > "$S/persist.raw" 2>&1
 awk '/lang=ru \| Юнус/{c++} /lang=en \| Yunusobod Farmers/{e++} END{print (c==3?"PASS":"FAIL")" Russian kept after reopening ("c"/3)"; print (e==2?"PASS":"FAIL")" English kept after reopening ("e"/2)"}' "$S/persist.raw" > "$S/persist.txt"
 report "Language is remembered" "$S/persist.txt"

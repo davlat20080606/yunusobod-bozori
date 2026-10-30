@@ -362,3 +362,48 @@ def notify_store_decision(store_id: int):
 
 def notify_staff_decision(staff_id: int):
     _background(_staff_decision(staff_id))
+
+
+async def _stall_chats(db, store_id: int) -> set:
+    """Everyone who works at a stall: the owner, the helpers who scanned the QR, the stall's own chat."""
+    from app.models.schemas import StoreMemberModel
+    store = await db.get(StoreModel, store_id)
+    chats = set((await db.execute(select(StoreMemberModel.tg_id).where(StoreMemberModel.store_id == store_id))).scalars().all())
+    if store and store.telegram_chat_id:
+        chats.add(store.telegram_chat_id)
+    return chats
+
+
+STOCK_BUTTON = "📦 Qoldiq · Остатки"
+
+
+async def _low_stock(product_id: int):
+    from app.models.schemas import ProductModel
+    async with async_session_factory() as db:
+        prod = await db.get(ProductModel, product_id)
+        if not prod or prod.available_quantity is None:
+            return
+        chats = await _stall_chats(db, prod.store_id)
+    left = f"{prod.available_quantity:g} {escape(re.sub(r'\s*\(.*?\)', '', prod.unit or ''))}"
+    text = (f"⚠️ <b>Kam qoldi · Заканчивается</b>\n{escape(prod.name_uz)} — {left}\n"
+            "Ko'proq bo'lsa, qoldiqni yangilang · Если есть ещё, обновите остаток")
+    keyboard = _webapp_button(STOCK_BUTTON, "tab=seller_cabinet&stock=1")
+    await asyncio.gather(*[_send(chat, text, keyboard) for chat in chats])
+
+
+def notify_low_stock(product_id: int):
+    _background(_low_stock(product_id))
+
+
+async def send_morning_stock() -> int:
+    """Every morning: each open stall's team is asked what they have today (one screen, 30 seconds)."""
+    async with async_session_factory() as db:
+        store_ids = (await db.execute(select(StoreModel.id).where(StoreModel.status == "approved"))).scalars().all()
+        chats = set()
+        for store_id in store_ids:
+            chats |= await _stall_chats(db, store_id)
+    text = ("🌅 <b>Xayrli tong! Bugun nima bor?</b>\nMahsulotlar va taxminiy miqdorni belgilang — xaridorlar faqat borini ko'radi.\n\n"
+            "🌅 <b>Доброе утро! Что есть сегодня?</b>\nОтметьте товары и примерное количество — покупатели увидят только то, что есть.")
+    keyboard = _webapp_button("📝 Bugun nima bor? · Что есть сегодня?", "tab=seller_cabinet&stock=1")
+    await asyncio.gather(*[_send(chat, text, keyboard) for chat in chats])
+    return len(chats)

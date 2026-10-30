@@ -14,6 +14,7 @@ from app.bot.notify import notify_status, notify_taxis, notify_adjustment
 from app.services.adjust import set_weight, set_missing, check_code
 from app.services.storage import save_media
 from app.services.events import order_changed
+from app.services import stock
 
 router = APIRouter(prefix="/api/porter", tags=["porter"])
 
@@ -317,6 +318,8 @@ async def porter_missing(item_id: int, missing: bool = Body(True, embed=True), p
     """The stall ran out: only this line is dropped, the rest of the order goes on."""
     order, item = await porter_item(item_id, porter, db)
     set_missing(order, item, missing)
+    await db.flush()
+    await stock.settle(db, order.id)
     await db.commit()
     notify_adjustment(order.id, item.id, "missing" if missing else "back")
     if order.status == "cancelled":

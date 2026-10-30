@@ -41,11 +41,12 @@ const T = {
   support_phone: { uz: 'Yordam telefoni (xaridorlar uchun)', ru: 'Телефон поддержки (для покупателей)', en: 'Help phone (for customers)' },
   porter_fee: { uz: "Aravachi narxi (so'm)", ru: 'Цена аравачи (сум)', en: 'Porter fee (UZS)' },
   taxi_fee: { uz: "Taksi narxi (so'm)", ru: 'Цена такси (сум)', en: 'Taxi fee (UZS)' },
-  limits: { uz: 'Soxta buyurtmalardan himoya', ru: 'Защита от фейковых заказов', en: 'Fake-order protection' },
+  limits: { uz: 'Soxta buyurtmalardan himoya va qoldiq', ru: 'Защита от фейковых заказов и остатки', en: 'Fake-order protection and stock' },
   new_customer_max_total: { uz: "Birinchi buyurtma, so'mgacha", ru: 'Первый заказ, до (сум)', en: 'First order, up to (UZS)' },
   new_customer_max_open: { uz: 'Yangi xaridor: ochiq buyurtma', ru: 'Новый покупатель: открытых заказов', en: 'New customer: open orders' },
   max_open_orders: { uz: 'Har kim: ochiq buyurtma', ru: 'Любой покупатель: открытых заказов', en: 'Any customer: open orders' },
   orders_per_10_min: { uz: 'Urinishlar, 10 daqiqada', ru: 'Попыток за 10 минут', en: 'Tries per 10 minutes' },
+  morning_stock_hour: { uz: "«Bugun nima bor?» soati", ru: 'Час вопроса «Что есть сегодня?»', en: 'Hour of «What do you have today?»' },
   limits_hint: { uz: "Yangi xaridor — hali birorta buyurtmani olmagan odam.", ru: 'Новый покупатель — тот, кто ещё не получил ни одного заказа.', en: 'A new customer is one who has not received an order yet.' },
   search: { uz: 'Telefon yoki ism', ru: 'Телефон или имя', en: 'Phone or name' },
   orders_count: { uz: 'buyurtma', ru: 'заказов', en: 'orders' },
@@ -68,7 +69,7 @@ const T = {
   },
 };
 
-const LIMIT_KEYS = ['new_customer_max_total', 'new_customer_max_open', 'max_open_orders', 'orders_per_10_min'];
+const LIMIT_KEYS = ['new_customer_max_total', 'new_customer_max_open', 'max_open_orders', 'orders_per_10_min', 'morning_stock_hour'];
 const STATUS_COLOR = { pending: '#d97706', approved: '#16a34a', rejected: '#64748b', blocked: '#dc2626' };
 const card = { background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 12, marginBottom: 8 };
 const pill = (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 800, color, background: `${color}1a` });

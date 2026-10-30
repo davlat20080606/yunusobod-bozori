@@ -15,11 +15,12 @@ from app.api.patta import day_report, tashkent_day
 from app.api.staff import staff_public
 from app.services.config_store import get_setting, set_setting
 from app.services.customer_guard import phone_key
+from app.services import stock
 from app.bot.notify import notify_status, notify_store_decision, notify_staff_decision
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_only = [Depends(current_admin)]
-LIMIT_SETTINGS = ("max_open_orders", "new_customer_max_open", "new_customer_max_total", "orders_per_10_min")
+TUNABLE_SETTINGS = ("max_open_orders", "new_customer_max_open", "new_customer_max_total", "orders_per_10_min", "morning_stock_hour")
 
 
 def store_public(s: StoreModel) -> dict:
@@ -76,7 +77,7 @@ async def overview(db: AsyncSession = Depends(get_db)):
         "support_phone": await get_setting(db, "support_phone"),
         "porter_fee": float(await get_setting(db, "porter_fee")),
         "taxi_fee": float(await get_setting(db, "taxi_fee")),
-        **{key: float(await get_setting(db, key)) for key in LIMIT_SETTINGS},
+        **{key: float(await get_setting(db, key)) for key in TUNABLE_SETTINGS},
     }
 
 
@@ -164,6 +165,8 @@ async def cancel_order(order_id: int, db: AsyncSession = Depends(get_db)):
     if order.status in ("delivered", "cancelled"):
         raise HTTPException(status_code=409, detail="Buyurtma allaqachon yopilgan / Заказ уже закрыт")
     order.status = "cancelled"
+    await db.flush()
+    await stock.settle(db, order.id)
     await db.commit()
     notify_status(order.id)
     return {"success": True}
@@ -273,6 +276,7 @@ async def update_settings(
     new_customer_max_open: Optional[int] = Body(None, ge=1, le=20),
     new_customer_max_total: Optional[float] = Body(None, ge=10_000, le=100_000_000),
     orders_per_10_min: Optional[int] = Body(None, ge=1, le=1000),
+    morning_stock_hour: Optional[int] = Body(None, ge=4, le=12),
     db: AsyncSession = Depends(get_db)
 ):
     if delivery_radius_km is not None:
@@ -283,7 +287,7 @@ async def update_settings(
         await set_setting(db, "support_phone", support_phone.strip())
     for key, value in (("porter_fee", porter_fee), ("taxi_fee", taxi_fee), ("max_open_orders", max_open_orders),
                        ("new_customer_max_open", new_customer_max_open), ("new_customer_max_total", new_customer_max_total),
-                       ("orders_per_10_min", orders_per_10_min)):
+                       ("orders_per_10_min", orders_per_10_min), ("morning_stock_hour", morning_stock_hour)):
         if value is not None:
             await set_setting(db, key, f"{value:g}")
     return {
@@ -292,5 +296,5 @@ async def update_settings(
         "support_phone": await get_setting(db, "support_phone"),
         "porter_fee": float(await get_setting(db, "porter_fee")),
         "taxi_fee": float(await get_setting(db, "taxi_fee")),
-        **{key: float(await get_setting(db, key)) for key in LIMIT_SETTINGS},
+        **{key: float(await get_setting(db, key)) for key in TUNABLE_SETTINGS},
     }

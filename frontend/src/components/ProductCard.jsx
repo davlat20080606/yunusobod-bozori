@@ -4,6 +4,7 @@ import { Plus, Minus, Heart } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { triggerHaptic } from '../services/telegram';
 import { stallLabel, itemName } from '../services/stall';
+import { isSoldOut, fewLeft, canHave, fewLeftLabel } from '../services/stock';
 
 export function formatUnit(unit, language) {
   if (!unit) return '';
@@ -58,6 +59,11 @@ export default function ProductCard({
   // One "+" like Yandex Lavka: the first tap adds the minimum, then the button becomes "− 1 kg +"
   const add = (e) => {
     e.stopPropagation();
+    // Counted stock: no more than the stall has left
+    if (!canHave(product, inCart ? inCart + step : min)) {
+      triggerHaptic('error');
+      return;
+    }
     triggerHaptic(inCart ? 'light' : 'medium');
     if (inCart && cartApi) cartApi.update(product.id, 1);
     else if (cartApi) cartApi.add(product, min);
@@ -75,7 +81,8 @@ export default function ProductCard({
   };
   const open = () => onOpenMediaModal?.(product);
 
-  const unavailable = product.is_available === false;
+  const unavailable = isSoldOut(product);
+  const lang = language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz');
 
   const discountSum = product.old_price && product.old_price > product.price ? Math.round(product.old_price - product.price) : null;
   const size = compact ? 34 : 40;
@@ -102,6 +109,9 @@ export default function ProductCard({
         ) : (
           <button type="button" onClick={add} aria-label="add" style={{ ...circle, position: 'absolute', right: 6, bottom: 6 }}><Plus size={compact ? 18 : 20} /></button>
         ))}
+        {fewLeft(product) && (
+          <span style={{ position: 'absolute', top: discountSum ? 30 : 6, left: 6, padding: compact ? '2px 6px' : '3px 8px', borderRadius: 8, background: '#fef3c7', color: '#92400e', fontSize: compact ? 10 : 12, fontWeight: 800 }}>{fewLeftLabel(product, displayUnit, lang)}</span>
+        )}
         {unavailable && (
           <span style={{ position: 'absolute', left: 8, bottom: 8, padding: '4px 10px', borderRadius: 999, background: '#ffffff', fontSize: 12, fontWeight: 700, color: '#64748b' }}>
             {language === 'ru' ? 'Нет в наличии' : (language === 'en' ? 'Out of stock' : "Hozir yo'q")}

@@ -3,7 +3,7 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, LargeBinary, JSON
 from sqlalchemy.orm import relationship
-from sqlalchemy import inspect as sa_inspect
+from sqlalchemy import inspect as sa_inspect, false as sa_false
 from app.database import Base
 
 # ================= SQLAlchemy ORM Models =================
@@ -77,7 +77,19 @@ class ProductModel(Base):
     is_featured = Column(Boolean, default=False)
     badge = Column(String(50), default="fresh")
     stock_quantity = Column(Float, default=100.0)
+    # Counted stock is the seller's choice per product: a bunch of greens is not worth weighing every morning.
+    # When counted, stock_quantity is what is at the stall and stock_reserved what open orders hold of it.
+    track_stock = Column(Boolean, default=False, nullable=False, server_default=sa_false())
+    stock_reserved = Column(Float, default=0.0, nullable=False, server_default="0")
+    low_stock_alert = Column(Float, nullable=True)  # tell the seller when what is left drops to this
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    @property
+    def available_quantity(self):
+        """What a customer can still order, or None when the seller does not count this product."""
+        if not self.track_stock:
+            return None
+        return max(0.0, round((self.stock_quantity or 0) - (self.stock_reserved or 0), 3))
 
     store = relationship("StoreModel", back_populates="products")
     order_items = relationship("OrderItemModel", back_populates="product")
@@ -169,6 +181,7 @@ class OrderItemModel(Base):
     item_status = Column(String(20), default="ok")  # ok | missing
     weight_status = Column(String(20), nullable=True)  # pending (customer must agree) | approved | rejected
     weight_photo_url = Column(String(500), nullable=True)
+    stock_reserved_qty = Column(Float, default=0.0, nullable=False, server_default="0")  # what this line holds of the stall's stock
     seller_ready = Column(Boolean, default=False)  # seller: "Tayyor"
     seller_handed = Column(Boolean, default=False)  # seller: "Topshirdim"
 
@@ -322,6 +335,20 @@ class OrderEventModel(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
 
+class StockMoveModel(Base):
+    """Every change to a counted product's stock, for checking a stall's numbers later.
+    kind: reserve | release | consume | morning | sold_out"""
+    __tablename__ = "stock_moves"
+
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True, index=True)
+    kind = Column(String(20), nullable=False)
+    quantity_delta = Column(Float, default=0.0, nullable=False)
+    reserved_delta = Column(Float, default=0.0, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class OrderBonusModel(Base):
     """What an order got from a stall and what that stall owes for it.
     kind: discount | covers_taxi | covers_porter | delivery_discount | gift"""
@@ -386,6 +413,10 @@ class ProductSchema(BaseModel):
     is_featured: bool
     badge: Optional[str] = None
     stock_quantity: float
+    track_stock: bool = False
+    stock_reserved: float = 0.0
+    available_quantity: Optional[float] = None
+    low_stock_alert: Optional[float] = None
     store_name_uz: Optional[str] = None
     store_name_ru: Optional[str] = None
     store_name_en: Optional[str] = None
