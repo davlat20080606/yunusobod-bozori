@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, Search, X, Navigation, Loader, MapPin, ChevronRight } from 'lucide-react';
-import { formatAddress } from '../services/location';
+import { formatAddress, getCurrentPosition, lastLocationError, isDesktopTelegram, openLocationSettings } from '../services/location';
 
 // Yunusobod Dehqon Bozori area
 const DEFAULT_CENTER = { lat: 41.36467, lng: 69.29089 };
@@ -23,6 +24,17 @@ const TEXTS = {
     ru: 'Не удалось определить местоположение. Передвиньте карту к своему дому.',
     en: 'Could not get your location. Move the map to your home.'
   },
+  gpsDenied: {
+    uz: "Joylashuvga ruxsat berilmagan. Pastdagi tugma orqali ruxsat bering yoki xaritani uyingizgacha suring.",
+    ru: 'Нет доступа к местоположению. Разрешите его кнопкой ниже или передвиньте карту к своему дому.',
+    en: 'No access to your location. Allow it with the button below, or move the map to your home.'
+  },
+  gpsDeniedDesktop: {
+    uz: "Kompyuterda joylashuv odatda ishlamaydi. Manzilni qidiring yoki xaritani suring. Mac'da: Tizim sozlamalari → Maxfiylik → Joylashuv xizmatlari → Telegram.",
+    ru: 'На компьютере местоположение обычно недоступно. Найдите адрес поиском или передвиньте карту. На Mac: Системные настройки → Конфиденциальность → Службы геолокации → Telegram.',
+    en: 'On a computer location is usually unavailable. Search the address or move the map. On a Mac: System Settings → Privacy → Location Services → Telegram.'
+  },
+  openSettings: { uz: '⚙️ Joylashuvga ruxsat berish', ru: '⚙️ Разрешить местоположение', en: '⚙️ Allow location' },
   deliveryPoint: { uz: 'Yetkazib berish manzili', ru: 'Адрес доставки', en: 'Delivery address' },
 };
 
@@ -65,6 +77,7 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
   const [dragging, setDragging] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
+  const [gpsDenied, setGpsDenied] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -163,45 +176,21 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
     map.flyTo({ center: [lng, lat], zoom: 17, duration: 800 });
   };
 
-  // Telegram location first (Bot API 8.0+), then the browser; never waits forever
-  const locate = (silent = false) => {
+  // Telegram location first, then the browser. On opening the map we only use a permission
+  // already given, so Telegram never flashes its bare "Permission Denied" toast
+  const locate = async (silent = false) => {
     setGpsError('');
+    setGpsDenied(false);
     setGpsLoading(true);
-    let finished = false;
-    const finish = (lat, lng) => {
-      if (finished) return;
-      finished = true;
-      clearTimeout(timer);
-      setGpsLoading(false);
-      if (lat != null && lng != null) showUserLocation(lat, lng);
-      else if (!silent) setGpsError(t('gpsError'));
-    };
-    const timer = setTimeout(() => finish(null), 12000);
-
-    const fromBrowser = () => {
-      if (!navigator.geolocation) return finish(null);
-      navigator.geolocation.getCurrentPosition(
-        (pos) => finish(pos.coords.latitude, pos.coords.longitude),
-        () => finish(null),
-        { timeout: 10000, enableHighAccuracy: true, maximumAge: 60000 }
-      );
-    };
-
-    const tg = window.Telegram?.WebApp;
-    const lm = tg?.LocationManager;
-    if (lm && tg.isVersionAtLeast?.('8.0')) {
-      const ask = () => {
-        if (!lm.isLocationAvailable) return fromBrowser();
-        lm.getLocation((loc) => (loc ? finish(loc.latitude, loc.longitude) : finish(null)));
-      };
-      try {
-        if (lm.isInited) ask();
-        else lm.init(ask);
-      } catch {
-        fromBrowser();
-      }
+    const pos = await getCurrentPosition({ silent });
+    setGpsLoading(false);
+    if (pos) return showUserLocation(pos.lat, pos.lng);
+    if (silent) return;
+    if (lastLocationError === 'denied') {
+      setGpsDenied(true);
+      setGpsError(t(isDesktopTelegram() ? 'gpsDeniedDesktop' : 'gpsDenied'));
     } else {
-      fromBrowser();
+      setGpsError(t('gpsError'));
     }
   };
 
@@ -259,7 +248,8 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
     cursor: 'pointer', flexShrink: 0
   };
 
-  return (
+  // Rendered at the page root: an animated parent (transform) would otherwise trap a fixed overlay
+  return createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: '#e5e7eb', overflow: 'hidden' }}>
       {/* Map fills the whole screen */}
       <div ref={mapElRef} style={{ position: 'absolute', inset: 0 }} />
@@ -363,6 +353,11 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
           {gpsError && (
             <div style={{ fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 10px', marginBottom: 10 }}>
               {gpsError}
+              {gpsDenied && !isDesktopTelegram() && (
+                <button type="button" onClick={() => { if (!openLocationSettings()) setGpsError(t('gpsError')); }} style={{ display: 'block', marginTop: 8, padding: '8px 12px', borderRadius: 10, border: 'none', background: '#2563eb', color: '#ffffff', fontWeight: 700, cursor: 'pointer' }}>
+                  {t('openSettings')}
+                </button>
+              )}
             </div>
           )}
 
@@ -421,5 +416,5 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
         .maplibregl-ctrl-attrib { font-size: 10px; }
       `}</style>
     </div>
-  );
+  , document.body);
 }

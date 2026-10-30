@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti';
 import { triggerHaptic, getTelegramUser, requestPhone } from '../services/telegram';
 import { api } from '../services/api';
 import MapPicker, { distanceKm } from './MapPicker';
-import { getCurrentPosition, reverseGeocode, loadAddresses, rememberAddress } from '../services/location';
+import { getCurrentPosition, lastLocationError, reverseGeocode, loadAddresses, rememberAddress } from '../services/location';
 import { ClickLogo, PaymeLogo } from './PaymentLogos';
 import { FULFILLMENTS, pointName, bonusLabel, hintLabel } from '../services/offers';
 import { stallLabel, itemName } from '../services/stall';
@@ -93,7 +93,12 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
     const pos = await getCurrentPosition();
     if (!pos) {
       setLocating(false);
-      setLocateError(language === 'ru' ? 'Не удалось определить местоположение — выберите на карте' : (language === 'en' ? 'Could not get your location — pick it on the map' : "Joylashuvni aniqlab bo'lmadi — xaritadan tanlang"));
+      // No permission (or a computer without GPS): open the map, where the address can be searched or picked
+      const denied = lastLocationError === 'denied';
+      setLocateError(denied
+        ? (language === 'ru' ? 'Нет доступа к местоположению — отметьте дом на карте' : (language === 'en' ? 'No access to your location — mark your home on the map' : "Joylashuvga ruxsat yo'q — uyingizni xaritada belgilang"))
+        : (language === 'ru' ? 'Не удалось определить местоположение — выберите на карте' : (language === 'en' ? 'Could not get your location — pick it on the map' : "Joylashuvni aniqlab bo'lmadi — xaritadan tanlang")));
+      setShowMap(true);
       return;
     }
     const found = await reverseGeocode(pos.lat, pos.lng, language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz'));

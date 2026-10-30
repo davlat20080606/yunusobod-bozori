@@ -5,23 +5,51 @@ const NOMINATIM = 'https://nominatim.openstreetmap.org';
 const ADDRESS_KEY = 'yunusobod_addresses';
 const MAX_SAVED = 3;
 
-// Telegram location first (Bot API 8.0+), then the browser; resolves null instead of hanging
-export function getCurrentPosition(timeoutMs = 12000) {
+// Why the last location attempt failed: 'denied' (no permission), 'unavailable', or ''
+export let lastLocationError = '';
+
+// Desktop Telegram (Mac, Windows, web) rarely has GPS and shows its own "Permission Denied" toast
+export function isDesktopTelegram() {
+  return ['macos', 'tdesktop', 'weba', 'webk', 'web'].includes(tg?.platform);
+}
+
+// Opens Telegram's location permission for this bot (only works right after a tap)
+export function openLocationSettings() {
+  try {
+    if (tg?.LocationManager?.openSettings) { tg.LocationManager.openSettings(); return true; }
+  } catch {}
+  return false;
+}
+
+// Telegram location first (Bot API 8.0+), then the browser; resolves null instead of hanging.
+// silent: only use a permission already given, never pop a prompt or an error toast
+export function getCurrentPosition({ timeoutMs = 12000, silent = false } = {}) {
+  lastLocationError = '';
   return new Promise((resolve) => {
     let finished = false;
-    const finish = (pos) => {
+    const finish = (pos, error = '') => {
       if (finished) return;
       finished = true;
       clearTimeout(timer);
+      lastLocationError = pos ? '' : error;
       resolve(pos);
     };
-    const timer = setTimeout(() => finish(null), timeoutMs);
+    const timer = setTimeout(() => finish(null, 'unavailable'), timeoutMs);
+    if (silent && isDesktopTelegram()) return finish(null);
 
-    const fromBrowser = () => {
-      if (!navigator.geolocation) return finish(null);
+    const fromBrowser = async () => {
+      if (!navigator.geolocation) return finish(null, 'unavailable');
+      if (silent) {
+        try {
+          const state = (await navigator.permissions?.query({ name: 'geolocation' }))?.state;
+          if (state !== 'granted') return finish(null);
+        } catch {
+          return finish(null);
+        }
+      }
       navigator.geolocation.getCurrentPosition(
         (p) => finish({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        () => finish(null),
+        (err) => finish(null, err?.code === 1 ? 'denied' : 'unavailable'),
         { timeout: timeoutMs - 1000, enableHighAccuracy: true, maximumAge: 60000 }
       );
     };
@@ -30,7 +58,12 @@ export function getCurrentPosition(timeoutMs = 12000) {
     if (lm && tg.isVersionAtLeast?.('8.0')) {
       const ask = () => {
         if (!lm.isLocationAvailable) return fromBrowser();
-        lm.getLocation((loc) => finish(loc ? { lat: loc.latitude, lng: loc.longitude } : null));
+        // Asked before and refused: asking again only brings Telegram's bare toast
+        if (lm.isAccessRequested && !lm.isAccessGranted) return finish(null, silent ? '' : 'denied');
+        if (silent && !lm.isAccessGranted) return finish(null);
+        lm.getLocation((loc) => (loc
+          ? finish({ lat: loc.latitude, lng: loc.longitude })
+          : finish(null, lm.isAccessGranted ? 'unavailable' : 'denied')));
       };
       try {
         if (lm.isInited) ask();
