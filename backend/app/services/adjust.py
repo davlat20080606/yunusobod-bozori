@@ -1,13 +1,13 @@
 """Real scale weights and stalls that ran out: change one line, keep the rest of the order going.
 
-Payment is cash on delivery, so the customer simply pays the new total. A heavier piece up to
-+15% is accepted automatically (a butcher cannot cut exactly 1.000 kg); more than that waits for
-the customer's yes. A lighter piece only lowers the price. Stall bonuses stay as given at checkout.
+Payment is cash on delivery, so the customer simply pays the new total. A piece within ±5% of the
+ordered weight is accepted automatically (a butcher cannot cut exactly 1.000 kg); a bigger
+difference either way waits for the customer's yes. Stall bonuses stay as given at checkout.
 """
 from fastapi import HTTPException
 from app.models.schemas import OrderModel, OrderItemModel
 
-WEIGHT_TOLERANCE = 0.15
+WEIGHT_TOLERANCE = 0.05
 OPEN_STATUSES = ("pending", "accepted", "picking", "ready", "at_point", "handed_over")
 
 
@@ -45,7 +45,7 @@ def set_weight(order: OrderModel, item: OrderItemModel, actual: float, photo_url
         raise HTTPException(status_code=400, detail="Vazn noto'g'ri / Неверный вес")
     item.actual_quantity = round(actual, 3)
     item.weight_photo_url = photo_url or item.weight_photo_url
-    item.weight_status = "pending" if actual > item.quantity * (1 + WEIGHT_TOLERANCE) else None
+    item.weight_status = "pending" if abs(actual - item.quantity) > item.quantity * WEIGHT_TOLERANCE + 1e-9 else None
     recalc(order)
 
 
