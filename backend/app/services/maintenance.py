@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.database import async_session_factory
 from app.models.schemas import OrderModel
 from app.bot.notify import notify_status, notify_cold_chain
+import app.services.order_log  # noqa: F401  (status changes made here are logged as "system")
 
 logger = logging.getLogger(__name__)
 

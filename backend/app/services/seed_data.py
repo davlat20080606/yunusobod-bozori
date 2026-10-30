@@ -1,9 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 import secrets
-from sqlalchemy import select, inspect
+from sqlalchemy import select
 from app.config import settings
 from app.models.schemas import CategoryModel, StoreModel, ProductModel
-from app.database import Base, engine, async_session_factory
+from app.database import async_session_factory
 from app.services.local_images import local_image
 
 CATEGORIES = [
@@ -818,40 +818,7 @@ IMAGE_FIXES = {
 
 
 async def init_db_and_seed():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        # Add columns introduced after the first release (create_all does not alter existing tables)
-        cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("orders")})
-        datetime_type = "TIMESTAMP" if conn.dialect.name == "postgresql" else "DATETIME"
-        for col, col_type in [("porter_name", "VARCHAR(100)"), ("porter_phone", "VARCHAR(50)"), ("porter_accepted_at", datetime_type),
-                         ("delivery_lat", "FLOAT"), ("delivery_lng", "FLOAT"),
-                         ("taxi_name", "VARCHAR(100)"), ("taxi_phone", "VARCHAR(50)"),
-                         ("fulfillment", "VARCHAR(20) DEFAULT 'courier'"), ("handoff_point", "VARCHAR(30)"),
-                         ("discount_amount", "FLOAT DEFAULT 0"), ("customer_confirmed_at", datetime_type),
-                         ("handoff_code", "VARCHAR(6)"), ("handed_over_at", datetime_type), ("taxi_eta_at", datetime_type),
-                         ("cold_alert_sent", "BOOLEAN DEFAULT FALSE")]:
-            if col not in cols:
-                await conn.exec_driver_sql(f"ALTER TABLE orders ADD COLUMN {col} {col_type}")
-        promo_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("promos")})
-        for col, col_type in [("amount", "FLOAT"), ("gift_product_id", "INTEGER"), ("gift_qty", "FLOAT")]:
-            if col not in promo_cols:
-                await conn.exec_driver_sql(f"ALTER TABLE promos ADD COLUMN {col} {col_type}")
-        bonus_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("order_bonuses")})
-        for col in ("text_ru", "text_en"):
-            if col not in bonus_cols:
-                await conn.exec_driver_sql(f"ALTER TABLE order_bonuses ADD COLUMN {col} VARCHAR(200)")
-        item_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("order_items")})
-        for col, col_type in [("seller_ready", "BOOLEAN DEFAULT FALSE"), ("seller_handed", "BOOLEAN DEFAULT FALSE"),
-                              ("actual_quantity", "FLOAT"), ("item_status", "VARCHAR(20) DEFAULT 'ok'"),
-                              ("weight_status", "VARCHAR(20)"), ("weight_photo_url", "VARCHAR(500)")]:
-            if col not in item_cols:
-                await conn.exec_driver_sql(f"ALTER TABLE order_items ADD COLUMN {col} {col_type}")
-        store_cols = await conn.run_sync(lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("stores")})
-        if "status" not in store_cols:
-            # Stalls that already exist were added by the administration, so they count as approved
-            await conn.exec_driver_sql("ALTER TABLE stores ADD COLUMN status VARCHAR(20) DEFAULT 'approved'")
-            await conn.exec_driver_sql("UPDATE stores SET status = 'approved'")
-
+    # The schema is made by migrations (app/services/migrate.py) before this runs
     async with async_session_factory() as session:
         # 1. Sync Categories
         cat_res = await session.execute(select(CategoryModel))

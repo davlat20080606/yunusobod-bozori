@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database import get_db
-from app.models.schemas import StoreModel, StaffModel, OrderModel, PIN_PATTERN
+from app.models.schemas import StoreModel, StaffModel, OrderModel, OrderEventModel, PIN_PATTERN
 from app.api.auth import make_admin_token, current_admin, check_not_locked, record_failure, client_ip
 from app.api.tg_auth import telegram_user
 from app.api.patta import day_report, tashkent_day
@@ -164,6 +164,17 @@ async def cancel_order(order_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
     notify_status(order.id)
     return {"success": True}
+
+
+@router.get("/orders/{order_id}/events", dependencies=admin_only)
+async def order_events(order_id: int, db: AsyncSession = Depends(get_db)):
+    """The order's history, oldest first: what happened, who did it and when (for disputes)."""
+    res = await db.execute(select(OrderEventModel).where(OrderEventModel.order_id == order_id).order_by(OrderEventModel.id))
+    return [
+        {"kind": e.kind, "from_status": e.from_status, "to_status": e.to_status, "actor_role": e.actor_role,
+         "actor_id": e.actor_id, "data": e.data, "created_at": e.created_at.isoformat()}
+        for e in res.scalars().all()
+    ]
 
 
 @router.get("/patta", dependencies=admin_only)

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models.schemas import StoreModel, StaffModel
+from app.services.order_log import act_as
 
 TOKEN_TTL_SECONDS = 30 * 24 * 3600
 
@@ -71,6 +72,7 @@ async def seller_identity(x_seller_token: Optional[str], db: AsyncSession):
     expected = _sign_member(member.id, store.id, expires, store.seller_pin) if member else _sign(store.id, expires, store.seller_pin)
     if not hmac.compare_digest(signature, expected):
         raise unauthorized
+    act_as("seller", f"{store.id}:{member.tg_id}" if member else store.id)
     return store, member
 
 
@@ -157,6 +159,7 @@ def staff_with_role(*roles: str):
             raise HTTPException(status_code=403, detail="Hisobingiz faol emas / Ваш аккаунт не активен")
         if roles and staff.role not in roles:
             raise HTTPException(status_code=403, detail="Bu bo'lim siz uchun emas / Этот раздел не для вас")
+        act_as(staff.role, staff.id)
         return staff
     return dependency
 
@@ -166,7 +169,7 @@ def make_admin_token() -> str:
     return f"admin.{expires}.{_sign_kind('admin', 0, expires, settings.ADMIN_PIN)}"
 
 
-def current_admin(x_admin_token: Optional[str] = Header(None)):
+async def current_admin(x_admin_token: Optional[str] = Header(None)):
     """Bozorkom session; changing ADMIN_PIN signs everyone out."""
     unauthorized = HTTPException(status_code=401, detail="Iltimos, qaytadan kiring / Пожалуйста, войдите снова")
     if not settings.ADMIN_PIN:
@@ -178,4 +181,5 @@ def current_admin(x_admin_token: Optional[str] = Header(None)):
         raise unauthorized
     if kind != "admin" or expires < time.time() or not hmac.compare_digest(signature, _sign_kind("admin", 0, expires, settings.ADMIN_PIN)):
         raise unauthorized
+    act_as("admin")
     return True

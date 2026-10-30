@@ -15,9 +15,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from aiogram.types import MenuButtonWebApp, WebAppInfo, BotCommand
 from app.config import settings, USE_WEBHOOK, API_URL
-from app.database import engine, Base, get_db
+from app.database import get_db
 from app.models.schemas import MediaModel
 from app.services.seed_data import init_db_and_seed
+from app.services.migrate import migrate
 from app.services import maintenance
 from app.api import stores, products, seller, orders, stats, porter, reviews, staff, taxi, patta, admin
 from app.bot.bot import setup_dispatcher, get_bot
@@ -56,9 +57,8 @@ WEBHOOK_SECRET = hashlib.sha256(f"webhook:{settings.TELEGRAM_BOT_TOKEN}".encode(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global bot_task, bot_dp
-    # 1. Initialize SQLite tables & seed bazaar data
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # 1. Schema migrations. A failure stops the start, so the old version keeps serving instead
+    await migrate()
     try:
         await init_db_and_seed()
         logger.info("✅ Database seeded with authentic Yunusobod stores & fresh products.")

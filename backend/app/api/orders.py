@@ -13,6 +13,7 @@ from app.services.promos import compute_quote
 from app.services.adjust import recalc
 from app.bot.notify import notify_adjustment
 from app.api.tg_auth import telegram_user
+from app.services.order_log import act_as, log_event
 from app.bot.notify import notify_new_order, notify_status
 from app.models.schemas import (
     OrderModel, OrderItemModel, StoreModel, OrderCreateSchema, OrderSchema, ReviewModel, CustomerModel,
@@ -112,6 +113,9 @@ async def create_order(
     )
     db.add(new_order)
     await db.flush()
+    act_as("customer", new_order.customer_tg_id or new_order.customer_phone)
+    log_event(new_order, "created", None, new_order.status, fulfillment=new_order.fulfillment,
+              total=new_order.total_amount, stores=sorted({i["store_id"] for i in order_items_to_create}))
 
     for item_data in order_items_to_create:
         db.add(OrderItemModel(order_id=new_order.id, is_picked=False, **item_data))
@@ -206,6 +210,7 @@ async def cancel_order(order_number: str, db: AsyncSession = Depends(get_db)):
     if order.status not in ["pending", "accepted"] or order.porter_phone or any(i.seller_handed for i in order.items):
         raise HTTPException(status_code=409, detail="Aravachi buyurtmani yig'ishni boshladi, bekor qilib bo'lmaydi / Аравачи уже собирает заказ, отменить нельзя")
 
+    act_as("customer", order.customer_tg_id or order.customer_phone)
     order.status = "cancelled"
     await db.commit()
     notify_status(order.id)
@@ -228,7 +233,10 @@ async def confirm_received(order_number: str, db: AsyncSession = Depends(get_db)
         raise HTTPException(status_code=409, detail="Hamma rastalardan oling, sotuvchilar «Topshirdim» bosadi / Заберите у всех раст, продавцы нажмут «Передал»")
 
     was_delivered = order.status == "delivered"
+    act_as("customer", order.customer_tg_id or order.customer_phone)
     order.status = "delivered"
+    if not order.customer_confirmed_at:
+        log_event(order, "received")
     order.customer_confirmed_at = order.customer_confirmed_at or datetime.utcnow()
     await db.commit()
     if not was_delivered:
@@ -245,7 +253,9 @@ async def weight_decision(order_number: str, item_id: int, approve: bool = Body(
         raise HTTPException(status_code=404, detail="Buyurtma topilmadi / Заказ не найден")
     if item.weight_status != "pending":
         raise HTTPException(status_code=409, detail="Javob allaqachon berilgan / Ответ уже дан")
+    act_as("customer", order.customer_tg_id or order.customer_phone)
     item.weight_status = "approved" if approve else "rejected"
+    log_event(order, "weight_decision", item_id=item.id, approve=approve)
     recalc(order)
     await db.commit()
     notify_adjustment(order.id, item.id, "decision")

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, LargeBinary
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, LargeBinary, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy import inspect as sa_inspect
 from app.database import Base
@@ -290,6 +290,22 @@ class PromoModel(Base):
     gift_qty = Column(Float, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class OrderEventModel(Base):
+    """One change to an order: who did it and when. Timings, ratings and disputes are read from here.
+    kind: created | status | taken | seller_ready | seller_handed | weight | missing | taxi_taken | received"""
+    __tablename__ = "order_events"
+
+    id = Column(Integer, primary_key=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+    kind = Column(String(30), nullable=False)
+    from_status = Column(String(50), nullable=True)
+    to_status = Column(String(50), nullable=True)
+    actor_role = Column(String(20), nullable=False, default="system")  # customer | seller | porter | taxi | admin | system
+    actor_id = Column(String(50), nullable=True)
+    data = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
 
 class OrderBonusModel(Base):

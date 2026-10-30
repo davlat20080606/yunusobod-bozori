@@ -46,6 +46,30 @@ npm run dev
 
 ---
 
+## 🧪 Tests & Database Migrations
+
+```bash
+cd backend
+pip install -r requirements.txt pytest
+python -m pytest              # API tests + migrations (each test file gets a fresh demo database)
+bash ../e2e/run.sh            # browser tests in headless Chrome (journey, SSE, team, location, languages)
+```
+
+GitHub Actions runs the API tests on every push, the migrations also on Postgres (`.github/workflows/tests.yml`).
+
+The server applies migrations itself on startup (`app/services/migrate.py`). After changing a model in
+`app/models/schemas.py`, create a migration and commit it with the change:
+
+```bash
+cd backend
+alembic revision --autogenerate -m "what changed"
+```
+
+Every order change is written to `order_events` (who, what, when); Bozorkom reads it at
+`GET /api/admin/orders/{id}/events`.
+
+---
+
 ## 📱 Telegram Bot Setup (`aiogram 3`)
 
 1. Create a bot with [@BotFather](https://t.me/BotFather) on Telegram and copy your `BOT_TOKEN`.

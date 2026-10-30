@@ -10,6 +10,7 @@ from app.models.schemas import OrderModel, OrderItemModel, StaffModel
 from app.api.auth import staff_with_role
 from app.api.porter import serialize_order, get_porter_order
 from app.bot.notify import notify_status
+from app.services.order_log import log_event
 from app.services.adjust import check_code
 
 router = APIRouter(prefix="/api/taxi", tags=["taxi"])
@@ -57,6 +58,7 @@ async def take_order(
     order.taxi_phone = taxi.phone
     # No GPS here: the driver says when he will be at the gate, the aravachi comes out just in time
     order.taxi_eta_at = datetime.utcnow() + timedelta(minutes=eta_minutes)
+    log_event(order, "taxi_taken", eta_minutes=eta_minutes)
     await db.commit()
     notify_status(order_id)
     return await serialize_order(await get_porter_order(order_id, db), db)

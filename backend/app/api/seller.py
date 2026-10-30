@@ -16,6 +16,7 @@ from app.api.auth import (
 from app.bot.notify import notify_admin_application, notify_status
 from app.services.storage import save_media
 from app.services.adjust import set_weight, set_missing
+from app.services.order_log import log_event
 from app.bot.notify import notify_adjustment
 from app.models.schemas import (
     StoreModel, ProductModel, OrderModel, OrderItemModel, CategoryModel,
@@ -355,6 +356,7 @@ async def mark_ready(order_id: int, store: StoreModel = Depends(current_store), 
     order, mine = await own_order_items(order_id, store, db)
     for item in mine:
         item.seller_ready = True
+    log_event(order, "seller_ready", store_id=store.id)
     # Self pickup: once every stall is packed the customer can come
     if order.fulfillment == "self" and all(i.seller_ready for i in order.items) and order.status in ("pending", "accepted"):
         order.status = "ready"
@@ -372,6 +374,7 @@ async def mark_handed(order_id: int, store: StoreModel = Depends(current_store),
     for item in mine:
         item.seller_ready = True
         item.seller_handed = True
+    log_event(order, "seller_handed", store_id=store.id)
     if order.fulfillment == "self" and all(i.seller_handed for i in order.items):
         order.status = "delivered"
     await db.commit()

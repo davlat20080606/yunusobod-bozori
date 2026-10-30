@@ -7,6 +7,7 @@ are not looking at their phone. Stall bonuses stay as given at checkout.
 """
 from fastapi import HTTPException
 from app.models.schemas import OrderModel, OrderItemModel
+from app.services.order_log import log_event
 
 WEIGHT_TOLERANCE = 0.05
 OPEN_STATUSES = ("pending", "accepted", "picking", "ready", "at_point", "handed_over")
@@ -54,12 +55,14 @@ def set_weight(order: OrderModel, item: OrderItemModel, actual: float, photo_url
     item.actual_quantity = round(actual, 3)
     item.weight_photo_url = photo_url or item.weight_photo_url
     item.weight_status = None
+    log_event(order, "weight", item_id=item.id, ordered=item.quantity, actual=item.actual_quantity)
     recalc(order)
 
 
 def set_missing(order: OrderModel, item: OrderItemModel, missing: bool):
     check_open(order)
     item.item_status = "missing" if missing else "ok"
+    log_event(order, "missing" if missing else "missing_undone", item_id=item.id)
     if not missing:
         item.is_picked = item.seller_ready = item.seller_handed = False
     if missing:
