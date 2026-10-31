@@ -15,7 +15,7 @@ from app.services.adjust import set_weight, set_missing, check_code
 from app.services.storage import save_media
 from app.services.events import order_changed
 from app.services.order_log import log_event
-from app.services import stock, no_show
+from app.services import stock, no_show, taxi_control
 from app.services.config_store import get_setting
 from datetime import timedelta
 
@@ -105,6 +105,11 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
         "fulfillment": order.fulfillment or "courier",
         "handed_over_at": order.handed_over_at.isoformat() if order.handed_over_at else None,
         "taxi_eta_at": order.taxi_eta_at.isoformat() if order.taxi_eta_at else None,
+        # Not at the gate by then: the order goes to another taxi (the server does it)
+        "taxi_gate_deadline": (deadline.isoformat() if (deadline := await taxi_control.gate_deadline(db, order)) else None),
+        "taxi_reassign_count": order.taxi_reassign_count or 0,
+        "left_bazaar_at": order.left_bazaar_at.isoformat() if order.left_bazaar_at else None,
+        "taxi_loc_at": order.taxi_loc_at.isoformat() if order.taxi_loc_at else None,
         "waiting_since": order.waiting_since.isoformat() if order.waiting_since else None,
         "no_show_allowed_at": waiting,  # «Xaridor kelmadi» opens then (the server checks it too)
         "no_show_at": order.no_show_at.isoformat() if order.no_show_at else None,
@@ -279,6 +284,8 @@ async def set_porter_status(
     order.status = status
     if status == "handed_over":
         order.handed_over_at = datetime.utcnow()
+    if status == "on_the_way":
+        order.left_bazaar_at = datetime.utcnow()
     if status == "at_point":
         no_show.start_waiting(order)
     await db.commit()

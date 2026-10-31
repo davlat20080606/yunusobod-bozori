@@ -7,9 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.database import async_session_factory
-from app.services import stock, no_show
-from app.models.schemas import OrderModel
-from app.bot.notify import notify_status, notify_cold_chain, send_morning_stock, notify_wait_reminder, notify_no_show, notify_return_late
+from app.services import stock, no_show, taxi_control
+from app.models.schemas import OrderModel, StaffModel
+from app.bot.notify import (notify_status, notify_cold_chain, send_morning_stock, notify_wait_reminder, notify_no_show,
+                            notify_return_late, notify_taxi_released, notify_trip_late)
 from app.services.config_store import get_setting, set_setting
 import app.services.order_log  # noqa: F401  (status changes made here are logged as "system")
 
@@ -130,6 +131,38 @@ async def no_show_timers(now: datetime = None) -> dict:
     return {"reminded": len(reminded), "closed": len(closed), "late": len(late)}
 
 
+async def taxi_timers(now: datetime = None) -> dict:
+    """A taxi that never came for the bag loses the order; a trip that drags on is reported once."""
+    now = now or datetime.utcnow()
+    released, late = [], []
+    async with async_session_factory() as db:
+        grace = int(await get_setting(db, "taxi_gate_grace_min"))
+        trip_max = int(await get_setting(db, "taxi_trip_max_min"))
+        orders = (await db.execute(select(OrderModel).where(
+            ((OrderModel.status == "handed_over") & OrderModel.taxi_phone.is_not(None) & OrderModel.taxi_eta_at.is_not(None))
+            | ((OrderModel.status == "on_the_way") & OrderModel.left_bazaar_at.is_not(None) & OrderModel.late_alert_sent.is_not(True))
+        ))).scalars().all()
+        phones = {o.taxi_phone for o in orders if o.taxi_phone}
+        staff = {s.phone: s for s in (await db.execute(select(StaffModel).where(StaffModel.phone.in_(phones)))).scalars().all()} if phones else {}
+        for order in orders:
+            driver = staff.get(order.taxi_phone)
+            if order.status == "handed_over":
+                if now > order.taxi_eta_at + timedelta(minutes=grace):
+                    alert = await taxi_control.release(db, order, driver, "late_to_gate")
+                    released.append((order.id, driver.tg_id if driver else None, alert))
+            # At the door and waiting for the customer is not a late trip
+            elif not order.waiting_since and now - order.left_bazaar_at > timedelta(minutes=trip_max):
+                order.late_alert_sent = True
+                taxi_control.add_incident(db, driver, order, "late_delivery")
+                late.append((order.id, int((now - order.left_bazaar_at).total_seconds() // 60)))
+        await db.commit()
+    for order_id, tg_id, alert in released:
+        notify_taxi_released(order_id, tg_id, alert)
+    for order_id, minutes in late:
+        notify_trip_late(order_id, minutes)
+    return {"released": len(released), "late": len(late)}
+
+
 async def run_forever():
     while True:
         try:
@@ -137,6 +170,7 @@ async def run_forever():
             await check_cold_chain()
             await settle_stock()
             await no_show_timers()
+            await taxi_timers()
             await morning_stock()
         except Exception as e:
             logger.warning(f"Stale order check failed: {e}")

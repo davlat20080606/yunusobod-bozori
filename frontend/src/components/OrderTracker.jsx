@@ -184,11 +184,36 @@ function etaText(order, lang) {
   return slotLabel(order.delivery_time_slot, lang);
 }
 
-// Small map: bazaar → delivery point (MapLibre + free OpenFreeMap tiles)
+const mapPin = (emoji, bg) => {
+  const el = document.createElement('div');
+  el.style.cssText = `width:36px;height:36px;border-radius:50%;background:${bg};border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:17px`;
+  el.textContent = emoji;
+  return el;
+};
+
+// Small map: bazaar → delivery point (MapLibre + free OpenFreeMap tiles), and the taxi when it shares its location
 function RouteMap({ order }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
+  const libRef = useRef(null);
+  const taxiRef = useRef(null);
   const hasHome = order.delivery_lat != null && order.delivery_lng != null;
+  const taxiAt = order.taxi_lat != null ? [order.taxi_lng, order.taxi_lat] : null;
+
+  const placeTaxi = (at) => {
+    if (!mapRef.current || !libRef.current) return;
+    if (!at) {
+      taxiRef.current?.remove();
+      taxiRef.current = null;
+    } else if (taxiRef.current) {
+      taxiRef.current.setLngLat(at);
+    } else {
+      const el = mapPin('🚕', '#f59e0b');
+      el.dataset.testid = 'taxi-marker';
+      taxiRef.current = new libRef.current.Marker({ element: el }).setLngLat(at).addTo(mapRef.current);
+    }
+  };
+  useEffect(() => placeTaxi(taxiAt), [order.taxi_lat, order.taxi_lng]);
 
   useEffect(() => {
     let cancelled = false;
@@ -206,13 +231,8 @@ function RouteMap({ order }) {
         attributionControl: { compact: true }
       });
       mapRef.current = map;
-
-      const pin = (emoji, bg) => {
-        const el = document.createElement('div');
-        el.style.cssText = `width:36px;height:36px;border-radius:50%;background:${bg};border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:17px`;
-        el.textContent = emoji;
-        return el;
-      };
+      libRef.current = maplibregl;
+      const pin = mapPin;
       new maplibregl.Marker({ element: pin('🏪', '#059669') }).setLngLat([BAZAAR.lng, BAZAAR.lat]).addTo(map);
 
       map.once('load', () => {
@@ -230,11 +250,13 @@ function RouteMap({ order }) {
         const bounds = new maplibregl.LngLatBounds([BAZAAR.lng, BAZAAR.lat], [BAZAAR.lng, BAZAAR.lat]).extend([order.delivery_lng, order.delivery_lat]);
         map.fitBounds(bounds, { padding: { top: 50, bottom: 70, left: 50, right: 50 }, maxZoom: 15, duration: 0 });
       }
+      placeTaxi(taxiAt);
     })();
     return () => {
       cancelled = true;
       mapRef.current?.remove();
       mapRef.current = null;
+      taxiRef.current = null;
     };
   }, [order.order_number, hasHome, order.delivery_lat, order.delivery_lng]);
 
@@ -558,6 +580,12 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 800, fontSize: 16 }}>{openOrder.taxi_name}</div>
               <div style={{ fontSize: 13, color: '#64748b' }}>{lang === 'ru' ? 'Таксист' : (lang === 'en' ? 'Taxi driver' : 'Taksichi')}</div>
+              {/* The server sends the position only while the car is bringing this order and it is fresh */}
+              {openOrder.taxi_lat != null && (
+                <a data-testid="taxi-where" href={`https://yandex.uz/maps/?pt=${openOrder.taxi_lng},${openOrder.taxi_lat}&z=15&l=map`} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 4, fontSize: 13, fontWeight: 800, color: '#1d4ed8', textDecoration: 'none' }}>
+                  🗺 {lang === 'ru' ? 'Где такси' : (lang === 'en' ? 'Where is the taxi' : 'Taksi qayerda')}
+                </a>
+              )}
             </div>
             {openOrder.taxi_phone && isActive && (
               <a href={`tel:${openOrder.taxi_phone.replace(/[^\d+]/g, '')}`} style={{ width: 44, height: 44, borderRadius: '50%', background: '#2563eb', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} aria-label={t('call')}>

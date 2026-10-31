@@ -31,10 +31,19 @@ const T = {
   eta_question: { uz: 'Darvozaga necha daqiqada yetasiz?', ru: 'Через сколько минут будете у ворот?', en: 'How soon will you be at the gate?' },
   min: { uz: 'daq', ru: 'мин', en: 'min' },
   navigator: { uz: 'Yandex Navigator', ru: 'Яндекс Навигатор', en: 'Yandex Navigator' },
+  gate_left: { uz: 'Darvozada bo\'ling: {n} daqiqa qoldi', ru: 'Будьте у ворот: осталось {n} мин', en: 'Be at the gate: {n} min left' },
+  gate_late: { uz: '⚠️ Kechikyapsiz! {n} daqiqadan keyin buyurtma boshqa taksichiga beriladi', ru: '⚠️ Вы опаздываете! Через {n} мин заказ передадут другому таксисту', en: '⚠️ You are late! In {n} min the order goes to another taxi' },
+  gate_hint: { uz: 'Aravachi buyurtma bilan darvozada kutmoqda', ru: 'Аравачи ждёт с заказом у ворот', en: 'The porter is waiting at the gate with the order' },
+  release: { uz: '↩️ Bora olmayman', ru: '↩️ Не смогу приехать', en: '↩️ I cannot come' },
+  release_confirm: { uz: 'Buyurtmani boshqa taksichilarga qaytarasizmi?', ru: 'Вернуть заказ другим таксистам?', en: 'Give the order back to other taxis?' },
+  live_hint: { uz: '📍 Xaridor mashinangizni ko\'rishi uchun botda jonli joylashuvni ulashing: 📎 → Joylashuv → «Jonli joylashuv»', ru: '📍 Чтобы покупатель видел машину, поделитесь в боте геопозицией: 📎 → Геопозиция → «Транслировать»', en: '📍 Share your live location in the bot so the customer sees the car: 📎 → Location → «Share live location»' },
+  live_on: { uz: '📍 Joylashuv ulashilmoqda', ru: '📍 Геопозиция транслируется', en: '📍 Live location is on' },
   code_label: { uz: 'Xaridordan 4 xonali kodni so\'rang', ru: 'Спросите у покупателя 4-значный код', en: 'Ask the customer for the 4-digit code' },
 };
 
 const BAZAAR = '69.29089,41.36467';
+const minutesUntil = (iso) => (iso ? Math.ceil((new Date(`${iso}Z`).getTime() - Date.now()) / 60000) : null);
+const minutesSince = (iso) => (iso ? Math.floor((Date.now() - new Date(`${iso}Z`).getTime()) / 60000) : null);
 const card = { background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 14, marginBottom: 12 };
 const btn = { width: '100%', padding: '14px 16px', borderRadius: 14, border: 'none', background: '#2563eb', color: '#ffffff', fontSize: 15, fontWeight: 800, cursor: 'pointer' };
 const smallLink = { display: 'inline-flex', alignItems: 'center', gap: 4, background: '#eff6ff', color: '#1d4ed8', borderRadius: 10, padding: '8px 10px', fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 };
@@ -180,7 +189,26 @@ export default function TaxiPanel({ onBackToMarket }) {
                   {hasPoint && <a href={`yandexnavi://build_route_on_map?lat_to=${o.delivery_lat}&lon_to=${o.delivery_lng}`} style={smallLink}>🧭 {t('navigator')}</a>}
                   {hasPoint && <a href={`https://www.google.com/maps/dir/?api=1&destination=${o.delivery_lat},${o.delivery_lng}&travelmode=driving`} target="_blank" rel="noreferrer" style={smallLink}>🗺 Google Maps</a>}
                 </div>
+                {o.status === 'handed_over' && (() => {
+                  const promised = minutesUntil(o.taxi_eta_at);
+                  const takenAway = minutesUntil(o.taxi_gate_deadline);
+                  const late = promised !== null && promised <= 0;
+                  return (
+                    <div data-testid="gate-timer" style={{ borderRadius: 12, padding: '10px 12px', marginBottom: 10, textAlign: 'center', fontWeight: 800, fontSize: 15, background: late ? '#fef2f2' : '#eff6ff', color: late ? '#b91c1c' : '#1d4ed8' }}>
+                      {late ? t('gate_late').replace('{n}', Math.max(0, takenAway ?? 0)) : t('gate_left').replace('{n}', promised ?? '—')}
+                      <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{t('gate_hint')}</div>
+                    </div>
+                  );
+                })()}
+                {['handed_over', 'on_the_way'].includes(o.status) && (
+                  <div style={{ fontSize: 12, color: minutesSince(o.taxi_loc_at) !== null && minutesSince(o.taxi_loc_at) < 10 ? '#047857' : '#64748b', background: '#f8fafc', borderRadius: 10, padding: '8px 10px', marginBottom: 10, fontWeight: 600 }}>
+                    {minutesSince(o.taxi_loc_at) !== null && minutesSince(o.taxi_loc_at) < 10 ? t('live_on') : t('live_hint')}
+                  </div>
+                )}
                 {o.status === 'handed_over' && <button type="button" disabled={busy} onClick={() => run(() => api.taxiStatus(o.id, 'on_the_way'))} style={{ ...btn, opacity: busy ? 0.6 : 1 }}>{t('go')}</button>}
+                {o.status === 'handed_over' && (
+                  <button type="button" disabled={busy} onClick={() => { if (window.confirm(t('release_confirm'))) run(() => api.taxiRelease(o.id)); }} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: 8, width: '100%' }}>{t('release')}</button>
+                )}
                 {o.status === 'on_the_way' && (
                   <div style={{ marginBottom: 10 }}>
                     <NoShowWait order={o} language={language} busy={busy} needsArrival

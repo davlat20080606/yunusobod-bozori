@@ -133,6 +133,7 @@ export const api = {
   taxiOrders: () => staffFetch('/taxi/orders'),
   taxiTake: (orderId, etaMinutes) => staffFetch(`/taxi/orders/${orderId}/take`, json('POST', { eta_minutes: etaMinutes })),
   taxiStatus: (orderId, status, code) => staffFetch(`/taxi/orders/${orderId}/status`, json('PATCH', { status, code })),
+  taxiRelease: (orderId) => staffFetch(`/taxi/orders/${orderId}/release`, json('POST', {})),
   pattaToday: () => staffFetch('/patta/today'),
   pattaPay: (storeId, amount) => staffFetch(`/patta/${storeId}`, json('POST', { amount })),
   pattaUndo: (storeId) => staffFetch(`/patta/${storeId}`, { method: 'DELETE' }),

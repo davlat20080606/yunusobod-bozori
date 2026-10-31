@@ -9,8 +9,8 @@ from app.database import get_db
 from app.models.schemas import OrderModel, OrderItemModel, StaffModel
 from app.api.auth import staff_with_role
 from app.api.porter import serialize_order, get_porter_order
-from app.bot.notify import notify_status, notify_no_show
-from app.services import no_show
+from app.bot.notify import notify_status, notify_no_show, notify_taxi_taken, notify_taxi_released
+from app.services import no_show, taxi_control
 from app.services.events import order_changed
 from app.services.order_log import log_event
 from app.services.adjust import check_code
@@ -21,8 +21,10 @@ current_taxi = staff_with_role("taxi")
 
 
 def own_order(order: OrderModel, taxi: StaffModel):
+    # 409, not 403: usually the order was given to another taxi because this one did not come in time
     if order.taxi_phone != taxi.phone:
-        raise HTTPException(status_code=403, detail="Bu sizning buyurtmangiz emas / Это не ваш заказ")
+        raise HTTPException(status_code=409, detail=(
+            "Bu buyurtma endi sizda emas (boshqa taksichiga berilgan) / Этот заказ уже не ваш (передан другому таксисту)"))
 
 
 @router.get("/orders")
@@ -60,10 +62,12 @@ async def take_order(
     order.taxi_name = f"{taxi.name}" + (f" · {taxi.car}" if taxi.car else "")
     order.taxi_phone = taxi.phone
     # No GPS here: the driver says when he will be at the gate, the aravachi comes out just in time
-    order.taxi_eta_at = datetime.utcnow() + timedelta(minutes=eta_minutes)
+    order.taxi_taken_at = datetime.utcnow()
+    order.taxi_eta_at = order.taxi_taken_at + timedelta(minutes=eta_minutes)
     log_event(order, "taxi_taken", eta_minutes=eta_minutes)
     await db.commit()
     notify_status(order_id)
+    notify_taxi_taken(order_id, taxi.tg_id)
     return await serialize_order(await get_porter_order(order_id, db), db)
 
 
@@ -79,12 +83,31 @@ async def set_taxi_status(
         raise HTTPException(status_code=400, detail="Noto'g'ri status")
     order = await get_porter_order(order_id, db)
     own_order(order, taxi)
+    if status == "on_the_way" and order.status != "handed_over":
+        raise HTTPException(status_code=409, detail="Buyurtma darvozada emas / Заказ не у ворот")
     if status == "delivered":
+        if order.status != "on_the_way":
+            raise HTTPException(status_code=409, detail="Buyurtma yo'lda emas / Заказ не в пути")
         check_code(order, code)
+    if status == "on_the_way":
+        order.left_bazaar_at = datetime.utcnow()
     order.status = status
     await db.commit()
     notify_status(order_id)
     return await serialize_order(await get_porter_order(order_id, db), db)
+
+
+@router.post("/orders/{order_id}/release")
+async def taxi_release(order_id: int, taxi: StaffModel = Depends(current_taxi), db: AsyncSession = Depends(get_db)):
+    """«Bora olmayman»: the driver cannot come after all. Better now than the aravachi waiting at the gate."""
+    order = await get_porter_order(order_id, db)
+    own_order(order, taxi)
+    if order.status != "handed_over":
+        raise HTTPException(status_code=409, detail="Buyurtma allaqachon sizda / Заказ уже у вас")
+    alert = await taxi_control.release(db, order, taxi, "released")
+    await db.commit()
+    notify_taxi_released(order_id, None, alert)
+    return {"success": True}
 
 
 @router.post("/orders/{order_id}/arrived")

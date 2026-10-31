@@ -32,6 +32,12 @@ DEFAULTS = {
     "return_alert_min": "60",
     # This many no-shows in 90 days and the customer can no longer order (until online prepayment exists)
     "no_show_strikes": "2",
+    # Taxi control: minutes past the promised time at the gate before the order goes to another taxi;
+    # how long a trip may take before the Bozorkom and the customer are warned;
+    # after this many reassignments of one order the Bozorkom is told
+    "taxi_gate_grace_min": "5",
+    "taxi_trip_max_min": "60",
+    "taxi_reassign_alert": "2",
 }
 
 # Where an aravachi hands the order to the customer or the taxi

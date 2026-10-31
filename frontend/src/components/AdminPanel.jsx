@@ -52,6 +52,13 @@ const T = {
   self_no_show_min: { uz: "O'zi olib ketish: kutish, daq", ru: 'Самовывоз: ждать, мин', en: 'Self pickup: wait, min' },
   return_alert_min: { uz: 'Qaytmagan mahsulot signali, daq', ru: 'Сигнал о невозвращённом товаре, мин', en: 'Goods not back alert, min' },
   no_show_strikes: { uz: 'Necha marta kelmasa — yopiladi', ru: 'Сколько неявок — закрыть заказы', en: 'No-shows before ordering is closed' },
+  taxi_gate_grace_min: { uz: 'Taksi darvozaga kechiksa, daq', ru: 'Опоздание такси к воротам, мин', en: 'Taxi late to the gate, min' },
+  taxi_trip_max_min: { uz: "Yo'lda ko'pi bilan, daq", ru: 'В пути не дольше, мин', en: 'Trip at most, min' },
+  taxi_reassign_alert: { uz: 'Necha marta taksi almashsa — signal', ru: 'Сколько смен такси — сигнал', en: 'Taxi changes before an alert' },
+  incidents: { uz: '30 kunda', ru: 'За 30 дней', en: 'Last 30 days' },
+  late_to_gate: { uz: 'darvozaga kelmadi', ru: 'не приехал к воротам', en: 'missed the gate' },
+  released: { uz: 'qaytardi', ru: 'отказался', en: 'gave back' },
+  late_delivery: { uz: 'kechikib yetkazdi', ru: 'долго вёз', en: 'late delivery' },
   no_shows: { uz: 'kelmagan', ru: 'неявок', en: 'no-shows' },
   forgive: { uz: '🤝 Kechirish', ru: '🤝 Простить', en: '🤝 Forgive' },
   forgiven: { uz: 'Kechirildi', ru: 'Прощено', en: 'Forgiven' },
@@ -79,7 +86,8 @@ const T = {
 };
 
 const LIMIT_KEYS = ['new_customer_max_total', 'new_customer_max_open', 'max_open_orders', 'orders_per_10_min', 'morning_stock_hour',
-  'no_show_remind_min', 'no_show_after_min', 'self_no_show_min', 'return_alert_min', 'no_show_strikes'];
+  'no_show_remind_min', 'no_show_after_min', 'self_no_show_min', 'return_alert_min', 'no_show_strikes',
+  'taxi_gate_grace_min', 'taxi_trip_max_min', 'taxi_reassign_alert'];
 const STATUS_COLOR = { pending: '#d97706', approved: '#16a34a', rejected: '#64748b', blocked: '#dc2626' };
 const card = { background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 12, marginBottom: 8 };
 const pill = (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 800, color, background: `${color}1a` });
@@ -246,6 +254,11 @@ export default function AdminPanel({ onBackToMarket }) {
       <div style={{ fontSize: 13, color: '#64748b' }}>
         {ROLE_INFO[s.role]?.[lang]} · <a href={`tel:${s.phone.replace(/[^\d+]/g, '')}`} style={{ color: 'inherit' }}>{s.phone}</a>{s.car ? ` · ${s.car}` : ''}
       </div>
+      {Object.keys(s.incidents || {}).length > 0 && (
+        <div style={{ fontSize: 12, color: '#b91c1c', fontWeight: 700, marginTop: 4 }}>
+          ⚠️ {t('incidents')}: {Object.entries(s.incidents).map(([kind, n]) => `${t(kind)} ${n}`).join(' · ')}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         {statusButtons(s, api.adminStaffStatus)}
         {s.status === 'approved' && <button type="button" style={{ ...smallBtn('#f1f5f9', '#334155'), marginTop: 8 }} onClick={() => resetPin((pin) => api.adminStaffPin(s.id, pin))}>{t('new_pin')}</button>}

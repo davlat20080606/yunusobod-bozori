@@ -127,7 +127,7 @@ async def lifespan(app: FastAPI):
                 await bot.set_webhook(
                     url=f"{API_URL}{WEBHOOK_PATH}",
                     secret_token=WEBHOOK_SECRET,
-                    allowed_updates=["message", "callback_query"]
+                    allowed_updates=["message", "edited_message", "callback_query"]  # edits carry live location
                 )
                 logger.info(f"🤖 Telegram Bot webhook set: {API_URL}{WEBHOOK_PATH}")
                 bot_status["webhook"] = "ok"

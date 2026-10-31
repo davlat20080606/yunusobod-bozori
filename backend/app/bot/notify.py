@@ -521,3 +521,83 @@ async def _return_late(order_id: int, minutes: int):
 
 def notify_return_late(order_id: int, minutes: int):
     _background(_return_late(order_id, minutes))
+
+
+async def _taxi_taken(order_id: int, tg_id: str):
+    """Ask the driver for his live location: the customer then sees where the car is."""
+    async with async_session_factory() as db:
+        order = await db.get(OrderModel, order_id)
+    if not order or not tg_id:
+        return
+    await _send(tg_id, (
+        f"🚕 <b>#{order.order_number} sizda · у вас</b>\n"
+        "📍 Xaridor mashinani xaritada ko'rishi uchun shu chatda jonli joylashuvni ulashing: "
+        "📎 → Joylashuv → «Jonli joylashuvni ulashish» (1 soat)\n"
+        "📍 Чтобы покупатель видел машину на карте, поделитесь здесь геопозицией в реальном времени: "
+        "📎 → Геопозиция → «Транслировать геопозицию» (1 час)"))
+
+
+def notify_taxi_taken(order_id: int, tg_id):
+    _background(_taxi_taken(order_id, tg_id))
+
+
+async def _taxi_released(order_id: int, old_taxi_tg, alert: bool):
+    from app.services.config_store import get_setting
+    async with async_session_factory() as db:
+        order = await db.get(OrderModel, order_id)
+        if not order:
+            return
+        chats = await _workers(db, order)  # the aravachi still holding the bag
+        admin_tg = await get_setting(db, "admin_tg_id")
+    sends = [_send(chat, f"🚕 <b>Taksichi kelmadi · Таксист не приехал</b> #{order.order_number}\n"
+                         "Buyurtma boshqa taksichilarga qayta yuborildi · Заказ снова отправлен всем таксистам") for chat in chats]
+    if old_taxi_tg:
+        sends.append(_send(old_taxi_tg, f"⏱ <b>#{order.order_number}</b> — darvozaga o'z vaqtida kelmadingiz, buyurtma boshqa "
+                                        "taksichiga berildi · вы не приехали к воротам вовремя, заказ передан другому таксисту"))
+    if alert and admin_tg:
+        sends.append(_send(admin_tg, f"⚠️ <b>#{order.order_number}: {order.taxi_reassign_count} marta taksichi almashdi · "
+                                     f"таксист менялся {order.taxi_reassign_count} раза</b>\n"
+                                     f"🛒 {escape(order.porter_name or '')} · {escape(order.porter_phone or '')}",
+                           _webapp_button("🏛 Bozorkom", "tab=admin")))
+    await asyncio.gather(*sends)
+    await _taxis(order_id)
+
+
+def notify_taxi_released(order_id: int, old_taxi_tg, alert: bool):
+    order_changed(order_id)
+    _background(_taxi_released(order_id, old_taxi_tg, alert))
+
+
+TRIP_LATE_TEXTS = {
+    "uz": "⏳ <b>Kuryer biroz kechikmoqda</b>\nBozor ma'muriyati xabardor. Kuryer: {taxi}",
+    "ru": "⏳ <b>Курьер немного задерживается</b>\nАдминистрация базара в курсе. Курьер: {taxi}",
+    "en": "⏳ <b>The courier is running late</b>\nThe bazaar administration knows. Courier: {taxi}",
+}
+
+
+async def _trip_late(order_id: int, minutes: int):
+    from app.services.config_store import get_setting
+    async with async_session_factory() as db:
+        order = await db.get(OrderModel, order_id)
+        if not order:
+            return
+        customer = (await db.execute(select(CustomerModel).where(CustomerModel.tg_id == order.customer_tg_id))).scalars().first() \
+            if order.customer_tg_id else None
+        admin_tg = await get_setting(db, "admin_tg_id")
+    driver = order.taxi_name or order.porter_name or ""
+    phone = order.taxi_phone or order.porter_phone or ""
+    sends = []
+    if admin_tg:
+        sends.append(_send(admin_tg, f"⏳ <b>{minutes} daqiqa yo'lda, hali yetkazilmadi · {minutes} мин в пути, ещё не доставлен</b> "
+                                     f"#{order.order_number}\n🚕 {escape(driver)} · {escape(phone)}\n"
+                                     f"🙋 {escape(order.customer_name)} · {escape(order.customer_phone)}",
+                           _webapp_button("🏛 Bozorkom", "tab=admin")))
+    if order.customer_tg_id:
+        lang = customer.lang if customer and customer.lang in TRIP_LATE_TEXTS else "uz"
+        sends.append(_send(order.customer_tg_id, f"{TRIP_LATE_TEXTS[lang].format(taxi=escape(driver))}\n#{order.order_number}",
+                           _webapp_button(CUSTOMER_TEXTS[lang]["button"], f"tab=orders&order={order.order_number}&lang={lang}")))
+    await asyncio.gather(*sends)
+
+
+def notify_trip_late(order_id: int, minutes: int):
+    _background(_trip_late(order_id, minutes))

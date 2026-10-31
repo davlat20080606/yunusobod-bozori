@@ -213,42 +213,31 @@ Keyingi qadamlarda bazaga ko'p ustun va jadval qo'shiladi, shuning uchun avval p
 
 ---
 
-### 4-qadam. Taksichi nazorati · ~1,5 kun
+### 4-qadam. Taksichi nazorati · ~1,5 kun · ✅ qilindi
 
-**Baza:**
-- `staff.car_plate`, `staff.car_model`, `staff.car_color`
-- `orders.taxi_taken_at`, `orders.taxi_reassign_count`
-- `orders.taxi_lat`, `orders.taxi_lng`, `orders.taxi_loc_at`
-- `staff_incidents` jadvali: `staff_id`, `order_id`, `kind` (late_to_gate/late_delivery/released/no_show_reported), `created_at`.
+**Darvoza taymeri** (taksichi «5/10/15/20 daqiqada yetaman» deydi):
+- Taksichi ekranida: «Darvozada bo'ling: N daqiqa qoldi», vaqt o'tsa qizil «Kechikyapsiz! N daqiqadan keyin buyurtma boshqa taksichiga beriladi».
+- Va'da + 5 daqiqa (`taxi_gate_grace_min`) o'tib, «Qabul qildim» bosilmasa — server buyurtmani o'zi oladi:
+  - barcha taksichilarga qayta yuboriladi, aravachiga «Taksichi kelmadi» xabari;
+  - kechikkan taksichiga xabar va incident (`late_to_gate`);
+  - u keyin «Qabul qildim» bosmoqchi bo'lsa — 409 «buyurtma boshqa taksichiga berilgan».
+- **«↩️ Bora olmayman»** — taksichi o'zi qaytaradi (incident `released`, alohida sanaladi).
+- Bitta buyurtmada taksichi 2 marta (`taxi_reassign_alert`) almashsa — Bozorkomga signal.
+- Topshirish kodi o'zgarmaydi.
 
-**Taymerlar:**
-- **Darvozaga kelmadi:** `taxi_eta_at + 5 daqiqa` o'tdi va aravachi hali topshirmagan:
-  - buyurtma avtomatik bo'shatiladi (`taxi_phone = null`);
-  - incident yoziladi;
-  - taksi kanaliga SSE va ovozli signal;
-  - taksichiga va xaridorga xabar.
-  - 2 marta qayta berilsa, Bozorkomga signal.
-- **Yetkazmadi:** `handed_over_at + kutilgan vaqt + 20 daqiqa`:
-  - Bozorkomga va xaridorga ogohlantirish;
-  - adminda taksichi telefoni va mashina raqami.
+**Yo'l taymeri:** «Qabul qildim» dan 60 daqiqa (`taxi_trip_max_min`) o'tib yetkazilmasa (va eshik oldida kutmayotgan bo'lsa) — Bozorkomga (taksichi telefoni bilan) va xaridorga bir marta ogohlantirish, incident `late_delivery`.
 
 **Jonli joylashuv:**
-- Taksichi buyurtmani olganda bot «📍 Jonli joylashuvni ulashing» deb so'raydi.
-- Telegram `live_location` `edited_message` orqali har bir necha soniyada keladi; bot `tg_id` bo'yicha buyurtmani topib koordinatani yozadi.
-- SSE `order:*` orqali uzatiladi. Xaridor trekerida «Taksi qayerda» xarita havolasi.
+- Taksichi buyurtmani olganda bot «📎 → Joylashuv → Jonli joylashuvni ulashish» deb so'raydi; ekranda ham shu ko'rsatma, ulashilsa «📍 Joylashuv ulashilmoqda».
+- Webhook endi `edited_message` ham oladi; har 10 soniyada ko'pi bilan bir nuqta yoziladi (`orders.taxi_lat/lng/loc_at`), SSE orqali trekerga boradi.
+- Xaridor xaritasida 🚕 belgisi va «🗺 Taksi qayerda» havolasi — faqat yo'lda bo'lganda va nuqta 10 daqiqadan eski bo'lmasa. Sotuvchiga ko'rinmaydi.
+- O'zi olib borgan aravachi ham ulasha oladi.
 
-**Navigator:** taksichi ekranida «Yandex Navigator» va «Google Maps» tugmalari — ✅ allaqachon bor.
+**Bozorkom:** «Xodimlar» da har ishchi yonida 30 kunlik incidentlar («darvozaga kelmadi 1 · qaytardi 1 · kechikib yetkazdi 1»); 3 ta yangi sozlama.
 
-**Ro'yxatdan o'tish:**
-- Taksichi anketasida mashina raqami, modeli va rangi majburiy.
-- Bozorkom tasdiqlaydi (hozirgi `staff.status` mexanizmi).
+**Rejadan farqi:** mashina raqami/modeli/rangi alohida maydonlarga bo'linmadi — anketada «Mashina va raqami» allaqachon majburiy, Bozorkom tasdiqlaydi. Navigator tugmalari avvaldan bor edi.
 
-**Chekka holatlar:**
-- Taksichi joylashuvni yubormadi: majburiy emas, faqat taymerlar ishlaydi.
-- Buyurtma qayta berilganda topshirish kodi o'zgarmaydi.
-- Eski taksichi kech kelib «oldim» bosmoqchi bo'lsa: 409.
-
-**Testlar:** ETA taymeri va qayta berish, incident'lar, joylashuv yangilanishi (fake bot bilan).
+**Testlar:** server 2 ta yangi (darvoza taymeri, qaytarish, incidentlar, yo'l taymeri, joylashuv), brauzer 18 tekshiruv.
 
 ---
 

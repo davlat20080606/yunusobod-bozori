@@ -266,6 +266,19 @@ async def join_stall(message: types.Message, token: str):
     await message.answer(JOIN_TEXTS["ok"][lang].format(store=escape(store_name), stall=escape(store.stall_number)), reply_markup=keyboard, parse_mode="HTML")
 
 
+async def save_driver_location(message: types.Message):
+    """The order id it was written to; 0 for a worker without an order on the way; None for a customer."""
+    from app.database import async_session_factory
+    from app.services import taxi_control
+    from app.services.events import order_changed
+    async with async_session_factory() as db:
+        order_id = await taxi_control.save_location(db, str(message.from_user.id), message.location.latitude, message.location.longitude)
+        await db.commit()
+    if order_id:
+        order_changed(order_id)
+    return order_id
+
+
 def setup_dispatcher() -> Dispatcher:
     global dp
     dp = Dispatcher()
@@ -347,6 +360,19 @@ def setup_dispatcher() -> Dispatcher:
             return
         customer = await save_customer(message.from_user.id, phone=format_phone(message.contact.phone_number))
         await continue_registration(message, customer, message.from_user.first_name)
+
+    # A driver's live location: Telegram sends the first point as a message and the rest as edits of it
+    @dp.message(F.location)
+    async def handle_location(message: types.Message):
+        order_id = await save_driver_location(message)
+        if order_id:
+            await message.answer("✅ Joylashuv xaridorga ko'rinmoqda · Покупатель видит, где вы")
+        elif order_id == 0:
+            await message.answer("Sizda yo'ldagi buyurtma yo'q · У вас нет заказа в пути")
+
+    @dp.edited_message(F.location)
+    async def handle_location_update(message: types.Message):
+        await save_driver_location(message)
 
     @dp.message(F.text & ~F.text.startswith("/"))
     async def handle_text(message: types.Message):

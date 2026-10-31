@@ -15,7 +15,7 @@ from app.services.adjust import recalc
 from app.bot.notify import notify_adjustment
 from app.api.tg_auth import telegram_user
 from app.services.order_log import act_as, log_event
-from app.services import stock, no_show
+from app.services import stock, no_show, taxi_control
 from app.bot.notify import notify_low_stock
 from app.bot.notify import notify_new_order, notify_status, notify_customer_here
 from app.models.schemas import (
@@ -180,6 +180,9 @@ async def get_order(order_number_or_id: str, db: AsyncSession = Depends(get_db))
     if not order:
         raise HTTPException(status_code=404, detail="Buyurtma topilmadi / Заказ не найден")
     result = OrderSchema.from_orm(order)
+    # The car's position only while it is bringing this order, and only if it is fresh
+    if order.status != "on_the_way" or not taxi_control.fresh_location(order):
+        result.taxi_lat = result.taxi_lng = result.taxi_loc_at = None
     review = (await db.execute(select(ReviewModel).where(ReviewModel.order_id == order.id))).scalars().first()
     result.review_rating = review.rating if review else None
     return result

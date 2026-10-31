@@ -166,6 +166,14 @@ class OrderModel(Base):
     no_show_forgiven = Column(Boolean, default=False, nullable=False, server_default=sa_false())  # Bozorkom: does not count
     return_alert_sent = Column(Boolean, default=False, nullable=False, server_default=sa_false())
     returned_at = Column(DateTime, nullable=True)  # every stall got its goods back
+    # Taxi control: the gate timer, the trip timer, and where the taxi is (Telegram live location)
+    taxi_taken_at = Column(DateTime, nullable=True)
+    left_bazaar_at = Column(DateTime, nullable=True)  # «Qabul qildim»: the bag left the gate
+    taxi_reassign_count = Column(Integer, default=0, nullable=False, server_default="0")
+    taxi_lat = Column(Float, nullable=True)
+    taxi_lng = Column(Float, nullable=True)
+    taxi_loc_at = Column(DateTime, nullable=True)
+    late_alert_sent = Column(Boolean, default=False, nullable=False, server_default=sa_false())
     created_at = Column(DateTime, default=datetime.utcnow)
 
     items = relationship("OrderItemModel", back_populates="order", cascade="all, delete-orphan")
@@ -343,6 +351,18 @@ class OrderEventModel(Base):
     actor_id = Column(String(50), nullable=True)
     data = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+class StaffIncidentModel(Base):
+    """Something a worker did wrong on an order. The Bozorkom sees the count next to the worker.
+    kind: late_to_gate (never came for the bag) | released (gave the order back) | late_delivery"""
+    __tablename__ = "staff_incidents"
+
+    id = Column(Integer, primary_key=True)
+    staff_id = Column(Integer, ForeignKey("staff.id"), nullable=False, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    kind = Column(String(30), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class StockMoveModel(Base):
@@ -573,6 +593,10 @@ class OrderSchema(BaseModel):
     handoff_code: Optional[str] = None
     handed_over_at: Optional[datetime] = None
     taxi_eta_at: Optional[datetime] = None
+    # Only while the taxi is driving and the position is fresh (see orders.get_order)
+    taxi_lat: Optional[float] = None
+    taxi_lng: Optional[float] = None
+    taxi_loc_at: Optional[datetime] = None
     waiting_since: Optional[datetime] = None
     no_show_at: Optional[datetime] = None
     returned_at: Optional[datetime] = None

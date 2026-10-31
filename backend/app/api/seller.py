@@ -357,6 +357,7 @@ async def get_store_orders(store: StoreModel = Depends(current_store), db: Async
         # A seller sees only their own part of a multi-stall order
         o_dict.items = [OrderItemSchema.from_orm(item) for item in o.items if item.store_id == store.id]
         o_dict.bonuses = [OrderBonusSchema.from_orm(b) for b in o.bonuses if b.store_id == store.id]
+        o_dict.taxi_lat = o_dict.taxi_lng = o_dict.taxi_loc_at = None  # where the taxi is: the customer's business
         response.append(o_dict)
     return response
 

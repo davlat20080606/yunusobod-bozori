@@ -15,13 +15,14 @@ from app.api.patta import day_report, tashkent_day
 from app.api.staff import staff_public
 from app.services.config_store import get_setting, set_setting
 from app.services.customer_guard import phone_key
-from app.services import stock, no_show
+from app.services import stock, no_show, taxi_control
 from app.bot.notify import notify_status, notify_store_decision, notify_staff_decision
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_only = [Depends(current_admin)]
 TUNABLE_SETTINGS = ("max_open_orders", "new_customer_max_open", "new_customer_max_total", "orders_per_10_min", "morning_stock_hour",
-                    "no_show_remind_min", "no_show_after_min", "self_no_show_min", "return_alert_min", "no_show_strikes")
+                    "no_show_remind_min", "no_show_after_min", "self_no_show_min", "return_alert_min", "no_show_strikes",
+                    "taxi_gate_grace_min", "taxi_trip_max_min", "taxi_reassign_alert")
 
 
 def store_public(s: StoreModel) -> dict:
@@ -114,7 +115,9 @@ async def reset_store_pin(store_id: int, pin: str = Body(..., embed=True, patter
 @router.get("/staff", dependencies=admin_only)
 async def list_staff(db: AsyncSession = Depends(get_db)):
     staff = (await db.execute(select(StaffModel).order_by(StaffModel.id.desc()))).scalars().all()
-    return [{**staff_public(s), "created_at": s.created_at.isoformat() if s.created_at else None} for s in staff]
+    incidents = await taxi_control.incident_counts(db)
+    return [{**staff_public(s), "created_at": s.created_at.isoformat() if s.created_at else None,
+             "incidents": incidents.get(s.id, {})} for s in staff]
 
 
 @router.post("/staff/{staff_id}/status", dependencies=admin_only)
@@ -307,6 +310,9 @@ async def update_settings(
     self_no_show_min: Optional[int] = Body(None, ge=15, le=600),
     return_alert_min: Optional[int] = Body(None, ge=10, le=600),
     no_show_strikes: Optional[int] = Body(None, ge=1, le=10),
+    taxi_gate_grace_min: Optional[int] = Body(None, ge=1, le=60),
+    taxi_trip_max_min: Optional[int] = Body(None, ge=15, le=240),
+    taxi_reassign_alert: Optional[int] = Body(None, ge=1, le=10),
     db: AsyncSession = Depends(get_db)
 ):
     if delivery_radius_km is not None:
@@ -320,7 +326,8 @@ async def update_settings(
                        ("orders_per_10_min", orders_per_10_min), ("morning_stock_hour", morning_stock_hour),
                        ("no_show_remind_min", no_show_remind_min), ("no_show_after_min", no_show_after_min),
                        ("self_no_show_min", self_no_show_min), ("return_alert_min", return_alert_min),
-                       ("no_show_strikes", no_show_strikes)):
+                       ("no_show_strikes", no_show_strikes), ("taxi_gate_grace_min", taxi_gate_grace_min),
+                       ("taxi_trip_max_min", taxi_trip_max_min), ("taxi_reassign_alert", taxi_reassign_alert)):
         if value is not None:
             await set_setting(db, key, f"{value:g}")
     return {
