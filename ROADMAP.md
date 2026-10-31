@@ -71,7 +71,8 @@ Har bir qadam quyidagilar bajarilganda tayyor hisoblanadi:
 - [ ] Topshirish joylarining haqiqiy nomlari (`config_store.HANDOFF_POINTS`).
 - [ ] Telefondan bitta haqiqiy buyurtma: Telegram xabarlarini tekshirish.
 - [ ] Qo'llab-quvvatlash telefoni.
-- [ ] **Click va Payme merchant shartnomasi — hozirdan boshlash** (yuridik shaxs/YaTT, bank hisob raqami, fiskal chek, MXIK kodlar). Bir necha hafta oladi va 5-qadam shunga bog'liq. Provayderdan so'rash: karta summasini **hold** (band qilib, keyin kamroq yechish) qo'llaydimi?
+- [ ] **Click va Payme merchant shartnomasi — pilotdan keyin** (proyekt hozir demo bosqichida). Kerak bo'ladi: yuridik shaxs/YaTT, bank hisob raqami, fiskal chek, MXIK kodlar. Provayderdan so'rash: **hold** qo'llaydimi va pulni hisobga necha kunda o'tkazadi?
+- [ ] Bozor direktoriga demo: nima tayyor, nima jarayonda, nima qo'shiladi — bitta qatorda pilotga rozilik olish.
 - [ ] VPS — faqat kerak bo'lganda (7-qadam): IP manzil, OS (Ubuntu 24.04), SSH kalit, joylashuvi.
 - [ ] Yurist bilan:
   - shaxsiy ma'lumotlarni O'zbekistonda saqlash talabi;
@@ -267,7 +268,7 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 
 ### 5-qadam. Onlayn to'lov (Click / Payme) va rastalar hisobi · ~3 kun
 
-(Avval 11-qadam edi. Merchant shartnomasi va sandbox kalitlar kerak — 0-bosqich.)
+(Avval 11-qadam edi. Merchant shartnomasi va sandbox kalitlar kerak — pilotdan keyin. Kod sandbox bilan oldinroq tayyorlanishi mumkin.)
 
 **Qoida:** yetkazish (aravachi tochkaga / taksi) faqat onlayn to'lov bilan; «O'zim olaman» — naqd, sotuvchiga to'g'ridan-to'g'ri.
 
@@ -284,6 +285,11 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 - Provider hold'ni qo'llamasa: to'liq summa oldindan yechiladi, farq avtomatik qaytariladi (refund).
 
 **Texnik:** idempotent webhook'lar, imzo tekshiruvi, takroriy webhook xavfsiz; hold muddati tugashidan oldin capture qilinmagan to'lovlar Bozorkomga signal.
+
+**Kimga qachon to'lanadi** (qaror):
+- Faqat **yetkazilgan** buyurtmalar uchun. Yetkazishdan oldin bekor qilinsa, hold qaytadi va hech kimga to'lanmaydi.
+- Sotuvchi va aravachi/taksichiga **kuniga bir marta, kechqurun** (vaqti Sozlamalarda, masalan 21:00) — shu kuni yetkazilganlar summasi. Eng kechi ertasi ertalab: **1 kundan oshmaydi**.
+- Provider pulni hisobga kechroq o'tkazsa (odatda 1 ish kuni), hisobda kichik aylanma zaxira kerak.
 
 **Rastalar hisobi:** Bozorkom ekranida «💰 Rastalarga to'lov» — har bir rastaga kunlik summa, Excel; sotuvchi o'z kabinetida bugungi onlayn tushumini ko'radi.
 
@@ -366,7 +372,8 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 ## 2-bosqich — Pilot · 2 hafta
 
 - 1 qator: 5–10 rasta, 2–3 aravachi, 1–2 taksichi, 20–50 tanish xaridor.
-- Agar Click/Payme shartnomasi hali tayyor bo'lmasa: pilot **faqat «O'zim olaman» (naqd)** bilan boshlanadi, yetkazish 5-qadam tayyor bo'lganda yoqiladi.
+- Pilot **«O'zim olaman» (naqd)** bilan boshlanadi; yetkazish Click/Payme shartnomasi va 5-qadam tayyor bo'lganda yoqiladi.
+- 2 hafta — taxminiy: muammosiz o'tsa ertaroq tugashi mumkin, lekin shoshilmaymiz.
 - **Ko'rsatkichlar** (6-qadamdagi tahlildan):
 
 | Ko'rsatkich | Maqsad |
@@ -437,7 +444,7 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 ## Ochiq savollar (javobingiz kerak)
 
 1. ~~Naqd pulni kim yig'adi?~~ **Javob:** naqd faqat «O'zim olaman» da, sotuvchiga to'g'ridan-to'g'ri. Yetkazish faqat onlayn.
-2. ~~Xizmat haqini kim kimga beradi?~~ **Javob:** onlayn to'lovdan; aravachi va taksichi pul ushlamaydi. (Ochiq qoldi: aravachi va taksichiga haq qanday va qachon o'tkaziladi — kunlik/haftalik?)
+2. ~~Xizmat haqini kim kimga beradi?~~ **Javob:** onlayn to'lovdan; aravachi va taksichi pul ushlamaydi. Har kuni kechqurun, faqat yetkazilgan buyurtmalar uchun (5-qadam).
 3. Xaridor kelmasa, **qaytgan go'sht** uchun sotuvchiga kompensatsiya kerakmi yoki faqat qaytarish yetarlimi?
 4. **Telegram'dan tashqari** (oddiy brauzerdan) buyurtma berish ruxsat etiladimi? Ruxsat bo'lsa, telefonni SMS bilan tasdiqlash kerak (pullik xizmat).
 5. Yangi xaridor uchun boshlang'ich limit **500 000 so'm** to'g'rimi?
