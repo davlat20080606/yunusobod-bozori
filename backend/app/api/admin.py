@@ -3,7 +3,7 @@ import hmac
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Body, Header, Request
-from sqlalchemy import select, func, case, or_
+from sqlalchemy import select, func, case, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.config import settings
@@ -15,12 +15,13 @@ from app.api.patta import day_report, tashkent_day
 from app.api.staff import staff_public
 from app.services.config_store import get_setting, set_setting
 from app.services.customer_guard import phone_key
-from app.services import stock
+from app.services import stock, no_show
 from app.bot.notify import notify_status, notify_store_decision, notify_staff_decision
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_only = [Depends(current_admin)]
-TUNABLE_SETTINGS = ("max_open_orders", "new_customer_max_open", "new_customer_max_total", "orders_per_10_min", "morning_stock_hour")
+TUNABLE_SETTINGS = ("max_open_orders", "new_customer_max_open", "new_customer_max_total", "orders_per_10_min", "morning_stock_hour",
+                    "no_show_remind_min", "no_show_after_min", "self_no_show_min", "return_alert_min", "no_show_strikes")
 
 
 def store_public(s: StoreModel) -> dict:
@@ -162,14 +163,37 @@ async def cancel_order(order_id: int, db: AsyncSession = Depends(get_db)):
     order = await db.get(OrderModel, order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Buyurtma topilmadi")
-    if order.status in ("delivered", "cancelled"):
+    if order.status in ("delivered", "cancelled", "returned"):
         raise HTTPException(status_code=409, detail="Buyurtma allaqachon yopilgan / Заказ уже закрыт")
+    if order.status == "no_show":
+        raise HTTPException(status_code=409, detail="Mahsulot rastalarga qaytarilmoqda / Товар возвращают на расты")
     order.status = "cancelled"
     await db.flush()
     await stock.settle(db, order.id)
     await db.commit()
     notify_status(order.id)
     return {"success": True}
+
+
+@router.post("/orders/{order_id}/undo-no-show", dependencies=admin_only)
+async def undo_no_show(order_id: int, db: AsyncSession = Depends(get_db)):
+    """The customer did come (or it was pressed by mistake): the order goes back to waiting."""
+    order = (await db.execute(select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items)))).scalars().first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Buyurtma topilmadi")
+    await no_show.undo(db, order)
+    await db.commit()
+    notify_status(order.id)
+    return {"success": True, "status": order.status}
+
+
+@router.post("/customers/{key}/forgive", dependencies=admin_only)
+async def forgive_no_shows(key: str, db: AsyncSession = Depends(get_db)):
+    """Bozorkom: this customer's no-shows no longer count (a real reason, a mix-up)."""
+    res = await db.execute(update(OrderModel).where(OrderModel.phone_key == key, OrderModel.status.in_(["no_show", "returned"]))
+                           .values(no_show_forgiven=True))
+    await db.commit()
+    return {"success": True, "forgiven": res.rowcount}
 
 
 @router.get("/orders/{order_id}/events", dependencies=admin_only)
@@ -193,6 +217,7 @@ async def list_customers(q: str = "", db: AsyncSession = Depends(get_db)):
             func.sum(case((OrderModel.status == "delivered", 1), else_=0)),
             func.sum(case((OrderModel.status == "cancelled", 1), else_=0)),
             func.max(OrderModel.id),
+            func.sum(case((OrderModel.status.in_(["no_show", "returned"]) & OrderModel.no_show_forgiven.is_not(True), 1), else_=0)),
         )
         .where(OrderModel.phone_key.is_not(None))
         .group_by(OrderModel.phone_key)
@@ -210,12 +235,12 @@ async def list_customers(q: str = "", db: AsyncSession = Depends(get_db)):
     blocks = {b.phone_key: b for b in (await db.execute(
         select(CustomerBlockModel).where(CustomerBlockModel.phone_key.in_([r[0] for r in rows])))).scalars().all()}
     result = []
-    for key, total, delivered, cancelled, last_id in rows:
+    for key, total, delivered, cancelled, last_id, no_shows in rows:
         last = last_orders[last_id]
         block = blocks.get(key)
         result.append({
             "phone_key": key, "name": last.customer_name, "phone": last.customer_phone, "tg_id": last.customer_tg_id,
-            "orders": total, "delivered": delivered or 0, "cancelled": cancelled or 0,
+            "orders": total, "delivered": delivered or 0, "cancelled": cancelled or 0, "no_shows": no_shows or 0,
             "last_order": last.order_number, "last_order_at": last.created_at.isoformat() if last.created_at else None,
             "blocked": bool(block), "block_reason": block.reason if block else None,
         })
@@ -277,6 +302,11 @@ async def update_settings(
     new_customer_max_total: Optional[float] = Body(None, ge=10_000, le=100_000_000),
     orders_per_10_min: Optional[int] = Body(None, ge=1, le=1000),
     morning_stock_hour: Optional[int] = Body(None, ge=4, le=12),
+    no_show_remind_min: Optional[int] = Body(None, ge=1, le=120),
+    no_show_after_min: Optional[int] = Body(None, ge=5, le=180),
+    self_no_show_min: Optional[int] = Body(None, ge=15, le=600),
+    return_alert_min: Optional[int] = Body(None, ge=10, le=600),
+    no_show_strikes: Optional[int] = Body(None, ge=1, le=10),
     db: AsyncSession = Depends(get_db)
 ):
     if delivery_radius_km is not None:
@@ -287,7 +317,10 @@ async def update_settings(
         await set_setting(db, "support_phone", support_phone.strip())
     for key, value in (("porter_fee", porter_fee), ("taxi_fee", taxi_fee), ("max_open_orders", max_open_orders),
                        ("new_customer_max_open", new_customer_max_open), ("new_customer_max_total", new_customer_max_total),
-                       ("orders_per_10_min", orders_per_10_min), ("morning_stock_hour", morning_stock_hour)):
+                       ("orders_per_10_min", orders_per_10_min), ("morning_stock_hour", morning_stock_hour),
+                       ("no_show_remind_min", no_show_remind_min), ("no_show_after_min", no_show_after_min),
+                       ("self_no_show_min", self_no_show_min), ("return_alert_min", return_alert_min),
+                       ("no_show_strikes", no_show_strikes)):
         if value is not None:
             await set_setting(db, key, f"{value:g}")
     return {

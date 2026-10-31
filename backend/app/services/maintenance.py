@@ -7,9 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.database import async_session_factory
-from app.services import stock
+from app.services import stock, no_show
 from app.models.schemas import OrderModel
-from app.bot.notify import notify_status, notify_cold_chain, send_morning_stock
+from app.bot.notify import notify_status, notify_cold_chain, send_morning_stock, notify_wait_reminder, notify_no_show, notify_return_late
 from app.services.config_store import get_setting, set_setting
 import app.services.order_log  # noqa: F401  (status changes made here are logged as "system")
 
@@ -88,12 +88,55 @@ async def morning_stock(now: datetime = None) -> bool:
     return True
 
 
+async def no_show_timers(now: datetime = None) -> dict:
+    """Remind the customer who is being waited for; close self-pickup orders nobody came for;
+    warn when goods sit outside their stall too long after a no-show."""
+    now = now or datetime.utcnow()
+    reminded, closed, late = [], [], []
+    async with async_session_factory() as db:
+        remind_min = int(await get_setting(db, "no_show_remind_min"))
+        after_min = int(await get_setting(db, "no_show_after_min"))
+        self_min = int(await get_setting(db, "self_no_show_min"))
+        alert_min = int(await get_setting(db, "return_alert_min"))
+        res = await db.execute(
+            select(OrderModel).where((OrderModel.waiting_since.is_not(None)) | (OrderModel.status == "no_show"))
+            .where(OrderModel.status.in_(["ready", "at_point", "on_the_way", "no_show"]))
+            .options(selectinload(OrderModel.items))
+        )
+        for order in res.scalars().all():
+            if no_show.is_waiting(order):
+                waited = (now - order.waiting_since).total_seconds() / 60
+                give_up = self_min if order.fulfillment == "self" else after_min
+                # Self pickup: nobody stands waiting, so remind halfway instead of after a few minutes
+                remind_at = self_min / 2 if order.fulfillment == "self" else remind_min
+                if order.fulfillment == "self" and waited >= self_min and not any(i.seller_handed for i in order.items):
+                    await no_show.mark_no_show(db, order, now=now, check_time=False)
+                    closed.append(order.id)
+                elif waited >= remind_at and not order.wait_reminded:
+                    order.wait_reminded = True
+                    reminded.append((order.id, max(1, int(give_up - waited + 0.999))))
+            elif order.status == "no_show" and order.no_show_at and not order.return_alert_sent:
+                minutes = (now - order.no_show_at).total_seconds() / 60
+                if minutes >= alert_min:
+                    order.return_alert_sent = True
+                    late.append((order.id, int(minutes)))
+        await db.commit()
+    for order_id, left in reminded:
+        notify_wait_reminder(order_id, left)
+    for order_id in closed:
+        notify_no_show(order_id)
+    for order_id, minutes in late:
+        notify_return_late(order_id, minutes)
+    return {"reminded": len(reminded), "closed": len(closed), "late": len(late)}
+
+
 async def run_forever():
     while True:
         try:
             await cancel_stale_orders()
             await check_cold_chain()
             await settle_stock()
+            await no_show_timers()
             await morning_stock()
         except Exception as e:
             logger.warning(f"Stale order check failed: {e}")

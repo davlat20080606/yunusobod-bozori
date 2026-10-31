@@ -9,7 +9,9 @@ from app.database import get_db
 from app.models.schemas import OrderModel, OrderItemModel, StaffModel
 from app.api.auth import staff_with_role
 from app.api.porter import serialize_order, get_porter_order
-from app.bot.notify import notify_status
+from app.bot.notify import notify_status, notify_no_show
+from app.services import no_show
+from app.services.events import order_changed
 from app.services.order_log import log_event
 from app.services.adjust import check_code
 
@@ -27,13 +29,14 @@ def own_order(order: OrderModel, taxi: StaffModel):
 async def list_taxi_orders(taxi: StaffModel = Depends(current_taxi), db: AsyncSession = Depends(get_db)):
     res = await db.execute(
         select(OrderModel)
-        .where(OrderModel.status.in_(["handed_over", "on_the_way"]))
+        .where(OrderModel.status.in_(["handed_over", "on_the_way", "no_show"]))
         .order_by(OrderModel.id.desc())
         .limit(100)
         .options(selectinload(OrderModel.items).selectinload(OrderItemModel.product), selectinload(OrderModel.bonuses))
     )
     orders = res.scalars().all()
     available = [o for o in orders if o.status == "handed_over" and not o.taxi_phone]
+    # After a no-show the driver brings the bag back to the bazaar
     mine = [o for o in orders if o.taxi_phone == taxi.phone]
     return {
         "available": [await serialize_order(o, db) for o in available],
@@ -81,4 +84,38 @@ async def set_taxi_status(
     order.status = status
     await db.commit()
     notify_status(order_id)
+    return await serialize_order(await get_porter_order(order_id, db), db)
+
+
+@router.post("/orders/{order_id}/arrived")
+async def taxi_arrived(order_id: int, taxi: StaffModel = Depends(current_taxi), db: AsyncSession = Depends(get_db)):
+    """«Yetib keldim» at the customer's door: the waiting clock starts."""
+    order = await get_porter_order(order_id, db)
+    own_order(order, taxi)
+    if order.status != "on_the_way":
+        raise HTTPException(status_code=409, detail="Buyurtma yo'lda emas / Заказ не в пути")
+    no_show.start_waiting(order)
+    log_event(order, "arrived")
+    await db.commit()
+    order_changed(order.id)
+    return await serialize_order(await get_porter_order(order_id, db), db)
+
+
+@router.post("/orders/{order_id}/no-show")
+async def taxi_no_show(order_id: int, taxi: StaffModel = Depends(current_taxi), db: AsyncSession = Depends(get_db)):
+    order = await get_porter_order(order_id, db)
+    own_order(order, taxi)
+    await no_show.mark_no_show(db, order)
+    await db.commit()
+    notify_no_show(order.id)
+    return await serialize_order(await get_porter_order(order_id, db), db)
+
+
+@router.post("/orders/{order_id}/undo-no-show")
+async def taxi_undo_no_show(order_id: int, taxi: StaffModel = Depends(current_taxi), db: AsyncSession = Depends(get_db)):
+    order = await get_porter_order(order_id, db)
+    own_order(order, taxi)
+    await no_show.undo(db, order)
+    await db.commit()
+    notify_status(order.id)
     return await serialize_order(await get_porter_order(order_id, db), db)

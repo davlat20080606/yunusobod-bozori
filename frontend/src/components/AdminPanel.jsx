@@ -47,6 +47,15 @@ const T = {
   max_open_orders: { uz: 'Har kim: ochiq buyurtma', ru: 'Любой покупатель: открытых заказов', en: 'Any customer: open orders' },
   orders_per_10_min: { uz: 'Urinishlar, 10 daqiqada', ru: 'Попыток за 10 минут', en: 'Tries per 10 minutes' },
   morning_stock_hour: { uz: "«Bugun nima bor?» soati", ru: 'Час вопроса «Что есть сегодня?»', en: 'Hour of «What do you have today?»' },
+  no_show_remind_min: { uz: 'Xaridorga eslatma, daq', ru: 'Напомнить покупателю, мин', en: 'Remind the customer, min' },
+  no_show_after_min: { uz: '«Xaridor kelmadi» tugmasi, daq', ru: 'Кнопка «Не пришёл», мин', en: '«No-show» button, min' },
+  self_no_show_min: { uz: "O'zi olib ketish: kutish, daq", ru: 'Самовывоз: ждать, мин', en: 'Self pickup: wait, min' },
+  return_alert_min: { uz: 'Qaytmagan mahsulot signali, daq', ru: 'Сигнал о невозвращённом товаре, мин', en: 'Goods not back alert, min' },
+  no_show_strikes: { uz: 'Necha marta kelmasa — yopiladi', ru: 'Сколько неявок — закрыть заказы', en: 'No-shows before ordering is closed' },
+  no_shows: { uz: 'kelmagan', ru: 'неявок', en: 'no-shows' },
+  forgive: { uz: '🤝 Kechirish', ru: '🤝 Простить', en: '🤝 Forgive' },
+  forgiven: { uz: 'Kechirildi', ru: 'Прощено', en: 'Forgiven' },
+  undo_no_show: { uz: '↩️ Xaridor keldi', ru: '↩️ Покупатель пришёл', en: '↩️ The customer came' },
   limits_hint: { uz: "Yangi xaridor — hali birorta buyurtmani olmagan odam.", ru: 'Новый покупатель — тот, кто ещё не получил ни одного заказа.', en: 'A new customer is one who has not received an order yet.' },
   search: { uz: 'Telefon yoki ism', ru: 'Телефон или имя', en: 'Phone or name' },
   orders_count: { uz: 'buyurtma', ru: 'заказов', en: 'orders' },
@@ -65,11 +74,12 @@ const T = {
     blocked: { uz: 'Bloklangan', ru: 'Заблокирован', en: 'Blocked' },
   },
   order_status: {
-    pending: '🧾', accepted: '🧾', picking: '🛒', handed_over: '🤝', on_the_way: '🚗', delivered: '✅', cancelled: '✖️',
+    pending: '🧾', accepted: '🧾', picking: '🛒', ready: '🛍', at_point: '📍', handed_over: '🤝', on_the_way: '🚗', delivered: '✅', cancelled: '✖️', no_show: '😔', returned: '↩️',
   },
 };
 
-const LIMIT_KEYS = ['new_customer_max_total', 'new_customer_max_open', 'max_open_orders', 'orders_per_10_min', 'morning_stock_hour'];
+const LIMIT_KEYS = ['new_customer_max_total', 'new_customer_max_open', 'max_open_orders', 'orders_per_10_min', 'morning_stock_hour',
+  'no_show_remind_min', 'no_show_after_min', 'self_no_show_min', 'return_alert_min', 'no_show_strikes'];
 const STATUS_COLOR = { pending: '#d97706', approved: '#16a34a', rejected: '#64748b', blocked: '#dc2626' };
 const card = { background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 12, marginBottom: 8 };
 const pill = (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 800, color, background: `${color}1a` });
@@ -312,7 +322,10 @@ export default function AdminPanel({ onBackToMarket }) {
           <div style={{ fontSize: 12, color: '#64748b' }}>
             {o.porter_name && `🛒 ${o.porter_name}`} {o.taxi_name && ` · 🚕 ${o.taxi_name}`} · {o.created_at ? new Date(`${o.created_at}Z`).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : ''}
           </div>
-          {!['delivered', 'cancelled'].includes(o.status) && (
+          {o.status === 'no_show' && (
+            <button type="button" style={{ ...smallBtn('#dcfce7', '#15803d'), marginTop: 8, marginRight: 6 }} onClick={() => act(() => api.adminUndoNoShow(o.id))}>{t('undo_no_show')}</button>
+          )}
+          {!['delivered', 'cancelled', 'no_show', 'returned'].includes(o.status) && (
             <button type="button" style={{ ...smallBtn('#fee2e2', '#b91c1c'), marginTop: 8 }} onClick={() => window.confirm(t('cancel_confirm')) && act(() => api.adminCancelOrder(o.id))}>{t('cancel')}</button>
           )}
         </div>
@@ -383,10 +396,11 @@ export default function AdminPanel({ onBackToMarket }) {
                 <a href={`tel:${c.phone.replace(/[^\d+]/g, '')}`} style={{ color: 'inherit' }}><Phone size={11} /> {c.phone}</a>
               </div>
               <div style={{ fontSize: 13, color: '#64748b' }}>
-                {c.orders} {t('orders_count')} · ✅ {c.delivered} {t('received')} · ✖️ {c.cancelled} {t('cancelled')} · #{c.last_order}
+                {c.orders} {t('orders_count')} · ✅ {c.delivered} {t('received')} · ✖️ {c.cancelled} {t('cancelled')}{c.no_shows > 0 && <b style={{ color: '#b91c1c' }}> · 😔 {c.no_shows} {t('no_shows')}</b>} · #{c.last_order}
               </div>
               {c.blocked && c.block_reason && <div style={{ fontSize: 13, color: '#b91c1c' }}>{c.block_reason}</div>}
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {c.no_shows > 0 && <button type="button" style={smallBtn('#eff6ff', '#1d4ed8')} onClick={() => act(async () => { await api.adminForgive(c.phone_key); await loadCustomers(customerQuery); }, t('forgiven'))}>{t('forgive')}</button>}
                 {c.blocked
                   ? <button type="button" style={smallBtn('#dcfce7', '#15803d')} onClick={() => unblockCustomer(c)}>{t('unblock')}</button>
                   : <button type="button" style={smallBtn('#fee2e2', '#b91c1c')} onClick={() => blockCustomer(c)}>{t('block')}</button>}

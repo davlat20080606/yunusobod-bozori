@@ -18,7 +18,7 @@ from app.bot.notify import notify_admin_application, notify_status
 from app.services.storage import save_media
 from app.services.adjust import set_weight, set_missing
 from app.services.order_log import log_event
-from app.services import stock
+from app.services import stock, no_show
 from app.bot.notify import notify_adjustment
 from app.models.schemas import (
     StoreModel, ProductModel, OrderModel, OrderItemModel, CategoryModel,
@@ -368,21 +368,28 @@ async def own_order_items(order_id: int, store: StoreModel, db: AsyncSession):
     mine = [i for i in order.items if i.store_id == store.id] if order else []
     if not mine:
         raise HTTPException(status_code=404, detail="Buyurtma topilmadi / Заказ не найден")
-    if order.status in ("cancelled", "delivered"):
+    if order.status in ("cancelled", "delivered", "returned"):
         raise HTTPException(status_code=409, detail="Buyurtma yopilgan / Заказ закрыт")
     return order, mine
+
+
+def not_after_no_show(order: OrderModel):
+    if order.status == "no_show":
+        raise HTTPException(status_code=409, detail="Xaridor kelmagan, mahsulot qaytariladi / Покупатель не пришёл, товар возвращается")
 
 
 @router.post("/orders/{order_id}/ready")
 async def mark_ready(order_id: int, store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
     """Seller packed their part of the order."""
     order, mine = await own_order_items(order_id, store, db)
+    not_after_no_show(order)
     for item in mine:
         item.seller_ready = True
     log_event(order, "seller_ready", store_id=store.id)
     # Self pickup: once every stall is packed the customer can come
     if order.fulfillment == "self" and all(i.seller_ready for i in order.items) and order.status in ("pending", "accepted"):
         order.status = "ready"
+        no_show.start_waiting(order)
     await db.commit()
     notify_status(order.id)
     return {"success": True, "status": order.status}
@@ -392,6 +399,7 @@ async def mark_ready(order_id: int, store: StoreModel = Depends(current_store), 
 async def mark_handed(order_id: int, store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
     """Seller gave their part to the aravachi (or to the customer for self pickup)."""
     order, mine = await own_order_items(order_id, store, db)
+    not_after_no_show(order)
     if order.fulfillment != "self" and not order.porter_phone:
         raise HTTPException(status_code=409, detail="Hali aravachi olmagan / Аравачи ещё не взял заказ")
     for item in mine:
@@ -402,6 +410,16 @@ async def mark_handed(order_id: int, store: StoreModel = Depends(current_store),
         order.status = "delivered"
     await db.flush()
     await stock.settle(db, order.id)
+    await db.commit()
+    notify_status(order.id)
+    return {"success": True, "status": order.status}
+
+
+@router.post("/orders/{order_id}/returned")
+async def mark_returned(order_id: int, store: StoreModel = Depends(current_store), db: AsyncSession = Depends(get_db)):
+    """«Qaytib oldim»: after a no-show the stall has its goods back, and they are on sale again."""
+    order, mine = await own_order_items(order_id, store, db)
+    await no_show.mark_returned(db, order, store.id)
     await db.commit()
     notify_status(order.id)
     return {"success": True, "status": order.status}

@@ -185,45 +185,31 @@ Keyingi qadamlarda bazaga ko'p ustun va jadval qo'shiladi, shuning uchun avval p
 
 ---
 
-### 3-qadam. «Xaridor kelmadi» oqimi · ~1,5 kun
+### 3-qadam. «Xaridor kelmadi» oqimi · ~1,5 kun · ✅ qilindi
 
-**Baza:**
-- `orders.at_point_at`, `orders.arrived_at_address_at`
-- `orders.no_show_at`, `orders.cancel_reason`
-- `orders.debt_from_previous` (so'm) — faqat 5-qadamgacha zaxira variant uchun
-- Yangi statuslar: `no_show` va `returned` (mahsulot rastaga qaytdi).
+**Kutish qachon boshlanadi** (`orders.waiting_since`):
+- tochka: aravachi «Joyga olib keldim» bosganda;
+- uyga: taksichi (yoki o'zi olib borgan aravachi) **«📍 Yetib keldim»** bosganda — bosmasa, «Kelmadi» umuman ochilmaydi;
+- «O'zim olaman»: hamma rastalar «Tayyor» bosganda.
 
-**Taymerlar** (`maintenance` ichida, har 60 soniyada):
+**Taymerlar** (Sozlamalardan o'zgaradi):
 
-| Vaqt (tochkaga yetgandan/manzilga kelgandan) | Nima bo'ladi |
+| Vaqt | Nima bo'ladi |
 |---|---|
-| +10 daqiqa | Bot xaridorga eslatadi; aravachi/taksichida «📞 Qo'ng'iroq» tugmasi |
-| +15 daqiqa | «Xaridor kelmadi» tugmasi ochiladi (oldin bosib bo'lmaydi; server ham tekshiradi) |
-| no_show + 60 daqiqa | Sovuq mahsulotlar qaytarilmagan bo'lsa, Bozorkomga ogohlantirish |
+| +10 daqiqa | Bot xaridorga «Sizni kutishyapti» deb eslatadi; ishchi ekranida «📞 Xaridorga qo'ng'iroq» |
+| +15 daqiqa | «😔 Xaridor kelmadi» tugmasi ochiladi (server ham vaqtni tekshiradi) |
+| «O'zim olaman»: +60 / +120 daqiqa | Eslatma / server o'zi «kelmadi» deb yopadi (rastaga hech narsa berilmagan bo'lsa) |
+| kelmadi + 60 daqiqa | Mahsulot hali rastaga qaytmagan bo'lsa — ishchiga va Bozorkomga signal (bir marta) |
 
-Daqiqalar Sozlamalardan o'zgartiriladi.
+**Qaytarish:** statuslar `no_show` → `returned`. Ishchi ekranida rastalar bo'yicha qaytarish ro'yxati, go'sht va sut «🌡 birinchi». Sotuvchi «✅ Qaytib oldim» bosadi — mahsulot qoldiqqa qaytadi (`stock_moves.kind = return`). Rastadan chiqmagan mahsulot darhol sotuvga qaytadi.
 
-**Qaytarish:**
-- Aravachi ekranida rastalar bo'yicha qaytarish ro'yxati chiqadi.
-- Sotuvchi «Qaytib oldim» bosadi. Shundan keyin stock release ishlaydi va status `returned` bo'ladi.
-- Go'sht va sovuq mahsulot ro'yxatda **birinchi** turadi (kategoriya bo'yicha belgilanadi).
+**Xato bo'lsa:** xaridor trekerda «🙋 Men shu yerdaman» bosadi — ishchi va Bozorkom xabar oladi. Mahsulot hali qaytmagan bo'lsa, ishchi yoki Bozorkom «Xaridor keldi» bilan bekor qiladi.
 
-**Pul** (to'lov qoidasiga ko'ra):
-- **Yetkazish (aravachi/taksi):** buyurtma onlayn to'langan (hold). Xaridor kelmasa, aravachi/taksi haqi hold'dan yechiladi, mahsulot puli qaytariladi (5-qadam tayyor bo'lgach ulanadi). Qarzni keyingi buyurtmaga o'tkazish kerak emas.
-- **«O'zim olaman»:** pul hali olinmagan, shuning uchun faqat strike. Rasta yig'ib qo'ygan buyurtmani xaridor olmasa, mahsulot rastada qoladi va qoldiqqa qaytadi.
-- 5-qadamgacha (onlayn to'lov yo'q paytda) zaxira varianti: haqi `customers.debt` ga yoziladi va keyingi buyurtmada «Oldingi xizmat haqi: X so'm» bo'lib chiqadi.
+**Pul:** yo'qotilgan haq (`orders.no_show_fee` = aravachi, taksi bo'lsa + taksi) yozib qo'yiladi; 5-qadamda hold'dan yechiladi. Qarzni keyingi buyurtmaga o'tkazish **qilinmadi**: pilot «O'zim olaman» bilan o'tadi, u yerda xizmat haqi yo'q.
 
-**Strike:**
-- `strikes += 1`.
-- `strikes >= 2` bo'lsa: «O'zim olaman» yopiladi, faqat oldindan onlayn to'lov bilan buyurtma berish mumkin.
-- 90 kun toza yurgan xaridorda strike'lar avtomatik 1 taga kamayadi.
+**Strike:** 90 kun ichida `no_show_strikes` (2) marta kelmasa — yangi buyurtma yopiladi (onlayn to'lov paydo bo'lgach: faqat oldindan to'lov bilan). Bozorkom «Xaridorlar» bo'limida sonini ko'radi va «🤝 Kechirish» qila oladi.
 
-**Chekka holatlar:**
-- Xaridor 16-daqiqada keldi: «Kelmadi» hali bosilmagan bo'lsa, oddiy topshirish; bosilgan bo'lsa, admin bekor qila oladi.
-- Birlashtirilgan buyurtmalar (A/B/C sumkalar): faqat kelmaganining sumkasi qaytadi.
-- Aravachi «Kelmadi»ni noto'g'ri bosdi: xaridor Telegramdan «Men shu yerdaman» tugmasini bosadi, Bozorkomga signal boradi.
-
-**Testlar:** vaqtni simulyatsiya qilib taymerlar, strike, qarz keyingi buyurtmada, qoldiq qaytishi.
+**Testlar:** API — 3 ta (tochka, uyga, «O'zim olaman» + strike); brauzer — 13 ta tekshiruv.
 
 ---
 
@@ -251,7 +237,7 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 - Telegram `live_location` `edited_message` orqali har bir necha soniyada keladi; bot `tg_id` bo'yicha buyurtmani topib koordinatani yozadi.
 - SSE `order:*` orqali uzatiladi. Xaridor trekerida «Taksi qayerda» xarita havolasi.
 
-**Navigator:** taksichi ekranida manzil uchun «Yandex Navigator» va «Google Maps» tugmalari (deep-link, koordinata bilan).
+**Navigator:** taksichi ekranida «Yandex Navigator» va «Google Maps» tugmalari — ✅ allaqachon bor.
 
 **Ro'yxatdan o'tish:**
 - Taksichi anketasida mashina raqami, modeli va rangi majburiy.
@@ -460,7 +446,7 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 | T | Texnik poydevor | 1 kun | Alembic, `order_events`, testlar loyihaga, CI |
 | 1 | Soxta buyurtmalardan himoya | 1 kun | `requestContact`, limitlar, so'rovlar cheklovi, qora ro'yxat |
 | 2 | Qoldiq | 1,5 kun | Atomar band qilish, `stock_moves`, ertalabki ro'yxat |
-| 3 | Xaridor kelmadi | 1,5 kun | Taymerlar, `no_show`/`returned`, strike, haqni hold'dan yechish |
+| 3 | Xaridor kelmadi ✅ | 1,5 kun | Taymerlar, `no_show`/`returned`, qaytarish, strike |
 | 4 | Taksichi nazorati | 1,5 kun | ETA taymeri, avto-qayta berish, jonli joylashuv, navigator |
 | 5 | Click / Payme + rastalar hisobi | 3 kun | Hold +5%, capture, webhook'lar, fiskal chek, `store_payouts` |
 | 6 | Tahlil + alertlar + zaxira | 1,5 kun | SQL agregatsiyalar, kunlik hisobot, `pg_dump` → R2 |

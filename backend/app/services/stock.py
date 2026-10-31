@@ -4,7 +4,7 @@ Only products the seller counts (track_stock) are touched. Holding is one condit
 two customers can never both get the last kilo: the database lets only one of them through.
 A line holds stock until it is settled:
   handed over (seller "Topshirdim", aravachi ticked it, or the order delivered) -> taken off the stall,
-  cancelled order or "Tugadi" -> given back.
+  cancelled order, "Tugadi" or a no-show -> given back (goods that left a stall: when the seller has them back).
 Endpoints settle the order they change; the maintenance loop settles anything left over.
 """
 from fastapi import HTTPException
@@ -59,7 +59,8 @@ async def reserve(db: AsyncSession, order: OrderModel, items):
 
 
 def settle_kind(order: OrderModel, item: OrderItemModel):
-    if order.status == "cancelled" or item.item_status == "missing":
+    # A no-show releases what is still only held; goods that left a stall come back with «Qaytib oldim»
+    if order.status in ("cancelled", "no_show", "returned") or item.item_status == "missing":
         return "release"
     if item.seller_handed or item.is_picked or order.status == "delivered":
         return "consume"
@@ -99,7 +100,7 @@ async def settle_all(db: AsyncSession) -> int:
     order_ids = (await db.execute(
         select(OrderItemModel.order_id).join(OrderModel, OrderModel.id == OrderItemModel.order_id)
         .where(OrderItemModel.stock_reserved_qty > 0)
-        .where((OrderModel.status.in_(["cancelled", "delivered"])) | OrderItemModel.seller_handed.is_(True)
+        .where((OrderModel.status.in_(["cancelled", "delivered", "no_show", "returned"])) | OrderItemModel.seller_handed.is_(True)
                | OrderItemModel.is_picked.is_(True) | (OrderItemModel.item_status == "missing"))
         .distinct()
     )).scalars().all()

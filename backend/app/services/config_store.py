@@ -23,6 +23,15 @@ DEFAULTS = {
     # Hour (Tashkent) when stalls are asked "what do you have today?"; the day it was last sent
     "morning_stock_hour": "7",
     "morning_stock_sent": "",
+    # «Xaridor kelmadi», minutes from when the customer is being waited for:
+    # a reminder to the customer, then the worker may mark a no-show; self pickup waits longer
+    "no_show_remind_min": "10",
+    "no_show_after_min": "15",
+    "self_no_show_min": "120",
+    # Goods not back at the stalls this long after a no-show: tell the Bozorkom (meat in the heat)
+    "return_alert_min": "60",
+    # This many no-shows in 90 days and the customer can no longer order (until online prepayment exists)
+    "no_show_strikes": "2",
 }
 
 # Where an aravachi hands the order to the customer or the taxi

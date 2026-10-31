@@ -10,20 +10,27 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.schemas import OrderModel, OrderItemModel, StoreModel, StaffModel
 from app.api.auth import staff_with_role
-from app.bot.notify import notify_status, notify_taxis, notify_adjustment
+from app.bot.notify import notify_status, notify_taxis, notify_adjustment, notify_no_show
 from app.services.adjust import set_weight, set_missing, check_code
 from app.services.storage import save_media
 from app.services.events import order_changed
-from app.services import stock
+from app.services.order_log import log_event
+from app.services import stock, no_show
+from app.services.config_store import get_setting
+from datetime import timedelta
 
 router = APIRouter(prefix="/api/porter", tags=["porter"])
 
 # Statuses an aravachi (bazaar porter) works with
 OPEN_STATUSES = ["pending", "accepted"]
 ACTIVE_STATUSES = ["picking", "at_point", "handed_over", "on_the_way"]
+# After a no-show the bag is still with the worker until every stall has its goods back
+RETURNING_STATUSES = ["no_show"]
 PORTER_NEXT_STATUSES = ["picking", "at_point", "handed_over", "on_the_way", "delivered"]
 
 current_porter = staff_with_role("porter")
+
+COLD_CATEGORIES = {"meat", "dairy"}
 
 
 async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
@@ -63,12 +70,19 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
             "weight_photo_url": item.weight_photo_url,
             "seller_ready": bool(item.seller_ready),
             "seller_handed": bool(item.seller_handed),
+            "returned": bool(item.returned),
+            # Meat and dairy go back first: they must not wait in the heat
+            "cold": bool(item.product and item.product.category_slug in COLD_CATEGORIES),
         })
 
     def stall_sort_key(stop):
         match = re.search(r"\d+", stop["stall_number"] or "")
         return int(match.group()) if match else 9999
 
+    waiting = None
+    if order.waiting_since:
+        after = int(await get_setting(db, "no_show_after_min"))
+        waiting = (order.waiting_since + timedelta(minutes=after)).isoformat()
     return {
         "id": order.id,
         "order_number": order.order_number,
@@ -91,6 +105,9 @@ async def serialize_order(order: OrderModel, db: AsyncSession) -> dict:
         "fulfillment": order.fulfillment or "courier",
         "handed_over_at": order.handed_over_at.isoformat() if order.handed_over_at else None,
         "taxi_eta_at": order.taxi_eta_at.isoformat() if order.taxi_eta_at else None,
+        "waiting_since": order.waiting_since.isoformat() if order.waiting_since else None,
+        "no_show_allowed_at": waiting,  # «Xaridor kelmadi» opens then (the server checks it too)
+        "no_show_at": order.no_show_at.isoformat() if order.no_show_at else None,
         # The code itself stays with the customer; workers only learn that one is needed
         "needs_code": bool(order.handoff_code),
         "handoff_point": order.handoff_point,
@@ -174,7 +191,7 @@ async def list_porter_orders(porter: StaffModel = Depends(current_porter), db: A
     """New orders nobody has taken yet, plus the orders this porter is carrying."""
     res = await db.execute(
         select(OrderModel)
-        .where(OrderModel.status.in_(OPEN_STATUSES + ACTIVE_STATUSES))
+        .where(OrderModel.status.in_(OPEN_STATUSES + ACTIVE_STATUSES + RETURNING_STATUSES))
         .order_by(OrderModel.id.desc())
         .limit(100)
         .options(selectinload(OrderModel.items).selectinload(OrderItemModel.product), selectinload(OrderModel.bonuses))
@@ -185,7 +202,8 @@ async def list_porter_orders(porter: StaffModel = Depends(current_porter), db: A
     # The bag stays with the aravachi until the taxi says «Qabul qildim» (on_the_way), so he sees when to go to the gate
     mine = [
         o for o in orders
-        if o.porter_phone == porter.phone and (o.status in ("picking", "handed_over", "at_point") or not o.taxi_phone)
+        if o.porter_phone == porter.phone and (o.status in ("picking", "handed_over", "at_point") or not o.taxi_phone
+                                               or (o.status == "no_show" and o.fulfillment == "point"))
     ]
     available_data = [await serialize_order(o, db) for o in available]
     return {
@@ -261,6 +279,8 @@ async def set_porter_status(
     order.status = status
     if status == "handed_over":
         order.handed_over_at = datetime.utcnow()
+    if status == "at_point":
+        no_show.start_waiting(order)
     await db.commit()
     notify_status(order_id)
     if status == "handed_over":
@@ -356,3 +376,40 @@ async def take_batch(order_ids: list = Body(..., embed=True), porter: StaffModel
     for order_id in taken:
         notify_status(order_id)
     return {"taken": taken}
+
+
+@router.post("/orders/{order_id}/arrived")
+async def porter_arrived(order_id: int, porter: StaffModel = Depends(current_porter), db: AsyncSession = Depends(get_db)):
+    """Driving it himself: «Yetib keldim» at the customer's door starts the waiting clock."""
+    order = await get_porter_order(order_id, db)
+    own_order(order, porter)
+    if order.status != "on_the_way" or order.taxi_phone:
+        raise HTTPException(status_code=409, detail="Buyurtma yo'lda emas / Заказ не в пути")
+    no_show.start_waiting(order)
+    log_event(order, "arrived")
+    await db.commit()
+    order_changed(order.id)
+    return await serialize_order(await get_porter_order(order_id, db), db)
+
+
+@router.post("/orders/{order_id}/no-show")
+async def porter_no_show(order_id: int, porter: StaffModel = Depends(current_porter), db: AsyncSession = Depends(get_db)):
+    order = await get_porter_order(order_id, db)
+    own_order(order, porter)
+    if order.taxi_phone:
+        raise HTTPException(status_code=409, detail="Buyurtma taksichida / Заказ уже у таксиста")
+    await no_show.mark_no_show(db, order)
+    await db.commit()
+    notify_no_show(order.id)
+    return await serialize_order(await get_porter_order(order_id, db), db)
+
+
+@router.post("/orders/{order_id}/undo-no-show")
+async def porter_undo_no_show(order_id: int, porter: StaffModel = Depends(current_porter), db: AsyncSession = Depends(get_db)):
+    """The customer came running after all: the bag is still here, hand it over."""
+    order = await get_porter_order(order_id, db)
+    own_order(order, porter)
+    await no_show.undo(db, order)
+    await db.commit()
+    notify_status(order.id)
+    return await serialize_order(await get_porter_order(order_id, db), db)

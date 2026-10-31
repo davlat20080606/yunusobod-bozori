@@ -157,6 +157,15 @@ class OrderModel(Base):
     handed_over_at = Column(DateTime, nullable=True)  # aravachi called a taxi
     taxi_eta_at = Column(DateTime, nullable=True)  # when the taxi said it would be at the gate
     cold_alert_sent = Column(Boolean, default=False)
+    # «Xaridor kelmadi»: the order reached the customer's place (bazaar point, door, packed at the stalls)
+    # and they are being waited for; after a while the worker may say they never came
+    waiting_since = Column(DateTime, nullable=True)
+    wait_reminded = Column(Boolean, default=False, nullable=False, server_default=sa_false())
+    no_show_at = Column(DateTime, nullable=True)
+    no_show_fee = Column(Float, nullable=True)  # what the aravachi/taxi lost on the trip (charged once payments exist)
+    no_show_forgiven = Column(Boolean, default=False, nullable=False, server_default=sa_false())  # Bozorkom: does not count
+    return_alert_sent = Column(Boolean, default=False, nullable=False, server_default=sa_false())
+    returned_at = Column(DateTime, nullable=True)  # every stall got its goods back
     created_at = Column(DateTime, default=datetime.utcnow)
 
     items = relationship("OrderItemModel", back_populates="order", cascade="all, delete-orphan")
@@ -184,6 +193,7 @@ class OrderItemModel(Base):
     stock_reserved_qty = Column(Float, default=0.0, nullable=False, server_default="0")  # what this line holds of the stall's stock
     seller_ready = Column(Boolean, default=False)  # seller: "Tayyor"
     seller_handed = Column(Boolean, default=False)  # seller: "Topshirdim"
+    returned = Column(Boolean, default=False, nullable=False, server_default=sa_false())  # back at the stall after a no-show
 
     order = relationship("OrderModel", back_populates="items")
     product = relationship("ProductModel", back_populates="order_items")
@@ -337,7 +347,7 @@ class OrderEventModel(Base):
 
 class StockMoveModel(Base):
     """Every change to a counted product's stock, for checking a stall's numbers later.
-    kind: reserve | release | consume | morning | sold_out"""
+    kind: reserve | release | consume | morning | sold_out | return"""
     __tablename__ = "stock_moves"
 
     id = Column(Integer, primary_key=True)
@@ -516,6 +526,7 @@ class OrderItemSchema(BaseModel):
     product_name_en: Optional[str] = None
     seller_ready: bool = False
     seller_handed: bool = False
+    returned: bool = False
 
     class Config:
         from_attributes = True
@@ -562,6 +573,9 @@ class OrderSchema(BaseModel):
     handoff_code: Optional[str] = None
     handed_over_at: Optional[datetime] = None
     taxi_eta_at: Optional[datetime] = None
+    waiting_since: Optional[datetime] = None
+    no_show_at: Optional[datetime] = None
+    returned_at: Optional[datetime] = None
     created_at: datetime
     items: List[OrderItemSchema] = []
     bonuses: List[OrderBonusSchema] = []

@@ -8,6 +8,7 @@ import { pointName } from '../services/offers';
 import { newIdsWatcher } from '../services/sound';
 import { stallLabel, itemName } from '../services/stall';
 import { useLive } from '../services/live';
+import { NoShowWait, NoShowReturn } from './NoShowBox';
 
 const T = {
   title: { uz: 'Taksichi kabineti', ru: 'Кабинет таксиста', en: 'Taxi dashboard' },
@@ -180,6 +181,14 @@ export default function TaxiPanel({ onBackToMarket }) {
                   {hasPoint && <a href={`https://www.google.com/maps/dir/?api=1&destination=${o.delivery_lat},${o.delivery_lng}&travelmode=driving`} target="_blank" rel="noreferrer" style={smallLink}>🗺 Google Maps</a>}
                 </div>
                 {o.status === 'handed_over' && <button type="button" disabled={busy} onClick={() => run(() => api.taxiStatus(o.id, 'on_the_way'))} style={{ ...btn, opacity: busy ? 0.6 : 1 }}>{t('go')}</button>}
+                {o.status === 'on_the_way' && (
+                  <div style={{ marginBottom: 10 }}>
+                    <NoShowWait order={o} language={language} busy={busy} needsArrival
+                      onArrived={() => run(() => api.staffArrived('taxi', o.id))}
+                      onNoShow={() => run(() => api.staffNoShow('taxi', o.id))} />
+                  </div>
+                )}
+                {o.status === 'no_show' && <NoShowReturn order={o} language={language} busy={busy} onUndo={() => run(() => api.staffUndoNoShow('taxi', o.id))} />}
                 {o.status === 'on_the_way' && (
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: '#166534', marginBottom: 6 }}>🔑 {t('code_label')}</div>

@@ -126,6 +126,10 @@ export const api = {
   },
   porterTakeBatch: (orderIds) => staffFetch('/porter/batch/take', json('POST', { order_ids: orderIds })),
   porterRelease: (orderId) => staffFetch(`/porter/orders/${orderId}/release`, json('POST', {})),
+  // «Xaridor kelmadi»: role is 'porter' or 'taxi'
+  staffArrived: (role, orderId) => staffFetch(`/${role}/orders/${orderId}/arrived`, json('POST', {})),
+  staffNoShow: (role, orderId) => staffFetch(`/${role}/orders/${orderId}/no-show`, json('POST', {})),
+  staffUndoNoShow: (role, orderId) => staffFetch(`/${role}/orders/${orderId}/undo-no-show`, json('POST', {})),
   taxiOrders: () => staffFetch('/taxi/orders'),
   taxiTake: (orderId, etaMinutes) => staffFetch(`/taxi/orders/${orderId}/take`, json('POST', { eta_minutes: etaMinutes })),
   taxiStatus: (orderId, status, code) => staffFetch(`/taxi/orders/${orderId}/status`, json('PATCH', { status, code })),
@@ -150,6 +154,8 @@ export const api = {
   adminStaffPin: (id, pin) => adminFetch(`/admin/staff/${id}/reset-pin`, json('POST', { pin })),
   adminOrders: () => adminFetch('/admin/orders'),
   adminCancelOrder: (id) => adminFetch(`/admin/orders/${id}/cancel`, json('POST', {})),
+  adminUndoNoShow: (id) => adminFetch(`/admin/orders/${id}/undo-no-show`, json('POST', {})),
+  adminForgive: (key) => adminFetch(`/admin/customers/${key}/forgive`, json('POST', {})),
   adminPatta: (day) => adminFetch(`/admin/patta${day ? `?day=${day}` : ''}`),
   adminSettings: (values) => adminFetch('/admin/settings', json('PUT', values)),
   adminCustomers: (q = '') => adminFetch(`/admin/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`),
@@ -212,6 +218,13 @@ export const api = {
   async confirmReceived(orderNumber) {
     const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}/received`, { method: 'POST' });
     if (!res.ok) throw await readError(res, 'Failed to confirm');
+    return res.json();
+  },
+
+  // «Men shu yerdaman»: tells the aravachi/taxi and the Bozorkom the customer is there
+  async customerHere(orderNumber) {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}/here`, { method: 'POST' });
+    if (!res.ok) throw await readError(res, 'Failed to send');
     return res.json();
   },
 
@@ -333,6 +346,7 @@ export const api = {
   sellerItemMissing: (itemId, missing) => sellerFetch(`/items/${itemId}/missing`, { method: 'POST', body: JSON.stringify({ missing }) }),
   sellerOrderReady: (orderId) => sellerFetch(`/orders/${orderId}/ready`, { method: 'POST' }),
   sellerOrderHanded: (orderId) => sellerFetch(`/orders/${orderId}/handed`, { method: 'POST' }),
+  sellerOrderReturned: (orderId) => sellerFetch(`/orders/${orderId}/returned`, { method: 'POST' }),
   sellerPromos: () => sellerFetch('/promos'),
   sellerStock: (lines) => sellerFetch('/stock', { method: 'POST', body: JSON.stringify({ lines }) }),
   sellerAddPromo: (promo) => sellerFetch('/promos', { method: 'POST', body: JSON.stringify(promo) }),

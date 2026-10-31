@@ -10,6 +10,7 @@ import { fulfillmentLabel, pointName, weightRange, weightOk } from '../services/
 import { newIdsWatcher } from '../services/sound';
 import { stallLabel, itemName } from '../services/stall';
 import { useLive } from '../services/live';
+import { NoShowWait, NoShowReturn } from './NoShowBox';
 
 const T = {
   title: { uz: 'Aravachi kabineti', ru: 'Кабинет аравачи', en: 'Porter Dashboard' },
@@ -55,6 +56,7 @@ const T = {
   meet_taxi: { uz: 'Taksiga berish joyi', ru: 'Где передать такси', en: 'Where to meet the taxi' },
   bring_to: { uz: 'Olib boriladigan joy', ru: 'Куда принести', en: 'Bring it to' },
   status_on_the_way: { uz: "🚶 Yo'lda", ru: '🚶 В пути', en: '🚶 On the way' },
+  status_no_show: { uz: '↩️ Rastalarga qaytarish', ru: '↩️ Вернуть на расты', en: '↩️ Back to the stalls' },
   logout: { uz: 'Chiqish', ru: 'Выйти', en: 'Sign out' },
   min_ago: { uz: 'daq. oldin', ru: 'мин. назад', en: 'min ago' },
   cash: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' },
@@ -306,6 +308,9 @@ export default function PorterPanel({ onBackToMarket }) {
           await api.porterStatus(openOrder.id, status, code);
           if (status === 'delivered') setOpenOrderId(null);
         })}
+        onArrived={() => runAction(() => api.staffArrived('porter', openOrder.id))}
+        onNoShow={() => runAction(async () => { triggerHaptic('warning'); await api.staffNoShow('porter', openOrder.id); })}
+        onUndo={() => runAction(() => api.staffUndoNoShow('porter', openOrder.id))}
         onRelease={() => {
           if (!window.confirm(t('release_confirm'))) return;
           runAction(async () => {
@@ -512,7 +517,7 @@ function CombinedRoute({ t, language, orders, bagOf, busy, offline, onBack, onOp
   );
 }
 
-function OrderRoute({ t, language, points, order, bag, busy, error, offline, onBack, onTogglePicked, onWeight, onMissing, onSetStatus, onRelease }) {
+function OrderRoute({ t, language, points, order, bag, busy, error, offline, onBack, onTogglePicked, onWeight, onMissing, onSetStatus, onRelease, onArrived, onNoShow, onUndo }) {
   const [editing, setEditing] = useState(null); // item whose weight is being typed
   const [weightValue, setWeightValue] = useState('');
   const [weightFile, setWeightFile] = useState(null);
@@ -737,9 +742,16 @@ function OrderRoute({ t, language, points, order, bag, busy, error, offline, onB
               {t('waiting_customer')}
             </div>
             {codeBox(t('gave_customer'), 'delivered')}
+            <NoShowWait order={order} language={language} busy={busy} onNoShow={onNoShow} />
           </>
         )}
-        {order.status === 'on_the_way' && codeBox(t('delivered'), 'delivered')}
+        {order.status === 'on_the_way' && (
+          <>
+            <NoShowWait order={order} language={language} busy={busy} needsArrival onArrived={onArrived} onNoShow={onNoShow} />
+            {codeBox(t('delivered'), 'delivered')}
+          </>
+        )}
+        {order.status === 'no_show' && <NoShowReturn order={order} language={language} busy={busy} onUndo={onUndo} />}
       </div>
     </div>
   );

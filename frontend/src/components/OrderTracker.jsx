@@ -32,6 +32,11 @@ const T = {
   copied: { uz: 'nusxa olindi', ru: 'скопировано', en: 'copied' },
   order_again: { uz: 'Yana buyurtma berish', ru: 'Заказать ещё', en: 'Order again' },
   cancel: { uz: 'Buyurtmani bekor qilish', ru: 'Отменить заказ', en: 'Cancel order' },
+  waited_title: { uz: '⏰ Sizni kutishyapti', ru: '⏰ Вас ждут', en: '⏰ You are being waited for' },
+  waited_hint: { uz: "Tezroq keling: kelmasangiz, buyurtma rastalarga qaytariladi", ru: 'Подойдите поскорее: если не придёте, заказ вернут на расты', en: 'Please come soon: otherwise the order goes back to the stalls' },
+  here: { uz: '🙋 Men shu yerdaman', ru: '🙋 Я здесь', en: "🙋 I'm here" },
+  here_sent: { uz: "✅ Aravachi/kuryer va bozorkom xabar oldi", ru: '✅ Аравачи/курьер и администрация получили сообщение', en: '✅ The porter/courier and the administration were told' },
+  no_show_hint: { uz: "Xato bo'lsa, «Men shu yerdaman» ni bosing — sizga qo'ng'iroq qilishadi", ru: 'Если это ошибка, нажмите «Я здесь» — вам перезвонят', en: "If this is a mistake, tap «I'm here» — they will call you" },
   rate_title: { uz: 'Buyurtmani baholang', ru: 'Оцените заказ', en: 'Rate your order' },
   rate_hint: { uz: "Bahoyingiz rastalar reytingiga qo'shiladi", ru: 'Ваша оценка войдёт в рейтинг раст', en: 'Your rating counts toward the stalls' },
   rate_comment: { uz: 'Izoh (ixtiyoriy)', ru: 'Комментарий (необязательно)', en: 'Comment (optional)' },
@@ -110,6 +115,16 @@ const STATUS = {
     step: 3, emoji: '🎉',
     title: { uz: 'Yetkazildi', ru: 'Заказ доставлен', en: 'Delivered' },
     sub: { uz: 'Yoqimli ishtaha!', ru: 'Приятного аппетита!', en: 'Enjoy your meal!' },
+  },
+  no_show: {
+    step: -1, emoji: '😔',
+    title: { uz: 'Sizni kuta olmadik', ru: 'Не дождались вас', en: 'We could not wait any longer' },
+    sub: { uz: 'Buyurtma rastalarga qaytarilmoqda', ru: 'Заказ возвращают на расты', en: 'The order is going back to the stalls' },
+  },
+  returned: {
+    step: -1, emoji: '↩️',
+    title: { uz: 'Buyurtma olinmadi', ru: 'Заказ не забрали', en: 'Order not collected' },
+    sub: { uz: 'Mahsulotlar rastalarga qaytarildi', ru: 'Товары вернули на расты', en: 'The goods went back to the stalls' },
   },
   cancelled: {
     step: -1, emoji: '✖️',
@@ -246,6 +261,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
   const [copied, setCopied] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [hereSent, setHereSent] = useState(false);
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState('');
   const [sendingReview, setSendingReview] = useState(false);
@@ -306,7 +322,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
 
   // Live updates while the open order is still in progress
   const openOrder = openNumber ? orders[openNumber] : null;
-  const watching = openNumber && (!openOrder || ACTIVE_STATUSES.includes(openOrder.status) || openOrder.status === 'delivered');
+  const watching = openNumber && (!openOrder || ACTIVE_STATUSES.includes(openOrder.status) || ['delivered', 'no_show'].includes(openOrder.status));
   const live = useLive(watching ? [`order:${openNumber}`] : [], () => load([openNumber]));
   useEffect(() => {
     if (!openNumber || (openOrder && !ACTIVE_STATUSES.includes(openOrder.status))) return;
@@ -336,6 +352,19 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
       load([openOrder.order_number]);
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const sayHere = async () => {
+    if (!openOrder) return;
+    setActionError('');
+    try {
+      await api.customerHere(openOrder.order_number);
+      setHereSent(true);
+      triggerHaptic('success');
+    } catch (err) {
+      triggerHaptic('error');
+      setActionError(err.message);
     }
   };
 
@@ -628,6 +657,19 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
                 {b.amount > 0 && <span style={{ whiteSpace: 'nowrap' }}>−{Math.round(b.amount).toLocaleString()}</span>}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* «Xaridor kelmadi»: they are waiting for you / they gave up, but you are here after all */}
+        {((openOrder.waiting_since && isActive && mode !== 'self') || openOrder.status === 'no_show') && (
+          <div style={{ ...card, background: openOrder.status === 'no_show' ? '#fff7ed' : '#eff6ff', border: `1.5px solid ${openOrder.status === 'no_show' ? '#fed7aa' : '#bfdbfe'}` }}>
+            {openOrder.status !== 'no_show' && <div style={{ fontSize: 17, fontWeight: 800, color: '#1d4ed8' }}>{t('waited_title')}</div>}
+            <div style={{ fontSize: 13, color: '#475569', margin: '4px 0 10px' }}>{openOrder.status === 'no_show' ? t('no_show_hint') : t('waited_hint')}</div>
+            {hereSent ? (
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#047857' }}>{t('here_sent')}</div>
+            ) : (
+              <button type="button" onClick={sayHere} style={{ width: '100%', height: 50, borderRadius: 14, border: 'none', background: '#1d4ed8', color: '#ffffff', fontWeight: 800, fontSize: 16, cursor: 'pointer' }}>{t('here')}</button>
+            )}
           </div>
         )}
 

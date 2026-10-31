@@ -32,6 +32,8 @@ CUSTOMER_TEXTS = {
         "delivered": ("🎉 <b>Yetkazildi!</b>", "Yoqimli ishtaha! Rahmat"),
         "delivered_confirm": ("🎉 <b>Yetkazildi!</b>", "Olganingizni tasdiqlang va baholang"),
         "cancelled": ("✖️ <b>Buyurtma bekor qilindi</b>", ""),
+        "no_show": ("😔 <b>Sizni kuta olmadik</b>", "Buyurtma rastalarga qaytariladi. Xato bo'lsa, ilovada «Men shu yerdaman» ni bosing"),
+        "returned": ("↩️ <b>Buyurtma olinmadi</b>", "Mahsulotlar rastalarga qaytarildi"),
         "button": "📦 Buyurtma",
     },
     "ru": {
@@ -46,6 +48,8 @@ CUSTOMER_TEXTS = {
         "delivered": ("🎉 <b>Заказ доставлен!</b>", "Приятного аппетита! Спасибо"),
         "delivered_confirm": ("🎉 <b>Заказ доставлен!</b>", "Подтвердите получение и оцените"),
         "cancelled": ("✖️ <b>Заказ отменён</b>", ""),
+        "no_show": ("😔 <b>Не дождались вас</b>", "Заказ вернут на расты. Если это ошибка, нажмите в приложении «Я здесь»"),
+        "returned": ("↩️ <b>Заказ не забрали</b>", "Товары вернули на расты"),
         "button": "📦 Заказ",
     },
     "en": {
@@ -60,6 +64,8 @@ CUSTOMER_TEXTS = {
         "delivered": ("🎉 <b>Delivered!</b>", "Enjoy your meal! Thank you"),
         "delivered_confirm": ("🎉 <b>Delivered!</b>", "Confirm you got it and rate it"),
         "cancelled": ("✖️ <b>Order cancelled</b>", ""),
+        "no_show": ("😔 <b>We could not wait any longer</b>", "The order goes back to the stalls. If this is a mistake, tap «I'm here» in the app"),
+        "returned": ("↩️ <b>Order not collected</b>", "The goods went back to the stalls"),
         "button": "📦 Order",
     },
 }
@@ -407,3 +413,111 @@ async def send_morning_stock() -> int:
     keyboard = _webapp_button("📝 Bugun nima bor? · Что есть сегодня?", "tab=seller_cabinet&stock=1")
     await asyncio.gather(*[_send(chat, text, keyboard) for chat in chats])
     return len(chats)
+
+
+WAIT_TEXTS = {
+    "uz": {"point": "⏰ <b>Sizni kutishyapti!</b>\n{point} · {porter}\n{left} daqiqadan keyin buyurtma rastalarga qaytariladi.",
+           "courier": "⏰ <b>Kuryer eshik oldida kutmoqda!</b>\n{left} daqiqadan keyin buyurtma bozorga qaytariladi.",
+           "self": "⏰ <b>Buyurtmangiz rastalarda tayyor</b>\nOlib keting: {stalls}. {left} daqiqadan keyin bekor bo'ladi."},
+    "ru": {"point": "⏰ <b>Вас ждут!</b>\n{point} · {porter}\nЧерез {left} мин заказ вернут на расты.",
+           "courier": "⏰ <b>Курьер ждёт у двери!</b>\nЧерез {left} мин заказ вернут на базар.",
+           "self": "⏰ <b>Ваш заказ готов на растах</b>\nЗаберите: {stalls}. Через {left} мин он отменится."},
+    "en": {"point": "⏰ <b>You are being waited for!</b>\n{point} · {porter}\nIn {left} min the order goes back to the stalls.",
+           "courier": "⏰ <b>The courier is at your door!</b>\nIn {left} min the order goes back to the bazaar.",
+           "self": "⏰ <b>Your order is ready at the stalls</b>\nCollect it: {stalls}. In {left} min it will be cancelled."},
+}
+
+
+async def _wait_reminder(order_id: int, left: int):
+    async with async_session_factory() as db:
+        order = (await db.execute(select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items)))).scalars().first()
+        if not order or not order.customer_tg_id:
+            return
+        stall_rows = (await db.execute(select(StoreModel.stall_number).where(StoreModel.id.in_({i.store_id for i in order.items})))).scalars().all()
+        customer = (await db.execute(select(CustomerModel).where(CustomerModel.tg_id == order.customer_tg_id))).scalars().first()
+    lang = customer.lang if customer and customer.lang in WAIT_TEXTS else "uz"
+    text = WAIT_TEXTS[lang][order.fulfillment or "courier"].format(
+        point=escape(point_name(order.handoff_point, lang)), porter=escape(order.porter_name or ""),
+        stalls=escape(", ".join(stall_in(lang, s) for s in stall_rows)), left=left)
+    await _send(order.customer_tg_id, f"{text}\n#{order.order_number}",
+                _webapp_button(CUSTOMER_TEXTS[lang]["button"], f"tab=orders&order={order.order_number}&lang={lang}"))
+
+
+def notify_wait_reminder(order_id: int, left: int):
+    _background(_wait_reminder(order_id, left))
+
+
+async def _workers(db, order: OrderModel) -> set:
+    phones = [p for p in (order.porter_phone, order.taxi_phone) if p]
+    if not phones:
+        return set()
+    return {s.tg_id for s in (await db.execute(select(StaffModel).where(StaffModel.phone.in_(phones)))).scalars().all() if s.tg_id}
+
+
+async def _no_show(order_id: int):
+    """Stalls whose goods left them get «bring it back» news; the others are told it is back on sale."""
+    from app.services.config_store import get_setting
+    async with async_session_factory() as db:
+        order = (await db.execute(select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items)))).scalars().first()
+        if not order:
+            return
+        sends = []
+        for store_id in {i.store_id for i in order.items}:
+            lines = [i for i in order.items if i.store_id == store_id and i.item_status != "missing"]
+            away = any(not i.returned for i in lines)
+            text = (f"↩️ <b>Xaridor kelmadi · Покупатель не пришёл</b> #{order.order_number}\n" + (
+                "Mahsulot rastaga qaytariladi. Olganingizda «Qaytib oldim» bosing · Товар вернут на расту, нажмите «Вернули»"
+                if away else "Mahsulot sizda qoldi, qoldiqqa qaytdi · Товар остаётся у вас, вернулся в остаток"))
+            for chat in await _stall_chats(db, store_id):
+                sends.append(_send(chat, text, _webapp_button("🏪 Kabinet · Кабинет", "tab=seller_cabinet") if away else None))
+        admin_tg = await get_setting(db, "admin_tg_id")
+    if admin_tg:
+        sends.append(_send(admin_tg, f"😔 <b>Xaridor kelmadi · Покупатель не пришёл</b> #{order.order_number}\n"
+                                     f"{escape(order.customer_name)} · {escape(order.customer_phone)}"))
+    await asyncio.gather(*sends)
+
+
+def notify_no_show(order_id: int):
+    notify_status(order_id)
+    _background(_no_show(order_id))
+
+
+async def _customer_here(order_id: int):
+    from app.services.config_store import get_setting
+    async with async_session_factory() as db:
+        order = await db.get(OrderModel, order_id)
+        if not order:
+            return
+        chats = await _workers(db, order)
+        admin_tg = await get_setting(db, "admin_tg_id")
+    text = (f"🙋 <b>Xaridor «Men shu yerdaman» dedi · Покупатель говорит «Я здесь»</b> #{order.order_number}\n"
+            f"📞 {escape(order.customer_phone)} · {escape(order.customer_name)}")
+    sends = [_send(chat, text) for chat in chats]
+    if admin_tg:
+        sends.append(_send(admin_tg, text, _webapp_button("🏛 Bozorkom", "tab=admin")))
+    await asyncio.gather(*sends)
+
+
+def notify_customer_here(order_id: int):
+    order_changed(order_id)
+    _background(_customer_here(order_id))
+
+
+async def _return_late(order_id: int, minutes: int):
+    from app.services.config_store import get_setting
+    async with async_session_factory() as db:
+        order = await db.get(OrderModel, order_id)
+        if not order:
+            return
+        chats = await _workers(db, order)
+        admin_tg = await get_setting(db, "admin_tg_id")
+    text = (f"🌡 <b>{minutes} daqiqa: mahsulot hali rastaga qaytmadi · {minutes} мин: товар ещё не вернули на расту</b> "
+            f"#{order.order_number}\nGo'sht/sut issiqda turmasin · Не держите мясо/молочку на жаре")
+    sends = [_send(chat, text) for chat in chats]
+    if admin_tg:
+        sends.append(_send(admin_tg, text, _webapp_button("🏛 Bozorkom", "tab=admin")))
+    await asyncio.gather(*sends)
+
+
+def notify_return_late(order_id: int, minutes: int):
+    _background(_return_late(order_id, minutes))

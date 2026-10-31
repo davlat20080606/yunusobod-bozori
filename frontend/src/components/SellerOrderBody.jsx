@@ -19,7 +19,10 @@ export default function SellerOrderBody({ order, language, onChanged }) {
   const items = order.items || [];
   const ready = items.length > 0 && items.every((i) => i.seller_ready);
   const handed = items.length > 0 && items.every((i) => i.seller_handed);
-  const closed = ['delivered', 'cancelled'].includes(order.status);
+  const closed = ['delivered', 'cancelled', 'no_show', 'returned'].includes(order.status);
+  // After a no-show: goods that left the stall come back, the seller confirms it
+  const awayLines = items.filter((i) => i.item_status !== 'missing' && !i.returned);
+  const toReturn = order.status === 'no_show' && awayLines.length > 0;
   // For a porter order the seller hands over only once an aravachi has taken it
   const canHand = mode === 'self' || Boolean(order.porter_name);
   const gifts = (order.bonuses || []).filter((b) => b.kind === 'gift');
@@ -122,6 +125,19 @@ export default function SellerOrderBody({ order, language, onChanged }) {
           )}
           {handed && <div style={{ flex: 1, textAlign: 'center', fontWeight: 800, color: '#047857', padding: '12px 0' }}>✅ {tr('Topshirildi', 'Передано', 'Handed over')}</div>}
         </div>
+      )}
+      {toReturn && (
+        <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: 10 }}>
+          <div style={{ fontWeight: 800, color: '#9a3412', fontSize: 14, marginBottom: 8 }}>
+            ↩️ {tr("Xaridor kelmadi — mahsulot qaytariladi. Olganingizda bosing", 'Покупатель не пришёл — товар вернут. Нажмите, когда получите', 'The customer did not come — the goods are coming back. Tap when you have them')}
+          </div>
+          <button type="button" disabled={busy} onClick={() => run(() => api.sellerOrderReturned(order.id))} style={{ ...btn, width: '100%', background: '#ea580c', color: '#ffffff', opacity: busy ? 0.6 : 1 }}>
+            ✅ {tr('Qaytib oldim', 'Вернули', 'Got it back')}
+          </button>
+        </div>
+      )}
+      {['no_show', 'returned'].includes(order.status) && !toReturn && (
+        <div style={{ fontSize: 13, color: '#047857', fontWeight: 700 }}>✅ {tr("Mahsulot sizda, qoldiqqa qaytdi", 'Товар у вас, вернулся в остаток', 'The goods are with you, back in stock')}</div>
       )}
       {!closed && !canHand && !handed && (
         <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>{tr('Aravachi kelganda bosing', 'Нажмите, когда придёт аравачи', 'Tap when the porter arrives')}</div>

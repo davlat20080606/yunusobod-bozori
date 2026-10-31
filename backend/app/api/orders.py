@@ -15,9 +15,9 @@ from app.services.adjust import recalc
 from app.bot.notify import notify_adjustment
 from app.api.tg_auth import telegram_user
 from app.services.order_log import act_as, log_event
-from app.services import stock
+from app.services import stock, no_show
 from app.bot.notify import notify_low_stock
-from app.bot.notify import notify_new_order, notify_status
+from app.bot.notify import notify_new_order, notify_status, notify_customer_here
 from app.models.schemas import (
     OrderModel, OrderItemModel, StoreModel, OrderCreateSchema, OrderSchema, ReviewModel, CustomerModel,
     OrderBonusModel, QuoteSchema
@@ -71,6 +71,7 @@ async def create_order(
     rate_limit(f"order:{tg_id or key}", per_account, 600)
     rate_limit(f"order-ip:{client_ip(request)}", per_account * 6, 600)
     await check_not_blocked(db, tg_id, key)
+    await no_show.check_strikes(db, tg_id, key)
 
     # The bazaar works 06:00–20:00 Tashkent time (UTC+5)
     now = datetime.utcnow()
@@ -262,6 +263,22 @@ async def confirm_received(order_number: str, db: AsyncSession = Depends(get_db)
     await db.commit()
     if not was_delivered:
         notify_status(order.id)
+    return (await db.execute(load_order(OrderModel.id == order.id))).scalars().first()
+
+
+@router.post("/{order_number}/here", response_model=OrderSchema)
+async def customer_here(order_number: str, db: AsyncSession = Depends(get_db)):
+    """«Men shu yerdaman»: the customer is there (or the no-show was a mistake): the worker and the Bozorkom hear it."""
+    order = (await db.execute(load_order(OrderModel.order_number == order_number.replace("#", "").strip().upper()))).scalars().first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Buyurtma topilmadi / Заказ не найден")
+    if not (no_show.is_waiting(order) or order.status == "no_show"):
+        raise HTTPException(status_code=409, detail="Buyurtma hozir sizni kutmayapti / Заказ сейчас вас не ждёт")
+    act_as("customer", order.customer_tg_id or order.customer_phone)
+    rate_limit(f"here:{order.id}", 3, 600)
+    log_event(order, "customer_here")
+    await db.commit()
+    notify_customer_here(order.id)
     return (await db.execute(load_order(OrderModel.id == order.id))).scalars().first()
 
 
