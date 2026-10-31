@@ -1,7 +1,7 @@
 # Bozorbot — Texnik Roadmap
 
 Yunusobod dehqon bozori boti uchun ishlar tartibi: @yunusobod_dehqon_bozori_bot, bozorbot.uz.
-Versiya 2 · 2026-yil 30-oktabr.
+Versiya 3 · 2026-yil 31-oktabr. Boshqa reja bilan solishtirilgandan keyingi tuzatishlar kiritildi (pastda «Qabul qilingan qarorlar»).
 
 ---
 
@@ -41,12 +41,27 @@ Har bir qadam quyidagilar bajarilganda tayyor hisoblanadi:
 | Real-time | SSE (`/api/events`), xotiradagi hub; kanallar `order:*`, `porter`, `taxi`, `store:*`, `admin` |
 | Fon ishlari | `maintenance.run_forever()`, har 60 soniyada: eskirgan buyurtmalar, sovuq zanjir |
 | Autentifikatsiya | Telegram `initData` HMAC; xodimlar va sotuvchilar uchun imzolangan tokenlar; PIN bo'yicha urinish cheklovi |
-| Migratsiyalar | ilova ishga tushganda `ALTER TABLE` (`seed_data.init_db_and_seed`) |
+| Migratsiyalar | Alembic, ilova ishga tushganda avtomatik (T-qadamda qilindi) |
 
 **Asosiy cheklovlar:**
 - Render free 15 daqiqa so'rov bo'lmasa uxlaydi, shu payt fon ishlari to'xtaydi.
 - SSE hub va urinish cheklovi xotirada saqlanadi, shuning uchun faqat **1 ta server jarayoni** bilan to'g'ri ishlaydi.
-- Testlar loyihada emas, alohida papkada.
+- ~~Testlar loyihada emas~~ — T-qadamda loyihaga ko'chirildi, CI'da ishlaydi.
+
+### Qabul qilingan qarorlar (31-oktabr)
+
+1. **Arxitektura o'zgarmaydi:** Python + FastAPI + SQLAlchemy + Alembic qoladi. Bozor hajmida (kuniga yuzlab buyurtma) til tor joy emas; ishlab turgan va testlangan tizimni qayta yozish 3–5 hafta oladi va foydalanuvchiga foyda bermaydi.
+2. **To'lov qoidasi:**
+
+   | Qanday oladi | To'lov |
+   |---|---|
+   | «O'zim olaman» — xaridor rastalardan o'zi oladi | Naqd, har bir sotuvchiga to'g'ridan-to'g'ri |
+   | Aravachi tochkaga olib chiqadi / taksi uyga | **Faqat onlayn** (Click/Payme): +5% hold, vazn bo'yicha yechish |
+
+   Natija: aravachi va taksichi pul ushlamaydi → naqd pulni tarqatish zanjiri yo'q. Eski «Naqd pul hisobi» qadami o'rniga **5-qadam — Onlayn to'lov** (avval 11-qadam edi) va u pilotdan oldin bo'ladi.
+3. **Server:** hozirgi Render + Neon + R2 (serversiz) qoladi. VPS'ga faqat 7-qadamdagi yuklama testi o'tmasa yoki kuniga ~100+ buyurtma bo'lganda ko'chamiz.
+4. **Redis:** SSE uchun Redis Pub/Sub faqat server 1 tadan ko'p jarayonda ishlashi kerak bo'lganda (7-qadam). Pilotga hozirgi xotiradagi hub yetadi.
+5. **Savatda bron qilinmaydi:** qoldiq buyurtma berilganda band qilinadi, savatga qo'shilganda emas. Aks holda oxirgi mahsulotni savat bilan band qilib, sotib olmay turish mumkin bo'lardi.
 
 ---
 
@@ -56,11 +71,12 @@ Har bir qadam quyidagilar bajarilganda tayyor hisoblanadi:
 - [ ] Topshirish joylarining haqiqiy nomlari (`config_store.HANDOFF_POINTS`).
 - [ ] Telefondan bitta haqiqiy buyurtma: Telegram xabarlarini tekshirish.
 - [ ] Qo'llab-quvvatlash telefoni.
-- [ ] VPS: IP manzil, OS (Ubuntu 22.04/24.04 tavsiya), SSH kalit, server joylashuvi (O'zbekistonmi?).
+- [ ] **Click va Payme merchant shartnomasi — hozirdan boshlash** (yuridik shaxs/YaTT, bank hisob raqami, fiskal chek, MXIK kodlar). Bir necha hafta oladi va 5-qadam shunga bog'liq. Provayderdan so'rash: karta summasini **hold** (band qilib, keyin kamroq yechish) qo'llaydimi?
+- [ ] VPS — faqat kerak bo'lganda (7-qadam): IP manzil, OS (Ubuntu 24.04), SSH kalit, joylashuvi.
 - [ ] Yurist bilan:
   - shaxsiy ma'lumotlarni O'zbekistonda saqlash talabi;
   - ommaviy oferta va maxfiylik siyosati.
-- [ ] **Biznes savollar** (5-qadamdan oldin javob kerak, quyida «Ochiq savollar» bo'limida).
+- [ ] **Biznes savollar** (quyida «Ochiq savollar»; 1–2 savolga javob berildi).
 
 ---
 
@@ -159,6 +175,7 @@ Keyingi qadamlarda bazaga ko'p ustun va jadval qo'shiladi, shuning uchun avval p
 - Vazn ±5% bo'lgani uchun consume haqiqiy vazn bilan qilinadi.
 - Sovg'a qatori (0 so'm) ham qoldiqdan yechiladi.
 - Admin buyurtmani qo'lda bekor qilsa ham release ishlaydi.
+- Savatda bron yo'q (qarorlar, 5-band): savatdagi mahsulot shu orada tugasa, xaridor buni rasmiylashtirishda «faqat N kg qoldi» deb ko'radi.
 
 **Testlar:**
 - bir vaqtdagi 10 ta parallel buyurtma: 1 kg qoldiq bo'lsa, faqat bittasi o'tadi;
@@ -172,7 +189,7 @@ Keyingi qadamlarda bazaga ko'p ustun va jadval qo'shiladi, shuning uchun avval p
 **Baza:**
 - `orders.at_point_at`, `orders.arrived_at_address_at`
 - `orders.no_show_at`, `orders.cancel_reason`
-- `orders.debt_from_previous` (so'm)
+- `orders.debt_from_previous` (so'm) — faqat 5-qadamgacha zaxira variant uchun
 - Yangi statuslar: `no_show` va `returned` (mahsulot rastaga qaytdi).
 
 **Taymerlar** (`maintenance` ichida, har 60 soniyada):
@@ -190,14 +207,14 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 - Sotuvchi «Qaytib oldim» bosadi. Shundan keyin stock release ishlaydi va status `returned` bo'ladi.
 - Go'sht va sovuq mahsulot ro'yxatda **birinchi** turadi (kategoriya bo'yicha belgilanadi).
 
-**Pul:**
-- Aravachi va taksi haqi `customers.debt` ga qo'shiladi.
-- Keyingi buyurtmada quote'da «Oldingi xizmat haqi: X so'm» qatori chiqadi va `orders.debt_from_previous` ga yoziladi.
-- Buyurtma yetkazilganda qarz 0 bo'ladi.
+**Pul** (to'lov qoidasiga ko'ra):
+- **Yetkazish (aravachi/taksi):** buyurtma onlayn to'langan (hold). Xaridor kelmasa, aravachi/taksi haqi hold'dan yechiladi, mahsulot puli qaytariladi (5-qadam tayyor bo'lgach ulanadi). Qarzni keyingi buyurtmaga o'tkazish kerak emas.
+- **«O'zim olaman»:** pul hali olinmagan, shuning uchun faqat strike. Rasta yig'ib qo'ygan buyurtmani xaridor olmasa, mahsulot rastada qoladi va qoldiqqa qaytadi.
+- 5-qadamgacha (onlayn to'lov yo'q paytda) zaxira varianti: haqi `customers.debt` ga yoziladi va keyingi buyurtmada «Oldingi xizmat haqi: X so'm» bo'lib chiqadi.
 
 **Strike:**
 - `strikes += 1`.
-- `strikes >= 2` bo'lsa: faqat `fulfillment = self` (Click/Payme qo'shilgandan keyin: yoki oldindan to'lov).
+- `strikes >= 2` bo'lsa: «O'zim olaman» yopiladi, faqat oldindan onlayn to'lov bilan buyurtma berish mumkin.
 - 90 kun toza yurgan xaridorda strike'lar avtomatik 1 taga kamayadi.
 
 **Chekka holatlar:**
@@ -233,6 +250,8 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 - Telegram `live_location` `edited_message` orqali har bir necha soniyada keladi; bot `tg_id` bo'yicha buyurtmani topib koordinatani yozadi.
 - SSE `order:*` orqali uzatiladi. Xaridor trekerida «Taksi qayerda» xarita havolasi.
 
+**Navigator:** taksichi ekranida manzil uchun «Yandex Navigator» va «Google Maps» tugmalari (deep-link, koordinata bilan).
+
 **Ro'yxatdan o'tish:**
 - Taksichi anketasida mashina raqami, modeli va rangi majburiy.
 - Bozorkom tasdiqlaydi (hozirgi `staff.status` mexanizmi).
@@ -246,35 +265,31 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 
 ---
 
-### 5-qadam. Kunlik naqd pul hisobi · ~1,5 kun
+### 5-qadam. Onlayn to'lov (Click / Payme) va rastalar hisobi · ~3 kun
 
-(Ochiq savollarga javob kerak: kim qancha pul yig'adi va kimga beradi.)
+(Avval 11-qadam edi. Merchant shartnomasi va sandbox kalitlar kerak — 0-bosqich.)
 
-**Baza** (`cash_entries` jadvali):
-- `id`, `date`, `order_id`
-- `payer_role`, `payer_id`, `payee_role`, `payee_id`
-- `kind` (goods/porter_fee/taxi_fee/debt)
-- `amount`
-- `payer_confirmed_at`, `payee_confirmed_at`
+**Qoida:** yetkazish (aravachi tochkaga / taksi) faqat onlayn to'lov bilan; «O'zim olaman» — naqd, sotuvchiga to'g'ridan-to'g'ri.
 
-**Mantiq:**
-- Buyurtma `delivered` yoki `received` bo'lganda, unga tegishli yozuvlar avtomatik yaratiladi. Masalan, taksi naqd yig'sa: taksi → aravachi (mahsulot + aravachi haqi), aravachi → har bir rasta (o'z mahsulot summasi).
-- Bonuslar va chegirmalar qaysi rasta hisobidan ekani hisobga olinadi (`order_bonuses.store_id`).
-- **Kunlik yopish:** har bir tomon o'z ekranida qarzlarni ko'radi va «Berdim» yoki «Oldim» bosadi.
-- Ikkala tasdiq bo'lsa, yozuv yopiladi. Kelishmovchilik bo'lsa, Bozorkom ro'yxatiga tushadi.
+**Baza:**
+- `payments`: `order_id`, `provider` (click/payme), `held_amount`, `captured_amount`, `status` (created/held/captured/released/failed), `provider_id`, vaqtlar.
+- `store_payouts`: har bir rasta uchun kunlik summa (mahsulot − bonus/chegirma ulushi) va to'langanlik belgisi.
 
-**Ekranlar:**
-- **Aravachi:** «💰 Bugungi hisob» — kimga qancha berish kerak.
-- **Sotuvchi:** «💰 Bugun kelishi kerak» — har bir aravachidan qancha.
-- **Bozorkom:** kunlik jamlanma, yopilmagan yozuvlar, Excel.
+**Oqim:**
+1. **Hold:** checkout'da taxminiy summaning **105%** i kartada band qilinadi. Hold muvaffaqiyatli bo'lmaguncha buyurtma rastalarga ko'rinmaydi.
+2. **Tortish:** sotuvchi haqiqiy vaznni kiritadi (±5% chegara allaqachon bor).
+3. **Capture:** buyurtma topshirilganda haqiqiy summa yechiladi, qolgani darhol qaytariladi. «Tugadi» qatorlari summadan chiqadi.
+4. **Fiskal chek** (Soliq OFD, MXIK kodlar bilan): provider orqali yoki alohida integratsiya — buxgalter bilan aniqlashtiriladi.
+- Bekor qilish: hold to'liq qaytariladi. Xaridor kelmasa: faqat xizmat haqi yechiladi (3-qadam).
+- Provider hold'ni qo'llamasa: to'liq summa oldindan yechiladi, farq avtomatik qaytariladi (refund).
 
-**Chekka holatlar:**
-- vazn o'zgarishi va «Tugadi» (summa haqiqiy `total_amount` bo'yicha);
-- birlashtirilgan buyurtmalar;
-- xaridor kelmagan buyurtma (pul yo'q, faqat qarz);
-- qisman to'lov.
+**Texnik:** idempotent webhook'lar, imzo tekshiruvi, takroriy webhook xavfsiz; hold muddati tugashidan oldin capture qilinmagan to'lovlar Bozorkomga signal.
 
-**Testlar:** turli fulfillment va bonuslar bilan summalar 1 so'mgacha mos tushadi.
+**Rastalar hisobi:** Bozorkom ekranida «💰 Rastalarga to'lov» — har bir rastaga kunlik summa, Excel; sotuvchi o'z kabinetida bugungi onlayn tushumini ko'radi.
+
+**Chekka holatlar:** vazn o'zgarishi, «Tugadi», birlashtirilgan buyurtmalar, bonus qaysi rasta hisobidan, qisman qaytarish, webhook kechikishi.
+
+**Testlar:** sandbox'da hold → capture → refund; summalar 1 so'mgacha mos tushadi; takroriy webhook ikki marta yechmaydi.
 
 ---
 
@@ -307,9 +322,15 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 
 ---
 
-### 7-qadam. VPS'ga ko'chish, yuklama testi, band rejim · ~2 kun
+### 7-qadam. Yuklama testi, band rejim, kerak bo'lsa VPS · ~1–2 kun
 
-(0-bosqichdagi VPS ma'lumotlari kerak.)
+**Avval yuklama testi** hozirgi Render + Neon'da o'tkaziladi (pastda). Natija yaxshi bo'lsa, server o'zgarmaydi; faqat Render'ning uxlamaydigan pullik tarifiga o'tish tavsiya etiladi.
+
+**VPS'ga faqat quyidagi hollarda ko'chamiz:** yuklama testi o'tmadi, kuniga ~100+ buyurtma, yoki yurist ma'lumotni O'zbekistonda saqlashni talab qildi.
+
+**Redis Pub/Sub** (bir nechta jarayon kerak bo'lganda): SSE hub va so'rovlar cheklovi Redis'ga ko'chadi (`bazar:order:<id>`, `porter`, `store:<id>` kanallari). Har qanday jarayon yoki fon ishi xabar chiqaradi, Redis uni kerakli xaridor/aravachi oqimiga yetkazadi.
+
+#### VPS bo'lsa
 
 **Server tuzilishi** (docker compose):
 - **Caddy:** avtomatik HTTPS, `bozorbot.uz` va `www`.
@@ -319,7 +340,7 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 - Tizim: `restart: always`, UFW faqat 22/80/443 portlarini ochadi, SSH faqat kalit bilan, fail2ban.
 - Deploy: GitHub Actions → SSH → `docker compose pull && up -d` va migratsiya.
 
-**Ko'chish rejasi** (~15 daqiqalik to'xtash, kechasi):
+#### Ko'chish rejasi (~15 daqiqalik to'xtash, kechasi):
 1. Yangi serverni to'liq sozlash va test domenida tekshirish.
 2. Render'da yangi buyurtmalar to'xtatiladi (texnik ishlar rejimi).
 3. Neon'dan `pg_dump` olinib, VPS bazasiga tiklanadi va qatorlar soni solishtiriladi.
@@ -345,6 +366,7 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 ## 2-bosqich — Pilot · 2 hafta
 
 - 1 qator: 5–10 rasta, 2–3 aravachi, 1–2 taksichi, 20–50 tanish xaridor.
+- Agar Click/Payme shartnomasi hali tayyor bo'lmasa: pilot **faqat «O'zim olaman» (naqd)** bilan boshlanadi, yetkazish 5-qadam tayyor bo'lganda yoqiladi.
 - **Ko'rsatkichlar** (6-qadamdagi tahlildan):
 
 | Ko'rsatkich | Maqsad |
@@ -353,7 +375,7 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 | «Tugadi» bo'lgan qatorlar | ≤ 5% |
 | Bekor qilish | ≤ 5% |
 | Xaridor kelmadi | ≤ 3% |
-| Pul bo'yicha yopilmagan yozuvlar kun oxirida | 0 |
+| Onlayn to'lov: capture qilinmagan yoki mos kelmagan to'lovlar kun oxirida | 0 |
 | Server xatolari | 0 kritik |
 
 - Har hafta qisqa xulosa, topilgan muammolar navbatdan tashqari tuzatiladi.
@@ -398,7 +420,7 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 
 ### 10-qadam. Texnik mustahkamlash · ~1,5 kun
 
-- **Staging:** VPS'da alohida `staging.bozorbot.uz`, alohida baza va test boti. Avval staging'ga, keyin qo'lda tasdiqlab prod'ga.
+- **Staging:** (Render yoki VPS'da) alohida `staging.bozorbot.uz`, alohida baza va test boti. Avval staging'ga, keyin qo'lda tasdiqlab prod'ga.
 - Brauzer (e2e) testlari CI'da kechasi ishlaydi.
 - Monitoring:
   - uptime tekshiruvi (masalan, UptimeRobot) har 1 daqiqada;
@@ -408,28 +430,19 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
   - sirlar faqat serverdagi `.env`'da;
   - adminlar uchun 2-bosqichli kirish (Telegram orqali).
 
-### 11-qadam. Onlayn to'lov (Click / Payme) · ~2–3 kun
-
-- Merchant shartnomasi (sizdan), sandbox kalitlar.
-- `payments` jadvali: provider, summa, status, provider_id. Idempotent webhook'lar va imzo tekshiruvi.
-- **Vazn ±5% muammosi:** summa oldindan **+5% bilan** band qilinadi (hold), topshirishda haqiqiy summa yechiladi, qolgani qaytariladi. Provider hold'ni qo'llamasa, farq keyingi buyurtmada hisoblanadi.
-- **Fiskal chek** (Soliq OFD talabi): provider orqali yoki alohida integratsiya. Yurist yoki buxgalter bilan aniqlashtirish kerak.
-- Strike olgan xaridorlar uchun oldindan to'lov majburiy.
-- Naqd pul hisobi (5-qadam) bilan birlashtiriladi: onlayn to'langan buyurtmada aravachi pul yig'maydi.
+### 11-qadam. ~~Onlayn to'lov~~ → 5-qadamga ko'chirildi
 
 ---
 
 ## Ochiq savollar (javobingiz kerak)
 
-1. **Naqd pulni kim yig'adi?**
-   - Tochkada aravachi oladi. Uyga yetkazishda taksichi oladimi?
-   - Rastalar pulni qachon oladi: kun oxiridami yoki har bir buyurtmadan keyinmi?
-2. Aravachi va taksi xizmat haqini **kim kimga** beradi?
+1. ~~Naqd pulni kim yig'adi?~~ **Javob:** naqd faqat «O'zim olaman» da, sotuvchiga to'g'ridan-to'g'ri. Yetkazish faqat onlayn.
+2. ~~Xizmat haqini kim kimga beradi?~~ **Javob:** onlayn to'lovdan; aravachi va taksichi pul ushlamaydi. (Ochiq qoldi: aravachi va taksichiga haq qanday va qachon o'tkaziladi — kunlik/haftalik?)
 3. Xaridor kelmasa, **qaytgan go'sht** uchun sotuvchiga kompensatsiya kerakmi yoki faqat qaytarish yetarlimi?
 4. **Telegram'dan tashqari** (oddiy brauzerdan) buyurtma berish ruxsat etiladimi? Ruxsat bo'lsa, telefonni SMS bilan tasdiqlash kerak (pullik xizmat).
 5. Yangi xaridor uchun boshlang'ich limit **500 000 so'm** to'g'rimi?
 6. Ertalabki ro'yxat soati: **07:00** to'g'rimi?
-7. VPS qaysi davlatda joylashgan?
+7. ~~VPS qaysi davlatda?~~ Hozir kerak emas (qarorlar, 3-band).
 
 ---
 
@@ -440,15 +453,14 @@ Daqiqalar Sozlamalardan o'zgartiriladi.
 | T | Texnik poydevor | 1 kun | Alembic, `order_events`, testlar loyihaga, CI |
 | 1 | Soxta buyurtmalardan himoya | 1 kun | `requestContact`, limitlar, so'rovlar cheklovi, qora ro'yxat |
 | 2 | Qoldiq | 1,5 kun | Atomar band qilish, `stock_moves`, ertalabki ro'yxat |
-| 3 | Xaridor kelmadi | 1,5 kun | Taymerlar, `no_show`/`returned`, qarz, strike |
-| 4 | Taksichi nazorati | 1,5 kun | ETA taymeri, avto-qayta berish, jonli joylashuv |
-| 5 | Naqd pul hisobi | 1,5 kun | `cash_entries`, ikki tomonlama tasdiq |
+| 3 | Xaridor kelmadi | 1,5 kun | Taymerlar, `no_show`/`returned`, strike, haqni hold'dan yechish |
+| 4 | Taksichi nazorati | 1,5 kun | ETA taymeri, avto-qayta berish, jonli joylashuv, navigator |
+| 5 | Click / Payme + rastalar hisobi | 3 kun | Hold +5%, capture, webhook'lar, fiskal chek, `store_payouts` |
 | 6 | Tahlil + alertlar + zaxira | 1,5 kun | SQL agregatsiyalar, kunlik hisobot, `pg_dump` → R2 |
-| 7 | VPS + yuklama + band rejim | 2 kun | docker compose + Caddy, ko'chish rejasi, Locust |
+| 7 | Yuklama + band rejim (+ kerak bo'lsa VPS/Redis) | 1–2 kun | Locust; zarur bo'lsa Caddy, Redis Pub/Sub |
 | — | **Pilot** | 2 hafta | Ko'rsatkichlar |
 | 8 | Takrorlash | 0,5 kun | reorder-preview |
 | 9 | Reyting | 1,5 kun | `staff_stats`, Bayes, buyurtmani ko'rish navbati |
 | 10 | Mustahkamlash | 1,5 kun | Staging, monitoring, xavfsizlik |
-| 11 | Click / Payme | 2–3 kun | Hold +5%, webhook'lar, fiskal chek |
 
-Pilotgacha jami: **~11 ish kuni**.
+Pilotgacha jami: **~12 ish kuni** (+ Click/Payme shartnomasini kutish; u bo'lmasa pilot «O'zim olaman» bilan boshlanadi).
