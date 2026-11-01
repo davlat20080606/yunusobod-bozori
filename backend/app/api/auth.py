@@ -2,6 +2,7 @@
 import hashlib
 import hmac
 import re
+import secrets
 import time
 from collections import defaultdict
 from typing import Optional
@@ -16,8 +17,9 @@ from app.services.order_log import act_as
 
 TOKEN_TTL_SECONDS = 30 * 24 * 3600
 
-# The bot token is a secret that only lives in the server settings, never in the repository
-_SECRET = hashlib.sha256(f"seller-auth:{settings.TELEGRAM_BOT_TOKEN or settings.ADMIN_SECRET_KEY}".encode()).digest()
+# Secrets live only in the server settings (.env / Render), never in the repository.
+# Without any (a developer's machine) a random one: sign-ins then last until the server restarts.
+_SECRET = hashlib.sha256(f"seller-auth:{settings.AUTH_SECRET.strip() or settings.TELEGRAM_BOT_TOKEN or secrets.token_hex(32)}".encode()).digest()
 
 
 def normalize_phone(phone: str) -> str:
