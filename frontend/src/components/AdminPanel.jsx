@@ -6,6 +6,7 @@ import { triggerHaptic } from '../services/telegram';
 import { ROLE_INFO } from './StaffLogin';
 import { stallLabel, itemName } from '../services/stall';
 import { useLive } from '../services/live';
+import AnalyticsPanel from './AnalyticsPanel';
 
 const T = {
   title: { uz: 'Bozorkom kabineti', ru: 'Кабинет базаркома', en: 'Bazaar administration' },
@@ -14,9 +15,9 @@ const T = {
   back: { uz: 'Orqaga', ru: 'Назад', en: 'Back' },
   logout: { uz: 'Chiqish', ru: 'Выйти', en: 'Sign out' },
   tabs: {
-    uz: ['Umumiy', 'Arizalar', 'Rastalar', 'Xodimlar', 'Buyurtmalar', 'Patta', 'Sozlamalar', 'Xaridorlar'],
-    ru: ['Обзор', 'Заявки', 'Расты', 'Работники', 'Заказы', 'Патта', 'Настройки', 'Покупатели'],
-    en: ['Overview', 'Requests', 'Stalls', 'Workers', 'Orders', 'Stall fees', 'Settings', 'Customers'],
+    uz: ['Umumiy', 'Arizalar', 'Rastalar', 'Xodimlar', 'Buyurtmalar', 'Patta', 'Sozlamalar', 'Xaridorlar', '📊 Tahlil'],
+    ru: ['Обзор', 'Заявки', 'Расты', 'Работники', 'Заказы', 'Патта', 'Настройки', 'Покупатели', '📊 Аналитика'],
+    en: ['Overview', 'Requests', 'Stalls', 'Workers', 'Orders', 'Stall fees', 'Settings', 'Customers', '📊 Analytics'],
   },
   pending: { uz: 'Yangi arizalar', ru: 'Новые заявки', en: 'New requests' },
   stalls: { uz: 'Faol rastalar', ru: 'Активные расты', en: 'Active stalls' },
@@ -85,6 +86,7 @@ const T = {
   },
 };
 
+const ANALYTICS_TAB = 8;
 const LIMIT_KEYS = ['new_customer_max_total', 'new_customer_max_open', 'max_open_orders', 'orders_per_10_min', 'morning_stock_hour',
   'no_show_remind_min', 'no_show_after_min', 'self_no_show_min', 'return_alert_min', 'no_show_strikes',
   'taxi_gate_grace_min', 'taxi_trip_max_min', 'taxi_reassign_alert'];
@@ -136,7 +138,8 @@ export default function AdminPanel({ onBackToMarket }) {
   const statusName = (s) => T.status[s]?.[lang] || s;
 
   const [signedIn, setSignedIn] = useState(() => Boolean(adminSession.get()?.token));
-  const [tab, setTab] = useState(0);
+  // The bot's evening report opens «Tahlil» straight away
+  const [tab, setTab] = useState(() => (new URLSearchParams(window.location.search).get('admin_tab') === 'analytics' ? ANALYTICS_TAB : 0));
   const [data, setData] = useState({ overview: null, stores: [], staff: [], orders: [], patta: null });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -392,6 +395,7 @@ export default function AdminPanel({ onBackToMarket }) {
         </form>
       )}
 
+      {tab === ANALYTICS_TAB && <AnalyticsPanel lang={lang} />}
       {tab === 7 && (
         <>
           <form onSubmit={(e) => { e.preventDefault(); loadCustomers(customerQuery); }} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>

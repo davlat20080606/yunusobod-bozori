@@ -2,7 +2,8 @@
 import hmac
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Body, Header, Request
+from fastapi import APIRouter, Depends, HTTPException, Body, Header, Request, Query
+from fastapi.responses import Response
 from sqlalchemy import select, func, case, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -15,7 +16,7 @@ from app.api.patta import day_report, tashkent_day
 from app.api.staff import staff_public
 from app.services.config_store import get_setting, set_setting
 from app.services.customer_guard import phone_key
-from app.services import stock, no_show, taxi_control
+from app.services import stock, no_show, taxi_control, analytics, backup
 from app.bot.notify import notify_status, notify_store_decision, notify_staff_decision
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -338,3 +339,38 @@ async def update_settings(
         "taxi_fee": float(await get_setting(db, "taxi_fee")),
         **{key: float(await get_setting(db, key)) for key in TUNABLE_SETTINGS},
     }
+
+
+@router.get("/analytics", dependencies=admin_only)
+async def get_analytics(days: int = Query(7, ge=1, le=90), db: AsyncSession = Depends(get_db)):
+    state = backup.status()
+    if state == "on":
+        state = await get_setting(db, "backup_last") or "on (no copy yet)"
+    return {**await analytics.report(db, days=days), "backup": state}
+
+
+@router.get("/analytics.csv", dependencies=admin_only)
+async def get_analytics_csv(days: int = Query(30, ge=1, le=90), db: AsyncSession = Depends(get_db)):
+    return Response(await analytics.orders_csv(db, days=days), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="bozorbot-orders-{days}d.csv"'})
+
+
+@router.post("/analytics/send-csv", dependencies=admin_only)
+async def send_analytics_csv(days: int = Body(30, embed=True, ge=1, le=90), db: AsyncSession = Depends(get_db)):
+    """A file from a Mini App does not download well inside Telegram, so the bot sends it to the Bozorkom's chat."""
+    from app.bot.notify import send_admin_file
+    data = await analytics.orders_csv(db, days=days)
+    if not await send_admin_file(f"bozorbot-orders-{days}d.csv", data.encode("utf-8"), f"📊 Buyurtmalar · Заказы, {days} kun"):
+        raise HTTPException(status_code=409, detail="Bozorkom Telegram'i ulanmagan / Telegram Bozorkom не подключён")
+    return {"success": True}
+
+
+@router.post("/backup", dependencies=admin_only)
+async def backup_now(db: AsyncSession = Depends(get_db)):
+    """«Zaxira nusxa hozir»: to check that the key and R2 work without waiting for the night."""
+    if backup.status() != "on":
+        raise HTTPException(status_code=409, detail=f"Zaxira nusxa o'chiq / Резервная копия выключена: {backup.status()}")
+    from app.database import engine
+    result = await backup.make_backup(engine)
+    await set_setting(db, "backup_last", f"ok {(datetime.utcnow() + timedelta(hours=5)).date().isoformat()}: {result['rows']} rows, {result['bytes'] // 1024} KB")
+    return result

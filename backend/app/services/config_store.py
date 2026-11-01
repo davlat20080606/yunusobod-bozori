@@ -38,6 +38,13 @@ DEFAULTS = {
     "taxi_gate_grace_min": "5",
     "taxi_trip_max_min": "60",
     "taxi_reassign_alert": "2",
+    # Evening summary for the Bozorkom (hour, Tashkent) and the day it was last sent
+    "daily_report_hour": "21",
+    "daily_report_sent": "",
+    # Nightly encrypted database copy to R2 (hour, Tashkent), the day of the last one and how it went
+    "backup_hour": "3",
+    "backup_sent": "",
+    "backup_last": "",
 }
 
 # Where an aravachi hands the order to the customer or the taxi

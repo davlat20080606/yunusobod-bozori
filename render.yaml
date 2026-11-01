@@ -14,5 +14,7 @@ services:
         sync: false
       - key: AUTH_SECRET
         sync: false
+      - key: BACKUP_KEY
+        sync: false
       - key: APP_ENV
         value: production

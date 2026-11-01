@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     # Signs seller, worker and Bozorkom sign-ins. Long random text, only in .env / Render, never in the repository.
     # Empty: derived from the bot token (so changing the token also signs everyone out)
     AUTH_SECRET: str = ""
+    # Encrypts the nightly database copy in R2 (the bucket is readable by link). Keep a copy in a password manager:
+    # without it a backup cannot be opened. Empty = no backups
+    BACKUP_KEY: str = ""
     # Bazaar administration PIN for registering new stalls; empty = registration closed
     ADMIN_PIN: str = ""
     # "polling" (local Mac), "webhook" (cloud) or "auto" (webhook when running on Render)

@@ -58,6 +58,9 @@ report "No-show (aravachi + customer + seller)" "$S/noshow.txt"
 stop; server taxi; chrome; "$PY" "$E/taxi_control_ui.py" "$S" > "$S/taxi.txt" 2>&1
 report "Taxi control (driver + customer + Bozorkom)" "$S/taxi.txt"
 
+stop; server analytics; chrome; "$PY" "$E/analytics_ui.py" "$S" > "$S/analytics.txt" 2>&1
+report "Analytics + CSV + backup state (Bozorkom)" "$S/analytics.txt"
+
 "$PY" "$E/language_kept.py" > "$S/persist.raw" 2>&1
 awk '/lang=ru \| Юнус/{c++} /lang=en \| Yunusobod Farmers/{e++} END{print (c==3?"PASS":"FAIL")" Russian kept after reopening ("c"/3)"; print (e==2?"PASS":"FAIL")" English kept after reopening ("e"/2)"}' "$S/persist.raw" > "$S/persist.txt"
 report "Language is remembered" "$S/persist.txt"

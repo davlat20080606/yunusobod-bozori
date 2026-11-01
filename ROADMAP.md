@@ -274,32 +274,30 @@ Keyingi qadamlarda bazaga ko'p ustun va jadval qo'shiladi, shuning uchun avval p
 
 ---
 
-### 6-qadam. Tahlil, ogohlantirishlar, zaxira nusxa · ~1,5 kun
+### 6-qadam. Tahlil, ogohlantirishlar, zaxira nusxa · ~1,5 kun · ✅ qilindi
 
-**Tahlil** (`/api/admin/analytics?from=&to=`). `orders`, `order_items` va `order_events` bo'yicha SQL agregatsiyalar:
-- hafta kuni × soat bo'yicha buyurtmalar (issiqlik xaritasi);
-- aylanma, o'rtacha chek, fulfillment bo'yicha ulush;
-- bekor qilish va «kelmadi» foizi, sabablari bilan;
-- **bosqich vaqtlari** (o'rtacha va 90-persentil): yaratildi → aravachi oldi → yig'ildi → tochka/taksi → topshirildi;
-- eng ko'p «Tugadi» bo'lgan mahsulotlar va rastalar;
-- vazn bo'yicha rad etilgan urinishlar (±5% dan tashqari);
-- eng faol rastalar va aravachilar.
+**«📊 Tahlil» (Bozorkom kabineti):** bugun / 7 kun / 30 kun.
+- buyurtmalar, yetkazildi, savdo, o'rtacha chek; bekor va «kelmadi» foizi (ko'p bo'lsa qizil);
+- qanday olishadi (o'zi / tochka / uyga);
+- **bosqich vaqtlari** (o'rtacha va 90-persentil): aravachi olguncha → yig'ish → xaridorga yetguncha → jami — `order_events` dan;
+- hafta kuni × soat xaritasi (Toshkent vaqti);
+- eng ko'p «Tugadi», vaznga rozi bo'lmaganlar, rastalar savdo bo'yicha, aravachi va taksichilar;
+- **«📄 Excel faylni botga yuborish»** — Mini App ichida fayl yaxshi yuklanmaydi, shuning uchun bot CSV ni Bozorkom chatiga yuboradi. Faylda xaridor ismi/telefoni yo'q.
 
-**Bozorkom ekrani:** «📊 Tahlil» bo'limi; davr tanlash (bugun/7 kun/30 kun) va CSV eksport.
+**Kunlik hisobot:** 21:00 da (sozlanadi) Bozorkomga: buyurtmalar, savdo, o'rtacha vaqt, «Tugadi»; tugma «📊 Tahlil» ni ochadi.
 
-**Kunlik hisobot:** fon ishi 21:00 da adminlarga Telegram xabar yuboradi: buyurtmalar, aylanma, o'rtacha vaqt, top «Tugadi», yopilmagan pul yozuvlari.
+**Xato signali:** server ERROR yozsa, Bozorkom Telegram'iga «🚨 Serverda xato»; bir xil xato 10 daqiqada ko'pi bilan 1 marta. Fon tekshiruvidagi xatolar ham shunga kiradi.
 
-**Xatolik ogohlantirishlari:**
-- `logging` handler ERROR darajasidagi xatolarni admin chatga yuboradi.
-- Bir xil xato 10 daqiqada 1 marta keladi (throttle).
-- Sentry ixtiyoriy.
+**Zaxira nusxa** (rejadan farqi: `pg_dump` o'rniga):
+- serverda `pg_dump` yo'q, shuning uchun server o'zi barcha jadvallarni bitta faylga yozadi (SQLite va Postgres'da bir xil ishlaydi);
+- R2 havola orqali o'qiladi (rasmlar u yerdan), shuning uchun nusxa **`BACKUP_KEY` bilan shifrlanadi**; kalit yo'q bo'lsa nusxa olinmaydi va `/api/health` «off» deydi;
+- har kecha 03:00 da `backups/YYYY-MM-DD.json.gz.enc`; 14 kun + 8 hafta dushanbalari saqlanadi;
+- «💾 Hozir nusxa olish» tugmasi; tiklash: `backend/scripts/restore_backup.py` (DEPLOY.md).
+- **Tiklash sinovi** testda: nusxa yangi bazaga tiklanadi, har jadval qatorlari va buyurtmalar bir xil; CI'da Postgres'da ham.
 
-**Zaxira nusxa:**
-- Har kuni 03:00 da `pg_dump` qilinadi, gzip bilan siqiladi va R2 `backups/` papkasiga yoziladi.
-- 14 kunlik + 8 haftalik nusxalar saqlanadi.
-- **Tiklash sinovi:** nusxa alohida bazaga tiklanib, qatorlar soni solishtiriladi.
+**Sizdan:** Render'ga `BACKUP_KEY` qo'shish va uni parol menejerida ham saqlash.
 
-**Testlar:** analitika natijalari qo'lda hisoblangan raqamlar bilan solishtiriladi; zaxira nusxadan tiklash sinab ko'riladi.
+**Testlar:** server 7 ta yangi + Postgres'da tiklash, brauzer 12 tekshiruv.
 
 ---
 

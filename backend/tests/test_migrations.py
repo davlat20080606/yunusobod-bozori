@@ -106,3 +106,42 @@ def test_database_made_before_migrations(url):
     assert run(url, lambda c: c.execute(text("SELECT phone_key FROM orders WHERE order_number = 'YB-OLD-1'")).scalar()) == "900000000"
     assert run(url, lambda c: c.execute(text("SELECT customer_name FROM orders WHERE order_number = 'YB-OLD-1'")).scalar()) == "Eski"
     assert "order_events" in run(url, lambda c: inspect(c).get_table_names())
+
+
+@pytest.mark.parametrize("url", database_urls())
+def test_backup_restores_into_this_database(url):
+    """A nightly copy goes back into Postgres (production) and SQLite alike: dates, JSON, binary, and new ids
+    continue after the restored ones."""
+    from app.services import backup
+    source = f"sqlite+aiosqlite:///{RUN_DIR / 'backup_source.db'}"
+
+    def fill(conn):
+        conn.execute(text(
+            "INSERT INTO orders (order_number, customer_name, customer_phone, delivery_address, delivery_time_slot, total_amount,"
+            " delivery_fee, payment_method, payment_status, status, created_at, taxi_reassign_count)"
+            " VALUES ('YB-BAK-1', 'Aziza', '+998901112233', 'Yunusobod', 'Morning', 81000, 0, 'cash', 'pending', 'delivered',"
+            " '2026-11-01 10:00:00', 1)"))
+        conn.execute(text("INSERT INTO order_events (order_id, kind, actor_role, data, created_at)"
+                          " VALUES (1, 'status', 'porter', '{\"eta_minutes\": 5}', '2026-11-01 10:05:00')"))
+        conn.execute(text("INSERT INTO media (filename, content_type, data) VALUES ('a.jpg', 'image/jpeg', :data)"),
+                     {"data": b"\x00\xffphoto"})
+
+    run(source, wipe)
+    run(source, upgrade)
+    run(source, fill)
+    data = backup.unpack(backup.pack(run(source, backup.dump_tables), key="k"), key="k")
+
+    run(url, wipe)
+    run(url, upgrade)
+    counts = run(url, lambda c: backup.load_tables(c, data))
+    assert counts["orders"] == 1 and counts["order_events"] == 1 and counts["media"] == 1
+    row = run(url, lambda c: c.execute(text("SELECT total_amount, created_at, taxi_reassign_count FROM orders")).one())
+    assert row[0] == 81000 and str(row[1]).startswith("2026-11-01 10:00") and row[2] == 1
+    assert run(url, lambda c: c.execute(text("SELECT data FROM media")).scalar()) == b"\x00\xffphoto"
+    event = run(url, lambda c: c.execute(text("SELECT data FROM order_events")).scalar())
+    assert (event if isinstance(event, dict) else __import__("json").loads(event)) == {"eta_minutes": 5}
+    new_id = run(url, lambda c: c.execute(text(
+        "INSERT INTO orders (order_number, customer_name, customer_phone, delivery_address, delivery_time_slot, total_amount,"
+        " delivery_fee, payment_method, payment_status, status) VALUES ('YB-BAK-2', 'x', 'x', 'x', 'x', 1, 0, 'cash', 'pending', 'pending')"
+        " RETURNING id")).scalar())
+    assert new_id == 2, "new orders continue after the restored ones"

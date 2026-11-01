@@ -601,3 +601,59 @@ async def _trip_late(order_id: int, minutes: int):
 
 def notify_trip_late(order_id: int, minutes: int):
     _background(_trip_late(order_id, minutes))
+
+
+async def send_error_alert(where: str, summary: str):
+    from app.services.config_store import get_setting
+    async with async_session_factory() as db:
+        admin_tg = await get_setting(db, "admin_tg_id")
+    if admin_tg:
+        await _send(admin_tg, f"🚨 <b>Serverda xato · Ошибка на сервере</b>\n<code>{escape(where)}</code>\n{escape(summary)}")
+
+
+def money(value) -> str:
+    return f"{round(value or 0):,}".replace(",", " ")
+
+
+async def send_daily_report(report: dict) -> bool:
+    """The evening summary of the day for the Bozorkom."""
+    from app.services.config_store import get_setting
+    async with async_session_factory() as db:
+        admin_tg = await get_setting(db, "admin_tg_id")
+    if not admin_tg:
+        return False
+    stages = report["stages"]
+
+    def minutes(key):
+        s = stages[key]
+        return f"{s['avg']:.0f} daq (90%: {s['p90']:.0f})" if s["avg"] is not None else "—"
+
+    lines = [
+        f"📊 <b>Bugun · Сегодня</b> {report['to']}",
+        f"🧾 Buyurtma · Заказов: <b>{report['orders']}</b> · ✅ {report['delivered']} · ✖️ {report['cancelled']} · 😔 {report['no_show']}"
+        + (f" · ⏳ {report['open']}" if report["open"] else ""),
+        f"💰 Savdo · Выручка: <b>{money(report['revenue'])} UZS</b> · o'rtacha chek · средний чек {money(report['avg_check'])}",
+        f"⏱ Buyurtmadan qo'lga · От заказа до получения: {minutes('total')}",
+    ]
+    if report["missing"]:
+        lines.append("❌ Tugadi · Закончилось: " + ", ".join(f"{escape(m['product'])} ({m['count']})" for m in report["missing"][:5]))
+    if report["weight_refused"]:
+        lines.append(f"⚖️ Vaznga rozi bo'lmadi · Отказ по весу: {report['weight_refused']}")
+    await _send(admin_tg, "\n".join(lines), _webapp_button("📊 Tahlil · Аналитика", "tab=admin&admin_tab=analytics"))
+    return True
+
+
+async def send_admin_file(filename: str, data: bytes, caption: str) -> bool:
+    from aiogram.types import BufferedInputFile
+    from app.services.config_store import get_setting
+    async with async_session_factory() as db:
+        admin_tg = await get_setting(db, "admin_tg_id")
+    bot = get_bot()
+    if not admin_tg or not bot:
+        return False
+    try:
+        await bot.send_document(int(admin_tg), BufferedInputFile(data, filename=filename), caption=caption)
+        return True
+    except Exception as e:
+        logger.info(f"Sending {filename} skipped: {e}")
+        return False

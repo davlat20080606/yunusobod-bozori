@@ -57,6 +57,10 @@ WEBHOOK_SECRET = hashlib.sha256(f"webhook:{settings.TELEGRAM_BOT_TOKEN}".encode(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global bot_task, bot_dp
+    # Server errors go to the Bozorkom's Telegram
+    from app.services import alerts
+    alerts.install()
+
     # 1. Schema migrations. A failure stops the start, so the old version keeps serving instead
     await migrate()
     try:
@@ -246,7 +250,14 @@ async def events(ch: str = ""):
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV, **bot_status}
+    from app.services import backup
+    from app.database import async_session_factory
+    from app.services.config_store import get_setting
+    state = backup.status()
+    if state == "on":
+        async with async_session_factory() as db:
+            state = await get_setting(db, "backup_last") or "on (no copy yet)"
+    return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV, **bot_status, "backup": state}
 
 @app.post(WEBHOOK_PATH)
 async def telegram_webhook(request: Request):

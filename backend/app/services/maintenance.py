@@ -131,6 +131,47 @@ async def no_show_timers(now: datetime = None) -> dict:
     return {"reminded": len(reminded), "closed": len(closed), "late": len(late)}
 
 
+async def daily_report(now: datetime = None) -> bool:
+    """Once a day at `daily_report_hour` (Tashkent): the day's numbers to the Bozorkom."""
+    from app.services import analytics
+    from app.bot.notify import send_daily_report
+    tashkent = (now or datetime.utcnow()) + timedelta(hours=5)
+    today = tashkent.date().isoformat()
+    async with async_session_factory() as db:
+        hour = int(await get_setting(db, "daily_report_hour"))
+        if not hour <= tashkent.hour < hour + MORNING_WINDOW_HOURS or await get_setting(db, "daily_report_sent") == today:
+            return False
+        await set_setting(db, "daily_report_sent", today)
+        report = await analytics.report(db, days=1, now=now)
+    await send_daily_report(report)
+    return True
+
+
+async def nightly_backup(now: datetime = None) -> bool:
+    """Once a night at `backup_hour` (Tashkent): an encrypted copy of the database to R2."""
+    from app.services import backup
+    from app.database import engine
+    if backup.status() != "on":
+        return False
+    tashkent = (now or datetime.utcnow()) + timedelta(hours=5)
+    today = tashkent.date().isoformat()
+    async with async_session_factory() as db:
+        hour = int(await get_setting(db, "backup_hour"))
+        if not hour <= tashkent.hour < hour + MORNING_WINDOW_HOURS or await get_setting(db, "backup_sent") == today:
+            return False
+        await set_setting(db, "backup_sent", today)
+    try:
+        result = await backup.make_backup(engine, tashkent.date())
+        note = f"ok {today}: {result['rows']} rows, {result['bytes'] // 1024} KB"
+    except Exception as e:
+        # logged as an error, so the Bozorkom hears about it
+        logger.error(f"Nightly backup failed: {type(e).__name__}: {e}")
+        note = f"failed {today}: {type(e).__name__}"
+    async with async_session_factory() as db:
+        await set_setting(db, "backup_last", note)
+    return True
+
+
 async def taxi_timers(now: datetime = None) -> dict:
     """A taxi that never came for the bag loses the order; a trip that drags on is reported once."""
     now = now or datetime.utcnow()
@@ -172,6 +213,8 @@ async def run_forever():
             await no_show_timers()
             await taxi_timers()
             await morning_stock()
+            await daily_report()
+            await nightly_backup()
         except Exception as e:
-            logger.warning(f"Stale order check failed: {e}")
+            logger.error(f"Background check failed: {type(e).__name__}: {e}")
         await asyncio.sleep(CHECK_EVERY_SECONDS)
