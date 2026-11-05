@@ -150,6 +150,14 @@ async def main():
         await go("&tab=taxi", wait=4); await click("Mening yo'llarim", wait=1.5)
         ok("Joylashuv ulashilmoqda" in await body(), "his screen says the location is on")
 
+        # «Yetib keldim» tells the customer and starts the clock, so a stray tap asks first
+        await js("window.confirm = () => false")
+        await click("Yetib keldim", within=NUM, wait=2)
+        ok(not api("GET", f"/api/orders/{NUM}")["waiting_since"], "«Yetib keldim» asks first: «no» changes nothing")
+        await js("window.confirm = () => true")
+        await click("Yetib keldim", within=NUM, wait=2)
+        ok(api("GET", f"/api/orders/{NUM}")["waiting_since"], "«yes» starts the clock")
+
         await js("localStorage.removeItem('staff_session')")
         await go(f"&tab=orders&order={NUM}", wait=5)
         href = await js("document.querySelector('[data-testid=taxi-where]')?.href || ''")

@@ -19,6 +19,12 @@ from app.services.config_store import get_setting
 OPEN_STATUSES = ("pending", "accepted", "picking", "ready", "at_point", "handed_over", "on_the_way")
 
 
+def valid_uz_phone(phone: str) -> bool:
+    """+998 XX XXX-XX-XX, or the same nine digits without the country code."""
+    digits = re.sub(r"\D", "", phone or "")
+    return len(digits) == 9 or (len(digits) == 12 and digits.startswith("998"))
+
+
 def phone_key(phone: Optional[str]) -> Optional[str]:
     digits = re.sub(r"\D", "", phone or "")
     return digits[-9:] if len(digits) >= 9 else None

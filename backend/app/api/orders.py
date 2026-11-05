@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.database import get_db
 from app.api.auth import current_admin, client_ip
-from app.services.customer_guard import phone_key, check_not_blocked, check_order_limits, rate_limit
+from app.services.customer_guard import phone_key, valid_uz_phone, check_not_blocked, check_order_limits, rate_limit
 from app.services.config_store import get_setting, distance_km, HANDOFF_POINT_IDS
 from app.services.promos import compute_quote
 from app.services.adjust import recalc
@@ -59,8 +59,9 @@ async def create_order(
     if customer and customer.phone:
         data.customer_phone = customer.phone
         data.customer_name = customer.name or tg_user.get("first_name") or "Xaridor"
-    if len(re.sub(r"\D", "", data.customer_phone or "")) < 9:
-        raise HTTPException(status_code=400, detail="Telefon raqamingizni yuboring / Отправьте номер телефона")
+    # A number shared through Telegram is the person's own (it may be foreign); a typed one must be a real Uzbek number
+    elif not valid_uz_phone(data.customer_phone):
+        raise HTTPException(status_code=400, detail="Telefonni +998 XX XXX-XX-XX ko'rinishida kiriting / Введите телефон в формате +998 XX XXX-XX-XX")
     if len((data.customer_name or "").strip()) < 2:
         raise HTTPException(status_code=400, detail="Ismingizni kiriting / Введите имя")
 
@@ -79,6 +80,9 @@ async def create_order(
     slot = data.delivery_time_slot
     if (slot.startswith("Express") and not 6 <= tashkent_hour < 19) or (slot.startswith("Evening") and tashkent_hour >= 19):
         raise HTTPException(status_code=409, detail="Bozor yopiq, boshqa vaqtni tanlang / Базар закрыт, выберите другое время доставки")
+
+    if data.fulfillment != "self" and await get_setting(db, "self_pickup_only") == "1":
+        raise HTTPException(status_code=409, detail="Hozircha faqat «O'zim olaman» ishlaydi / Пока работает только самовывоз")
 
     if data.fulfillment == "courier":
         # Delivery only to homes near Yunusobod Dehqon Bozori; the bozorkom can widen the radius
@@ -242,8 +246,9 @@ async def cancel_order(order_number: str, db: AsyncSession = Depends(get_db)):
     return order
 
 
-# Who may say "the customer has it" depends on where the order is
-RECEIVABLE = {"self": ["pending", "accepted", "ready", "delivered"], "point": ["at_point", "delivered"], "courier": ["on_the_way", "delivered"]}
+# Who may say "the customer has it" depends on where the order is. With a worker in between the order is closed
+# by the worker typing the customer's code, so a stray tap cannot close an order that is still on its way
+RECEIVABLE = {"self": ["pending", "accepted", "ready", "delivered"], "point": ["delivered"], "courier": ["delivered"]}
 
 
 @router.post("/{order_number}/received", response_model=OrderSchema)

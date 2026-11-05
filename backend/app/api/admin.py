@@ -81,6 +81,7 @@ async def overview(db: AsyncSession = Depends(get_db)):
         "porter_fee": float(await get_setting(db, "porter_fee")),
         "taxi_fee": float(await get_setting(db, "taxi_fee")),
         **{key: float(await get_setting(db, key)) for key in TUNABLE_SETTINGS},
+        "self_pickup_only": await get_setting(db, "self_pickup_only") == "1",
     }
 
 
@@ -314,6 +315,7 @@ async def update_settings(
     taxi_gate_grace_min: Optional[int] = Body(None, ge=1, le=60),
     taxi_trip_max_min: Optional[int] = Body(None, ge=15, le=240),
     taxi_reassign_alert: Optional[int] = Body(None, ge=1, le=10),
+    self_pickup_only: Optional[bool] = Body(None),
     db: AsyncSession = Depends(get_db)
 ):
     if delivery_radius_km is not None:
@@ -322,6 +324,8 @@ async def update_settings(
         await set_setting(db, "patta_amount", f"{patta_amount:g}")
     if support_phone is not None:
         await set_setting(db, "support_phone", support_phone.strip())
+    if self_pickup_only is not None:
+        await set_setting(db, "self_pickup_only", "1" if self_pickup_only else "0")
     for key, value in (("porter_fee", porter_fee), ("taxi_fee", taxi_fee), ("max_open_orders", max_open_orders),
                        ("new_customer_max_open", new_customer_max_open), ("new_customer_max_total", new_customer_max_total),
                        ("orders_per_10_min", orders_per_10_min), ("morning_stock_hour", morning_stock_hour),
@@ -338,6 +342,7 @@ async def update_settings(
         "porter_fee": float(await get_setting(db, "porter_fee")),
         "taxi_fee": float(await get_setting(db, "taxi_fee")),
         **{key: float(await get_setting(db, key)) for key in TUNABLE_SETTINGS},
+        "self_pickup_only": await get_setting(db, "self_pickup_only") == "1",
     }
 
 

@@ -218,6 +218,7 @@ async def public_config(db: AsyncSession = Depends(get_db)):
         "porter_fee": float(await get_setting(db, "porter_fee")),
         "taxi_fee": float(await get_setting(db, "taxi_fee")),
         "handoff_points": HANDOFF_POINTS,
+        "self_pickup_only": await get_setting(db, "self_pickup_only") == "1",
     }
 
 bot_status = {"bot": "not started"}

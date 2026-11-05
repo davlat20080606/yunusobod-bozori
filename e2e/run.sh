@@ -20,7 +20,7 @@ server() { # $1 suite name: fresh database, real app with a fake bot
 relax_limits() { # the journeys place many orders from one test phone; the limits have their own API tests
   local token; token=$(curl -s -X POST http://127.0.0.1:8099/api/admin/login -H 'Content-Type: application/json' -d '{"pin":"909090"}' | sed 's/.*"token":"\([^"]*\)".*/\1/')
   curl -s -o /dev/null -X PUT http://127.0.0.1:8099/api/admin/settings -H 'Content-Type: application/json' -H "x-admin-token: $token" \
-    -d '{"max_open_orders":20,"new_customer_max_open":20,"new_customer_max_total":100000000,"orders_per_10_min":1000}'
+    -d '{"max_open_orders":20,"new_customer_max_open":20,"new_customer_max_total":100000000,"orders_per_10_min":1000,"self_pickup_only":false}'
 }
 chrome() { rm -rf "$S/chrome"; "$CHROME" --headless=new --remote-debugging-port=9333 --user-data-dir="$S/chrome" --no-first-run about:blank > /dev/null 2>&1 & sleep 3; }
 report() { # $1 name, $2 output with PASS/FAIL lines
@@ -60,6 +60,9 @@ report "Taxi control (driver + customer + Bozorkom)" "$S/taxi.txt"
 
 stop; server analytics; chrome; "$PY" "$E/analytics_ui.py" "$S" > "$S/analytics.txt" 2>&1
 report "Analytics + CSV + backup state (Bozorkom)" "$S/analytics.txt"
+
+stop; server prepilot; chrome; "$PY" "$E/pre_pilot_ui.py" "$S" > "$S/prepilot.txt" 2>&1
+report "Pilot rules (self pickup, phone, switch)" "$S/prepilot.txt"
 
 "$PY" "$E/language_kept.py" > "$S/persist.raw" 2>&1
 awk '/lang=ru \| Юнус/{c++} /lang=en \| Yunusobod Farmers/{e++} END{print (c==3?"PASS":"FAIL")" Russian kept after reopening ("c"/3)"; print (e==2?"PASS":"FAIL")" English kept after reopening ("e"/2)"}' "$S/persist.raw" > "$S/persist.txt"

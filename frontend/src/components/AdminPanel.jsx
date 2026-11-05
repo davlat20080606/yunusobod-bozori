@@ -64,6 +64,8 @@ const T = {
   forgive: { uz: '🤝 Kechirish', ru: '🤝 Простить', en: '🤝 Forgive' },
   forgiven: { uz: 'Kechirildi', ru: 'Прощено', en: 'Forgiven' },
   undo_no_show: { uz: '↩️ Xaridor keldi', ru: '↩️ Покупатель пришёл', en: '↩️ The customer came' },
+  self_only: { uz: "Faqat «O'zim olaman»", ru: 'Только самовывоз', en: 'Self pickup only' },
+  self_only_hint: { uz: "Yoqilgan: xaridor faqat rastadan oladi. Yetkazish uchun aravachi, taksichi va onlayn to'lov kerak.", ru: 'Включено: покупатель забирает только на расте. Для доставки нужны аравачи, таксисты и онлайн-оплата.', en: 'On: customers collect at the stalls only. Delivery needs porters, taxis and online payment.' },
   limits_hint: { uz: "Yangi xaridor — hali birorta buyurtmani olmagan odam.", ru: 'Новый покупатель — тот, кто ещё не получил ни одного заказа.', en: 'A new customer is one who has not received an order yet.' },
   search: { uz: 'Telefon yoki ism', ru: 'Телефон или имя', en: 'Phone or name' },
   orders_count: { uz: 'buyurtma', ru: 'заказов', en: 'orders' },
@@ -366,6 +368,16 @@ export default function AdminPanel({ onBackToMarket }) {
       )}
 
       {tab === 6 && (
+        <>
+        <div data-testid="self-only" style={{ ...card, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <b style={{ fontSize: 14 }}>🙋 {t('self_only')}</b>
+            <div style={{ fontSize: 12, color: '#64748b' }}>{t('self_only_hint')}</div>
+          </div>
+          <button type="button" aria-label="self pickup only" onClick={() => act(() => api.adminSettings({ self_pickup_only: !overview?.self_pickup_only }))} style={{ width: 52, height: 32, flexShrink: 0, borderRadius: 16, border: 'none', background: overview?.self_pickup_only ? '#059669' : '#e2e8f0', position: 'relative', cursor: 'pointer' }}>
+            <span style={{ position: 'absolute', top: 3, left: overview?.self_pickup_only ? 23 : 3, width: 26, height: 26, borderRadius: '50%', background: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)' }} />
+          </button>
+        </div>
         <form onSubmit={(e) => { e.preventDefault(); act(() => api.adminSettings({ delivery_radius_km: Number(settingsForm.radius), patta_amount: Number(settingsForm.patta), support_phone: settingsForm.phone, porter_fee: Number(settingsForm.porterFee || 0), taxi_fee: Number(settingsForm.taxiFee || 0), ...Object.fromEntries(LIMIT_KEYS.filter((key) => settingsForm[key]).map((key) => [key, Number(settingsForm[key])])) }), t('saved')); }} style={card}>
           <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>{t('radius')} ({t('km')})</label>
           <input value={settingsForm.radius} onChange={(e) => setSettingsForm({ ...settingsForm, radius: e.target.value.replace(/[^\d.]/g, '') })} inputMode="decimal" style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 16, marginBottom: 12 }} />
@@ -393,6 +405,7 @@ export default function AdminPanel({ onBackToMarket }) {
           </div>
           <button type="submit" style={{ width: '100%', height: 48, borderRadius: 14, border: 'none', background: '#0f172a', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>{t('save')}</button>
         </form>
+        </>
       )}
 
       {tab === ANALYTICS_TAB && <AnalyticsPanel lang={lang} />}

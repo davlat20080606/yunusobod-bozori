@@ -55,6 +55,7 @@ const T = {
   photo: { uz: 'tarozi rasmi', ru: 'фото весов', en: 'scale photo' },
   ran_out: { uz: 'tugagan', ru: 'нет в наличии', en: 'ran out' },
   received: { uz: '✅ Buyurtmani oldim', ru: '✅ Я получил заказ', en: '✅ I got my order' },
+  received_confirm: { uz: "Buyurtmani qo'lingizga oldingizmi?", ru: 'Заказ у вас в руках?', en: 'Do you have the order in your hands?' },
   received_hint: { uz: "Olganingizni tasdiqlang, so'ng baholang", ru: 'Подтвердите получение, затем оцените', en: 'Confirm you got it, then rate it' },
   how: { uz: 'Qanday olasiz', ru: 'Как получить', en: 'How you get it' },
   bonuses: { uz: 'Aksiyalar', ru: 'Акции', en: 'Offers' },
@@ -137,7 +138,7 @@ STATUS.accepted = STATUS.pending;
 export const ACTIVE_STATUSES = ['pending', 'accepted', 'picking', 'ready', 'at_point', 'handed_over', 'on_the_way'];
 
 // Where the customer can say "I got it": the order must have reached them
-const RECEIVABLE = { self: ['delivered'], point: ['at_point', 'delivered'], courier: ['on_the_way', 'delivered'] };
+const RECEIVABLE = { self: ['delivered'], point: ['delivered'], courier: ['delivered'] };
 
 export function statusTitle(status, language) {
   const lang = language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz');
@@ -391,7 +392,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
   };
 
   const confirmReceived = async () => {
-    if (!openOrder) return;
+    if (!openOrder || !window.confirm(t('received_confirm'))) return;
     setConfirming(true);
     setActionError('');
     try {

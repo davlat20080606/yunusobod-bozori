@@ -62,6 +62,10 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
     if (isOpen) api.getConfig().then(setZone).catch(() => {});
   }, [isOpen]);
 
+  // Pilot: the Bozorkom keeps only «O'zim olaman» on until delivery is ready
+  useEffect(() => { if (zone.self_pickup_only) setFulfillment('self'); }, [zone.self_pickup_only]);
+  const ways = zone.self_pickup_only ? FULFILLMENTS.filter((f) => f.id === 'self') : FULFILLMENTS;
+
   // The server prices the order with every stall offer (discount, free taxi, gift)
   const cartKey = cart.map((i) => `${i.product.id}:${i.quantity}`).join(',');
   useEffect(() => {
@@ -149,8 +153,9 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!registered && (!customerName.trim() || customerPhone.replace(/\D/g, '').length < 9)) {
-      setError(language === 'ru' ? 'Пожалуйста, заполните имя, телефон и адрес' : "Iltimos, ism, telefon va manzilni to'liq kiriting!");
+    const typedDigits = customerPhone.replace(/\D/g, '');
+    if (!registered && (!customerName.trim() || !(typedDigits.length === 9 || (typedDigits.length === 12 && typedDigits.startsWith('998'))))) {
+      setError(tr("Ism va telefonni +998 XX XXX-XX-XX ko'rinishida kiriting", 'Укажите имя и телефон в формате +998 XX XXX-XX-XX', 'Enter your name and phone as +998 XX XXX-XX-XX'));
       triggerHaptic('error');
       return;
     }
@@ -269,8 +274,8 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
           {/* How to get the order */}
           <div style={{ ...section, borderRadius: '0 0 26px 26px' }}>
             <h3 style={h}>{tr('Qanday olasiz', 'Как получить', 'How to get it')}</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-              {FULFILLMENTS.map((f) => {
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${ways.length}, minmax(0, 1fr))`, gap: 8 }}>
+              {ways.map((f) => {
                 const active = fulfillment === f.id;
                 return (
                   <button key={f.id} type="button" onClick={() => { triggerHaptic('selection'); setFulfillment(f.id); setError(''); }} style={{ padding: '12px 8px', borderRadius: 18, border: active ? '2px solid #059669' : '1.5px solid #e2e8f0', background: active ? '#ecfdf5' : '#ffffff', cursor: 'pointer', textAlign: 'center', minWidth: 0 }}>

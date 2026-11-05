@@ -5,6 +5,7 @@ import { Phone } from 'lucide-react';
 // after the set time give up. Then the bag goes back to the stalls, meat and dairy first.
 const T = {
   arrived: { uz: '📍 Yetib keldim', ru: '📍 Я на месте', en: "📍 I've arrived" },
+  arrived_confirm: { uz: 'Manzilga yetib keldingizmi? Xaridor xabar oladi', ru: 'Вы уже на месте? Покупатель получит сообщение', en: 'Are you there? The customer will be told' },
   arrived_hint: { uz: "Manzilga yetganda bosing — xaridorga xabar boradi va kutish vaqti boshlanadi", ru: 'Нажмите, когда приедете — покупатель получит сообщение, начнётся время ожидания', en: 'Tap when you get there — the customer is told and the waiting time starts' },
   waiting: { uz: 'Kutilmoqda: {m} daq', ru: 'Ждёте: {m} мин', en: 'Waiting: {m} min' },
   call: { uz: "Xaridorga qo'ng'iroq", ru: 'Позвонить покупателю', en: 'Call the customer' },
@@ -34,7 +35,7 @@ export function NoShowWait({ order, language, busy, needsArrival, onArrived, onN
     if (!needsArrival) return null;
     return (
       <div>
-        <button type="button" disabled={busy} onClick={onArrived} style={{ ...btn, background: '#1d4ed8', color: '#fff', opacity: busy ? 0.6 : 1 }}>{t('arrived')}</button>
+        <button type="button" disabled={busy} onClick={() => window.confirm(t('arrived_confirm')) && onArrived()} style={{ ...btn, background: '#1d4ed8', color: '#fff', opacity: busy ? 0.6 : 1 }}>{t('arrived')}</button>
         <div style={{ fontSize: 12, color: '#64748b', textAlign: 'center', marginTop: 6 }}>{t('arrived_hint')}</div>
       </div>
     );

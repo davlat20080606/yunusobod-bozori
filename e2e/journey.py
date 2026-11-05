@@ -127,6 +127,7 @@ async def main():
 
         async def customer_finish(num, mode_label):
             await go(f"&tab=orders&order={num}", wait=5)
+            await js("window.confirm = () => true")
             ok(await click("Buyurtmani oldim", wait=2.5) is True, f"[{mode_label}] customer pressed «Buyurtmani oldim»")
             await js("(()=>{const s=[...document.querySelectorAll('button[aria-label=\"5\"]')][0];s&&s.click()})()")
             await asyncio.sleep(0.6)
@@ -200,6 +201,10 @@ async def main():
         ok(await click("Joyga olib keldim", wait=2) is True, "porter pressed «Joyga olib keldim»")
         o = api("GET", f"/api/orders/{num}")
         ok(o["status"] == "at_point" and o["handoff_point"] == "back_gate", "order waits at «Orqa darvoza»")
+        await go(f"&tab=orders&order={num}", wait=5)
+        ok(not await js("[...document.querySelectorAll('button')].some(b=>b.innerText.includes('Buyurtmani oldim'))"), "no «Buyurtmani oldim» before the aravachi types the code")
+        token = {"x-staff-token": staff["porter"]["token"]}
+        api("PATCH", f"/api/porter/orders/{o['id']}/status", {"status": "delivered", "code": o["handoff_code"]}, token)
         await customer_finish(num, "Aravachi")
 
         # ---------- 3. Self pickup ----------

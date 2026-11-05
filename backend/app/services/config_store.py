@@ -38,6 +38,8 @@ DEFAULTS = {
     "taxi_gate_grace_min": "5",
     "taxi_trip_max_min": "60",
     "taxi_reassign_alert": "2",
+    # Pilot: only «O'zim olaman» (cash goes to each seller; delivery waits for online payment and workers)
+    "self_pickup_only": "1",
     # Evening summary for the Bozorkom (hour, Tashkent) and the day it was last sent
     "daily_report_hour": "21",
     "daily_report_sent": "",

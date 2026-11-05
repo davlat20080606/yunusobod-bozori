@@ -301,6 +301,25 @@ Keyingi qadamlarda bazaga ko'p ustun va jadval qo'shiladi, shuning uchun avval p
 
 ---
 
+### Pilotdan oldingi xavfsizlik · ✅ qilindi
+
+Sherik ilovasi bilan solishtirishdan keyin qilindi:
+- **«Faqat O'zim olaman»** kaliti (Sozlamalar, yangi serverda yoqilgan): yetkazish va tochkani server ham rad etadi.
+- **«Buyurtmani oldim»** tochka va uyga uchun faqat ishchi kodni kiritgandan keyin chiqadi; yo'lda bosib buyurtmani yopib bo'lmaydi.
+- **Tasdiqlash oynasi:** «Yetib keldim» va «Buyurtmani oldim».
+- **Telefon:** qo'lda yozilgan raqam faqat +998 + 9 raqam yoki 9 raqam (server ham tekshiradi). Telegram orqali ulashilgan raqam tegilmaydi.
+
+**Yetkazishni yoqishdan oldin:**
+- Kod faqat «Yetib keldim» dan keyin qabul qilinadi, 5 ta urinish.
+- Kuryer joylashuvi va 100 metr **serverda** tekshiriladi (sherik bilan kelishildi): kuryerdan lokatsiyani yoqish so'raladi. GPS yo'q yoki xato bo'lsa, buyurtma qulflanib qolmaydi, Bozorkomga signal boradi.
+- Tochkalarga koordinata.
+
+**Pilotdan keyin:** qabul qiluvchini o'zgartirish (qulf taksi buyurtmani olgan paytdan), manzil qidiruvi xizmatini tekshirish.
+
+**Simulyator** production'ga chiqmaydi (kelishildi). Bizda `TelegramBotSimulator.jsx` hech qayerda ishlatilmaydi.
+
+---
+
 ### 7-qadam. Yuklama testi, band rejim, kerak bo'lsa VPS · ~1–2 kun
 
 **Avval yuklama testi** hozirgi Render + Neon'da o'tkaziladi (pastda). Natija yaxshi bo'lsa, server o'zgarmaydi; faqat Render'ning uxlamaydigan pullik tarifiga o'tish tavsiya etiladi.

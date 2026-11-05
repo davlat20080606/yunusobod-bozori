@@ -86,6 +86,9 @@ def api():
         proc.kill()
     if proc.poll() is not None:
         pytest.fail("server did not start:\n" + (RUN_DIR / "server.log").read_text()[-3000:])
+    # Flow tests use every way of getting an order; the pilot's self-pickup-only rule has its own test
+    token = client("POST", "/admin/login", {"pin": ADMIN_PIN})[1]["token"]
+    client("PUT", "/admin/settings", {"self_pickup_only": False}, {"x-admin-token": token})
     yield client
     proc.terminate()
     proc.wait(timeout=10)

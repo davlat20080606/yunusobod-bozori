@@ -50,7 +50,9 @@ def test_offers_and_handover(api, ok, admin, sellers, make_staff, relaxed_limits
         for it in st["items"]: api("PATCH",f"/porter/items/{it['id']}/picked",{"is_picked":True},P)
     ok(api("PATCH",f"/porter/orders/{po['id']}/status",{"status":"handed_over"},P)[0]==409, "point order cannot go to taxi")
     c,r=api("PATCH",f"/porter/orders/{po['id']}/status",{"status":"at_point"},P); ok(c==200 and r["stops"][0]["items"][0]["seller_handed"], "porter at point, seller_handed visible")
-    c,r=api("POST",f"/orders/{po['order_number']}/received"); ok(c==200 and r["status"]=="delivered","customer received at point")
+    ok(api("POST",f"/orders/{po['order_number']}/received")[0]==409, "a tap cannot close a point order: the aravachi types the code")
+    c,r=api("PATCH",f"/porter/orders/{po['id']}/status",{"status":"delivered","code":po["handoff_code"]},P); ok(c==200, "the customer's code closes it")
+    c,r=api("POST",f"/orders/{po['order_number']}/received"); ok(c==200 and r["customer_confirmed_at"],"customer confirms at point")
     so_list=api("GET","/seller/orders",headers=S2)[1]
     mine=[x for x in so_list if x["id"]==o["id"]][0]
     ok(any(x["id"]==po["id"] for x in api("GET","/admin/orders",headers=A)[1]), "admin orders list ok")
