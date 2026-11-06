@@ -2,7 +2,6 @@ import React from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { 
   ShoppingBag, 
-  Store, 
   Package, 
   Lock, 
   Heart, 
@@ -46,7 +45,7 @@ export default function Navbar({
             }}
           >
             <div className="med-brand-icon">
-              <Store size={20} className="text-white" />
+              <img src="/brand/favicon-192.png" alt="" width="34" height="34" />
             </div>
             <div className="med-brand-titles">
               <h1 className="med-brand-name">{t('brand.name')}</h1>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { Phone, Clock, MapPin, Send, ShieldCheck, ShoppingBag, Sparkles } from 'lucide-react';
+import { Phone, Clock, MapPin, Send, ShieldCheck, Sparkles } from 'lucide-react';
 
 // Photos under CC BY / CC BY-SA must name their authors
 const PHOTO_CREDITS = [
@@ -60,7 +60,7 @@ export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateS
           <div className="med-footer-col">
             <div className="med-footer-brand-row">
               <div className="med-footer-logo-badge">
-                <ShoppingBag size={18} />
+                <img src="/brand/favicon-192.png" alt="" width="38" height="38" />
               </div>
               <div className="med-footer-brand-wrap">
                 <span className="med-footer-brand-name">
