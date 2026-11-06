@@ -33,3 +33,11 @@ notify.send_admin_file = fake_file
 botmod.get_bot = lambda: None
 
 from app.main import app  # noqa: E402,F401
+
+
+@app.post("/api/test/driver-location")
+async def fake_driver_location(tg_id: int, lat: float, lng: float):
+    """Test server only: a live-location update, without Telegram. It runs the bot's own handler code."""
+    from types import SimpleNamespace
+    message = SimpleNamespace(from_user=SimpleNamespace(id=tg_id), location=SimpleNamespace(latitude=lat, longitude=lng))
+    return {"order": await botmod.save_driver_location(message)}
