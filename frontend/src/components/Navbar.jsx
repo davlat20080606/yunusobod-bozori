@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
+import LanguageSwitcher from './LanguageSwitcher';
 import { 
   ShoppingBag, 
   Package, 
@@ -52,6 +53,9 @@ export default function Navbar({
               <span className="med-brand-badge">{t('brand.open_hours')}</span>
             </div>
           </div>
+
+          {/* Language: top right on phones, after the icons on wide screens */}
+          <LanguageSwitcher />
 
           {/* 2. Katalog Button */}
           <button 

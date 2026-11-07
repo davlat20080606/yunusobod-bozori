@@ -12,7 +12,7 @@ for(const e of document.querySelectorAll('body *')){const r=e.getBoundingClientR
  let p=e.parentElement,scroll=false;while(p&&p!==document.body){const o=getComputedStyle(p);if(['auto','scroll','hidden'].includes(o.overflowX)){scroll=true;break}p=p.parentElement}
  if(!scroll&&(r.right>w+1||r.left<-1)&&!e.closest('[aria-hidden=true]')&&!e.closest('.maplibregl-map'))bad.push(e.tagName+'.'+String(e.className).slice(0,30)+' '+Math.round(r.left)+'..'+Math.round(r.right))}
 return {page:document.documentElement.scrollWidth,w,bad:bad.slice(0,4)}})()"""
-CUT = """[...document.querySelectorAll('.med-lang-option,.med-nav-text,.med-brand-name')].filter(e=>e.scrollWidth>e.clientWidth+1).map(e=>e.innerText)"""
+CUT = """[...document.querySelectorAll('.med-lang-button,.med-nav-text,.med-brand-name')].filter(e=>e.scrollWidth>e.clientWidth+1).map(e=>e.innerText)"""
 
 
 def ok(cond, msg):
@@ -40,6 +40,8 @@ async def main():
                     await cmd("Page.navigate", {"url": f"{B}/?lang={lang}{q}"}); await asyncio.sleep(1.6)
                     r = await js(OVERFLOW)
                     cut = await js(CUT)
+                    corner = await js("(()=>{const b=document.querySelector('header [data-testid=language-switcher]');if(!b)return null;const r=b.getBoundingClientRect();return {right:Math.round(innerWidth-r.right),top:Math.round(r.top)}})()")
+                    ok(corner and corner["right"] <= 20 and corner["top"] <= 30, f"{lang} {w}px {screen}: language button in the top right corner {corner}")
                     ok(r and r["page"] <= r["w"] + 1 and not r["bad"] and not cut, f"{lang} {w}px {name} {screen}: {r} cut={cut}")
                     if screen == "market":
                         r2 = await cmd("Page.captureScreenshot", {"format": "png"})
@@ -66,10 +68,14 @@ async def main():
 
         await cmd("Emulation.setDeviceMetricsOverride", {"width": 320, "height": 568, "deviceScaleFactor": 2, "mobile": True})
         await cmd("Page.navigate", {"url": f"{B}/?lang=uz"}); await asyncio.sleep(2.5)
-        await js("[...document.querySelectorAll('.med-lang-option')].find(b=>b.innerText==='Русский').click()"); await asyncio.sleep(1)
-        ok(await js("document.documentElement.lang") == "ru" or "Выберите адрес" in (await js("document.body.innerText")), "the home screen changes the language to Russian")
+        await js("document.querySelector('.med-lang-button').click()"); await asyncio.sleep(0.6)
+        menu = await js("(()=>{const m=document.querySelector('.med-lang-list');if(!m)return null;const r=m.getBoundingClientRect();return {left:Math.round(r.left),right:Math.round(innerWidth-r.right)}})()")
+        ok(menu and menu["left"] >= 0 and menu["right"] >= 0, f"the language menu opens inside the screen at 320 px: {menu}")
+        await js("[...document.querySelectorAll('.med-lang-option')].find(b=>b.innerText.includes('Русский')).click()"); await asyncio.sleep(1)
+        ok(await js("document.documentElement.lang") == "ru" or "Выберите адрес" in (await js("document.body.innerText")), "the header menu changes the language to Russian")
         ok("Выберите адрес" in (await js("document.body.innerText")), "the home screen is in Russian at once")
         await cmd("Page.navigate", {"url": f"{B}/?tab=seller"}); await asyncio.sleep(2)
-        ok(not await js("!!document.querySelector('[data-testid=language-switcher]')"), "the language block is gone from «Продавец»")
+        ok(await js("document.querySelector('.med-lang-button').innerText.includes('RU')") and not await js("document.querySelector('.med-lang-list')"), "the button now says RU and the menu has closed")
+        ok("Язык" not in (await js("document.body.innerText")), "no second language block in «Продавец»")
 
 asyncio.run(main())
