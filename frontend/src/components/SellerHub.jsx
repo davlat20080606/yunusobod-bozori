@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingBag, Globe, Store, ShoppingCart, ChevronRight, Car, Receipt, Landmark } from 'lucide-react';
+import { ShoppingBag, Store, ShoppingCart, ChevronRight, Car, Receipt, Landmark } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { triggerHaptic } from '../services/telegram';
 
@@ -9,7 +9,6 @@ const T = {
   cart_empty: { uz: "Savat bo'sh", ru: 'Корзина пуста', en: 'Cart is empty' },
   items: { uz: 'ta mahsulot', ru: 'товаров', en: 'items' },
   open_cart: { uz: 'Ochish', ru: 'Открыть', en: 'Open' },
-  language: { uz: 'Til', ru: 'Язык', en: 'Language' },
   seller: { uz: 'Sotuvchi kabineti', ru: 'Кабинет продавца', en: 'Seller dashboard' },
   seller_hint: { uz: "Narxlar, mahsulotlar va buyurtmalar", ru: 'Цены, товары и заказы', en: 'Prices, products and orders' },
   porter: { uz: 'Aravachi kabineti', ru: 'Кабинет аравачи', en: 'Porter dashboard' },
@@ -23,12 +22,10 @@ const T = {
   workers: { uz: 'Bozor xodimlari uchun', ru: 'Для работников базара', en: 'For bazaar workers' },
 };
 
-const LANGS = [['uz', "O'zbekcha"], ['ru', 'Русский'], ['en', 'English']];
-
 const card = { background: '#ffffff', borderRadius: 20, padding: 16, marginBottom: 12, boxShadow: '0 1px 4px rgba(15,23,42,0.06)' };
 
 export default function SellerHub({ cartItemsCount, cartTotal, onOpenCart, onOpenSellerCabinet, onOpenRole }) {
-  const { language, setLang } = useLanguage();
+  const { language } = useLanguage();
   const t = (key) => T[key]?.[language] || T[key]?.uz || key;
 
   const row = (Icon, color, title, hint, onClick) => (
@@ -65,31 +62,6 @@ export default function SellerHub({ cartItemsCount, cartTotal, onOpenCart, onOpe
         <button type="button" onClick={() => { triggerHaptic('medium'); onOpenCart(); }} style={{ padding: '10px 16px', borderRadius: 12, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 14, cursor: 'pointer', flexShrink: 0 }}>
           {t('open_cart')}
         </button>
-      </div>
-
-      {/* Language */}
-      <div style={card}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <Globe size={20} color="#2563eb" />
-          <span style={{ fontSize: 16, fontWeight: 800 }}>{t('language')}</span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-          {LANGS.map(([code, name]) => (
-            <button
-              key={code}
-              type="button"
-              onClick={() => { triggerHaptic('selection'); setLang(code); }}
-              style={{
-                padding: '12px 4px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                border: language === code ? '2px solid #059669' : '1.5px solid #e2e8f0',
-                background: language === code ? '#ecfdf5' : '#ffffff',
-                color: language === code ? '#047857' : '#334155'
-              }}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
       </div>
 
       <h3 style={{ fontSize: 14, fontWeight: 800, color: '#64748b', margin: '20px 4px 10px', textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('workers')}</h3>

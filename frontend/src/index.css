@@ -3557,3 +3557,76 @@ h1, h2, h3, h4, .font-heading {
 }
 
 
+
+/* Language on the home screen */
+.med-lang-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  margin-top: 10px;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+}
+
+.med-lang-option {
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #334155;
+  font-size: clamp(12px, 3.6vw, 14px);
+  font-weight: 700;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.med-lang-option.active {
+  background: #ecfdf5;
+  color: #047857;
+  box-shadow: inset 0 0 0 1.5px #059669;
+}
+
+/* Narrow phones: the five tabs share the width and the bazaar name fits on one line in every language */
+.med-nav-item {
+  min-width: 0;
+  padding: 4px 2px;
+}
+
+.med-nav-text {
+  max-width: 100%;
+  font-size: clamp(0.6rem, 2.9vw, 0.68rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .med-brand-wrap {
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .med-brand-titles {
+    min-width: 0;
+  }
+
+  .med-brand-name {
+    font-size: clamp(0.88rem, 4.4vw, 1.05rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* The smallest phones: the address matters more than the time, which checkout shows anyway */
+@media (max-width: 359px) {
+  .med-eta-pill {
+    display: none !important;
+  }
+}

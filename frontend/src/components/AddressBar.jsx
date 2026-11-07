@@ -46,7 +46,7 @@ export default function AddressBar() {
             </span>
           )}
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 999, background: '#ecfdf5', color: '#047857', fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
+        <span className="med-eta-pill" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 999, background: '#ecfdf5', color: '#047857', fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
           <Zap size={14} /> 45–60 {lang === 'ru' ? 'мин' : (lang === 'en' ? 'min' : 'daq')}
         </span>
       </button>

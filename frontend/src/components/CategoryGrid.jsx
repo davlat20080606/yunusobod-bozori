@@ -38,7 +38,7 @@ export default function CategoryGrid({ categories = [], products = [], onSelectC
         {lang === 'ru' ? 'Разделы базара' : (lang === 'en' ? 'Bazaar sections' : "Bozor bo'limlari")}
       </h2>
       {/* Two tiles per row on phones, more on wide screens so the photos stay a sensible size */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(136px, 100%), 1fr))', gap: 12 }}>
         {cards.map(({ cat, count, photo }) => (
           <button
             key={cat.slug}
@@ -55,10 +55,10 @@ export default function CategoryGrid({ categories = [], products = [], onSelectC
             <span style={{ position: 'absolute', top: 12, left: 12, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.92)', color: '#065f46', fontSize: 12, fontWeight: 800 }}>
               {cat.icon} {count} {COUNT_WORD[lang]}
             </span>
-            <span style={{ position: 'absolute', left: 14, right: 60, bottom: 14, color: '#ffffff', fontSize: 17, fontWeight: 800, lineHeight: 1.2, textShadow: '0 1px 6px rgba(0,0,0,0.35)' }}>
+            <span style={{ position: 'absolute', left: 12, right: 46, bottom: 12, color: '#ffffff', fontSize: 'clamp(14px, 4.3vw, 17px)', fontWeight: 800, lineHeight: 1.2, textShadow: '0 1px 6px rgba(0,0,0,0.35)' }}>
               {NAMES[cat.slug]?.[lang] || getLocalized(cat, 'name')}
             </span>
-            <span style={{ position: 'absolute', right: 12, bottom: 12, width: 40, height: 40, borderRadius: '50%', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ position: 'absolute', right: 8, bottom: 8, width: 34, height: 34, borderRadius: '50%', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ArrowRight size={18} color="#0f172a" />
             </span>
           </button>

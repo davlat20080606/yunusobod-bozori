@@ -6,6 +6,7 @@ import { initTelegramApp, triggerHaptic } from './services/telegram';
 
 import Navbar from './components/Navbar';
 import AddressBar from './components/AddressBar';
+import LanguageSwitcher from './components/LanguageSwitcher';
 import CategoryGrid from './components/CategoryGrid';
 import ReviewsSection from './components/ReviewsSection';
 import DiscountsSection from './components/DiscountsSection';
@@ -396,7 +397,7 @@ export default function App() {
           
           {(
             <>
-              {/* VIEW A0: "Sotuvchi" page — cart, language, seller and porter entries */}
+              {/* VIEW A0: "Sotuvchi" page — cart, seller and porter entries */}
               {activeTab === 'seller' && (
                 <SellerHub
                   cartItemsCount={cartItemsCount}
@@ -499,6 +500,7 @@ export default function App() {
                       
                       {/* 1. Yandex Go style: delivery address and time first, no ad banners */}
                       <AddressBar />
+                      <LanguageSwitcher />
 
                       {/* 3. Big photo cards for bazaar sections */}
                       <CategoryGrid
