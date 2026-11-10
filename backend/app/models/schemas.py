@@ -160,6 +160,7 @@ class OrderModel(Base):
     # «Xaridor kelmadi»: the order reached the customer's place (bazaar point, door, packed at the stalls)
     # and they are being waited for; after a while the worker may say they never came
     waiting_since = Column(DateTime, nullable=True)
+    search_until = Column(DateTime, nullable=True)  # Express: the customer chooses what to do if no aravachi took it by then
     wait_reminded = Column(Boolean, default=False, nullable=False, server_default=sa_false())
     no_show_at = Column(DateTime, nullable=True)
     no_show_fee = Column(Float, nullable=True)  # what the aravachi/taxi lost on the trip (charged once payments exist)
@@ -598,6 +599,7 @@ class OrderSchema(BaseModel):
     taxi_lng: Optional[float] = None
     taxi_loc_at: Optional[datetime] = None
     waiting_since: Optional[datetime] = None
+    search_until: Optional[datetime] = None
     no_show_at: Optional[datetime] = None
     returned_at: Optional[datetime] = None
     created_at: datetime

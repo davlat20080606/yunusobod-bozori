@@ -59,6 +59,15 @@ const T = {
   received_hint: { uz: "Olganingizni tasdiqlang, so'ng baholang", ru: 'Подтвердите получение, затем оцените', en: 'Confirm you got it, then rate it' },
   how: { uz: 'Qanday olasiz', ru: 'Как получить', en: 'How you get it' },
   bonuses: { uz: 'Aksiyalar', ru: 'Акции', en: 'Offers' },
+  search_title: { uz: 'Aravachi qidirilmoqda', ru: 'Ищем аравачи', en: 'Looking for a porter' },
+  search_hint: { uz: "Bo'sh aravachi buyurtmani olishi bilan sizga xabar beramiz", ru: 'Сообщим, как только свободный аравачи возьмёт заказ', en: 'We will tell you as soon as a free porter takes the order' },
+  search_over: { uz: "Hozircha bo'sh aravachi topilmadi", ru: 'Свободный аравачи пока не найден', en: 'No free porter yet' },
+  search_choose: { uz: "Qanday davom etamiz? Pul olinmaydi", ru: 'Как продолжим? Деньги не списываются', en: 'How shall we go on? You are not charged' },
+  search_wait: { uz: '⏳ Yana 3 daqiqa kutaman', ru: '⏳ Подожду ещё 3 минуты', en: '⏳ Wait 3 more minutes' },
+  search_self: { uz: "🙋 Rastalardan o'zim olaman", ru: '🙋 Заберу сам на растах', en: '🙋 I will collect at the stalls' },
+  search_self_hint: { uz: "Yetkazish puli olinmaydi", ru: 'Без оплаты доставки', en: 'No delivery fee' },
+  search_cancel: { uz: "✖️ Bekor qilish — to'liq, bepul", ru: '✖️ Отменить — полностью и бесплатно', en: '✖️ Cancel — fully, free of charge' },
+  search_self_confirm: { uz: "Buyurtmani rastalardan o'zingiz olasizmi? Yetkazish puli olib tashlanadi", ru: 'Заберёте заказ сами на растах? Плата за доставку будет снята', en: 'Collect the order yourself at the stalls? The delivery fee will be removed' },
   stall_discount: { uz: 'Rasta chegirmasi', ru: 'Скидка расты', en: 'Stall discount' },
 };
 
@@ -173,6 +182,45 @@ function parseDate(value) {
 
 function formatTime(date) {
   return date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '';
+}
+
+// Express: until search_until the customer just waits; after it, three choices (Shuhrat's request)
+function PorterSearch({ order, t, busy, onWait, onSelf, onCancel }) {
+  const deadline = parseDate(order.search_until);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  if (!deadline) return null;
+  const left = Math.max(0, Math.ceil((deadline.getTime() - now) / 1000));
+  const button = { width: '100%', minHeight: 48, borderRadius: 14, fontSize: 15, fontWeight: 800, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1, padding: '10px 14px' };
+  if (left > 0) {
+    const mm = Math.floor(left / 60);
+    const ss = String(left % 60).padStart(2, '0');
+    return (
+      <div data-testid="porter-search" style={{ ...card, display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div data-testid="porter-search-timer" style={{ fontSize: 28, fontWeight: 900, color: '#047857', fontVariantNumeric: 'tabular-nums', minWidth: 72 }}>{mm}:{ss}</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 800 }}>🔎 {t('search_title')}</div>
+          <div style={{ fontSize: 13, color: '#475569' }}>{t('search_hint')}</div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div data-testid="porter-search-over" style={{ ...card, background: '#fffbeb', border: '1.5px solid #fcd34d' }}>
+      <div style={{ fontSize: 16, fontWeight: 800 }}>😕 {t('search_over')}</div>
+      <div style={{ fontSize: 13, color: '#475569', marginTop: 4, marginBottom: 12 }}>{t('search_choose')}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <button type="button" data-testid="search-wait" disabled={busy} onClick={onWait} style={{ ...button, border: 'none', background: '#059669', color: '#fff' }}>{t('search_wait')}</button>
+        <button type="button" data-testid="search-self" disabled={busy} onClick={onSelf} style={{ ...button, border: '1.5px solid #059669', background: '#fff', color: '#047857' }}>
+          {t('search_self')}<div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>{t('search_self_hint')}</div>
+        </button>
+        <button type="button" data-testid="search-cancel" disabled={busy} onClick={onCancel} style={{ ...button, border: '1.5px solid #fecaca', background: '#fff', color: '#b91c1c' }}>{t('search_cancel')}</button>
+      </div>
+    </div>
+  );
 }
 
 function etaText(order, lang) {
@@ -378,6 +426,23 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
     }
   };
 
+  const searchAction = async (call, question) => {
+    if (!openOrder || (question && !window.confirm(t(question)))) return;
+    setDeciding(true);
+    setActionError('');
+    try {
+      const updated = await call(openOrder.order_number);
+      setOrders((prev) => ({ ...prev, [updated.order_number]: { ...prev[updated.order_number], ...updated } }));
+      triggerHaptic('success');
+    } catch (err) {
+      triggerHaptic('error');
+      setActionError(err.message);
+      load([openOrder.order_number]);
+    } finally {
+      setDeciding(false);
+    }
+  };
+
   const sayHere = async () => {
     if (!openOrder) return;
     setActionError('');
@@ -525,6 +590,18 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             </div>
           )}
         </div>
+
+        {/* Express: the aravachi search countdown, then «wait / collect myself / cancel» */}
+        {['pending', 'accepted'].includes(openOrder.status) && !openOrder.porter_phone && mode !== 'self' && openOrder.search_until && (
+          <PorterSearch
+            order={openOrder}
+            t={t}
+            busy={deciding || cancelling}
+            onWait={() => searchAction(api.extendSearch)}
+            onSelf={() => searchAction(api.switchToSelfPickup, 'search_self_confirm')}
+            onCancel={cancelOrder}
+          />
+        )}
 
         {/* Urgent first: the code for the courier and «the scale shows more — OK?» */}
         {/* The customer tells this code to whoever hands the order over */}

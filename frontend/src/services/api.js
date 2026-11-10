@@ -253,6 +253,19 @@ export const api = {
     return res.json();
   },
 
+  // No aravachi in 7 minutes: wait 3 more minutes, or collect at the stalls yourself
+  async extendSearch(orderNumber) {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}/extend-search`, { method: 'POST' });
+    if (!res.ok) throw await readError(res, 'Failed to send');
+    return res.json();
+  },
+
+  async switchToSelfPickup(orderNumber) {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}/self-pickup`, { method: 'POST' });
+    if (!res.ok) throw await readError(res, 'Failed to send');
+    return res.json();
+  },
+
   async cancelOrder(orderNumber) {
     const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}/cancel`, { method: 'POST' });
     if (!res.ok) throw await readError(res, 'Failed to cancel order');

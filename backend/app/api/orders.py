@@ -1,5 +1,5 @@
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 from fastapi import APIRouter, Depends, HTTPException, Body, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,7 @@ from app.services.order_log import act_as, log_event
 from app.services import stock, no_show, taxi_control
 from app.bot.notify import notify_low_stock
 from app.bot.notify import notify_new_order, notify_status, notify_customer_here
+from app.services.events import order_changed
 from app.models.schemas import (
     OrderModel, OrderItemModel, StoreModel, OrderCreateSchema, OrderSchema, ReviewModel, CustomerModel,
     OrderBonusModel, QuoteSchema
@@ -39,6 +40,23 @@ async def quote_order(data: QuoteSchema, request: Request, db: AsyncSession = De
     quote = await compute_quote(db, data.items, data.fulfillment)
     quote.pop("lines")
     return quote
+
+
+# Express: how long the customer waits for an aravachi before choosing what to do, and how much «wait more» adds
+SEARCH_MINUTES = 7
+EXTEND_MINUTES = 3
+
+
+def search_deadline(fulfillment: str, slot: str, now: datetime):
+    """Only an Express order with an aravachi waits for one now; a scheduled order is taken later, self pickup has none."""
+    if fulfillment == "self" or not (slot or "").startswith("Express"):
+        return None
+    return now + timedelta(minutes=SEARCH_MINUTES)
+
+
+def still_searching(order: OrderModel) -> bool:
+    return (order.status in ("pending", "accepted") and not order.porter_phone and order.search_until is not None
+            and order.fulfillment != "self")
 
 
 @router.post("", response_model=OrderSchema)
@@ -129,6 +147,7 @@ async def create_order(
         fulfillment=data.fulfillment,
         handoff_point=data.handoff_point,
         handoff_code=f"{random.SystemRandom().randint(0, 9999):04d}",
+        search_until=search_deadline(data.fulfillment, data.delivery_time_slot, now),
         notes=data.notes
     )
     db.add(new_order)
@@ -244,6 +263,51 @@ async def cancel_order(order_number: str, db: AsyncSession = Depends(get_db)):
     await db.commit()
     notify_status(order.id)
     return order
+
+
+async def _searching_order(db: AsyncSession, order_number: str) -> OrderModel:
+    order = (await db.execute(load_order(OrderModel.order_number == order_number.replace("#", "").strip().upper()))).scalars().first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Buyurtma topilmadi / Заказ не найден")
+    if not still_searching(order):
+        raise HTTPException(status_code=409, detail="Aravachi allaqachon topildi / Аравачи уже найден")
+    return order
+
+
+@router.post("/{order_number}/extend-search", response_model=OrderSchema)
+async def extend_search(order_number: str, db: AsyncSession = Depends(get_db)):
+    """No aravachi in 7 minutes: the customer chose to wait 3 more minutes."""
+    order = await _searching_order(db, order_number)
+    rate_limit(f"extend:{order.id}", 10, 3600)
+    act_as("customer", order.customer_tg_id or order.customer_phone)
+    order.search_until = max(datetime.utcnow(), order.search_until) + timedelta(minutes=EXTEND_MINUTES)
+    log_event(order, "search_extended")
+    await db.commit()
+    order_changed(order.id)  # the page updates; no bot message, the customer is looking at the screen
+    return (await db.execute(load_order(OrderModel.id == order.id))).scalars().first()
+
+
+@router.post("/{order_number}/self-pickup", response_model=OrderSchema)
+async def switch_to_self_pickup(order_number: str, db: AsyncSession = Depends(get_db)):
+    """No aravachi: the customer collects at the stalls. Nothing is charged for delivery. A stall's delivery bonus
+    becomes a discount, the same as when self pickup is chosen at checkout; percent discounts and gifts stay."""
+    order = await _searching_order(db, order_number)
+    act_as("customer", order.customer_tg_id or order.customer_phone)
+    for bonus in order.bonuses:
+        if bonus.kind in ("covers_taxi", "covers_porter"):
+            bonus.kind = "delivery_discount"
+            order.discount_amount = (order.discount_amount or 0.0) + (bonus.amount or 0.0)
+    order.delivery_fee = 0.0
+    recalc(order)
+    old = order.fulfillment
+    order.fulfillment = "self"
+    order.handoff_point = None
+    order.search_until = None
+    log_event(order, "switched_to_self", old, "self", total=order.total_amount)
+    await db.commit()
+    # The stalls hear it again: now the customer comes, not an aravachi
+    notify_new_order(order.id)
+    return (await db.execute(load_order(OrderModel.id == order.id))).scalars().first()
 
 
 # Who may say "the customer has it" depends on where the order is. With a worker in between the order is closed
