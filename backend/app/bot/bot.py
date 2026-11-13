@@ -279,6 +279,27 @@ async def save_driver_location(message: types.Message):
     return order_id
 
 
+# One link per job for the bazaar's workers: t.me/<bot>?start=seller (sotuvchi), porter (aravachi), taxi, pattachi, work (all four).
+# The link opens only the work cabinet; the cabinet itself checks who may enter (seller PIN, Bozorkom approval).
+WORK_LINKS = {
+    "seller": ("🏪 Sotuvchi kabineti · Кабинет продавца", "tab=seller"),
+    "porter": ("🛒 Aravachi kabineti · Кабинет аравачи", "tab=porter"),
+    "taxi": ("🚕 Taksichi kabineti · Кабинет таксиста", "tab=taxi"),
+    "pattachi": ("🧾 Pattachi kabineti · Кабинет паттачи", "tab=pattachi"),
+}
+WORK_TEXT = ("👷 <b>Bozor xodimlari uchun · Для работников базара</b>\n"
+             "Tugmani bosing — kabinetingiz ochiladi. Birinchi marta bo'lsa, ariza yuboring, bozorkom tasdiqlaydi.\n"
+             "Нажмите кнопку — откроется ваш кабинет. Если впервые, отправьте заявку, бозорком подтвердит.")
+
+
+async def send_work_entry(message: types.Message, role: str):
+    roles = [role] if role in WORK_LINKS else list(WORK_LINKS)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=WORK_LINKS[r][0], web_app=WebAppInfo(url=f"{settings.WEBAPP_URL}?{WORK_LINKS[r][1]}"))] for r in roles
+    ])
+    await message.answer(WORK_TEXT, reply_markup=keyboard, parse_mode="HTML")
+
+
 def setup_dispatcher() -> Dispatcher:
     global dp
     dp = Dispatcher()
@@ -289,6 +310,10 @@ def setup_dispatcher() -> Dispatcher:
         args = (message.text or "").split(maxsplit=1)
         if len(args) > 1 and args[1].startswith("join_"):
             await join_stall(message, args[1][5:])
+            return
+        # A worker's link: straight to the work cabinet, without the customer registration
+        if len(args) > 1 and (args[1] in WORK_LINKS or args[1] == "work"):
+            await send_work_entry(message, args[1])
             return
         customer = await get_customer(message.from_user.id)
         if not customer or not customer.lang:
