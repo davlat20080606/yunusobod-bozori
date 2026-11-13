@@ -12,7 +12,7 @@ from app.database import get_db
 from app.models.schemas import StoreModel, StaffModel, OrderModel, OrderEventModel, CustomerModel, CustomerBlockModel, PIN_PATTERN
 from app.api.auth import make_admin_token, current_admin, check_not_locked, record_failure, client_ip
 from app.api.tg_auth import telegram_user
-from app.api.patta import day_report, tashkent_day
+from app.api.patta import day_report, tashkent_day, require_patta
 from app.api.staff import staff_public, find_by_phone
 from app.api.auth import normalize_phone
 from app.services.config_store import get_setting, set_setting
@@ -63,7 +63,8 @@ async def overview(db: AsyncSession = Depends(get_db)):
     staff = (await db.execute(select(StaffModel))).scalars().all()
     since = datetime.utcnow() - timedelta(hours=24)
     orders = (await db.execute(select(OrderModel).where(OrderModel.created_at >= since))).scalars().all()
-    patta = await day_report(db, tashkent_day())
+    patta_on = await get_setting(db, "patta_enabled") == "1"
+    patta = await day_report(db, tashkent_day()) if patta_on else None
     by_status = {}
     for o in orders:
         by_status[o.status] = by_status.get(o.status, 0) + 1
@@ -75,7 +76,8 @@ async def overview(db: AsyncSession = Depends(get_db)):
         "orders_24h": len(orders),
         "orders_by_status": by_status,
         "revenue_24h": sum(o.total_amount for o in orders if o.status != "cancelled"),
-        "patta_today": {"paid": patta["paid_count"], "of": len(patta["stores"]), "total": patta["total"]},
+        "patta_enabled": patta_on,
+        "patta_today": {"paid": patta["paid_count"], "of": len(patta["stores"]), "total": patta["total"]} if patta_on else None,
         "delivery_radius_km": float(await get_setting(db, "delivery_radius_km")),
         "patta_amount": float(await get_setting(db, "patta_amount")),
         "support_phone": await get_setting(db, "support_phone"),
@@ -123,7 +125,7 @@ async def list_staff(db: AsyncSession = Depends(get_db)):
              "incidents": incidents.get(s.id, {})} for s in staff]
 
 
-@router.post("/staff/pattachi", dependencies=admin_only)
+@router.post("/staff/pattachi", dependencies=admin_only + [Depends(require_patta)])
 async def add_pattachi(name: str = Body(..., min_length=2, max_length=100), phone: str = Body(..., max_length=50),
                        pin: str = Body(..., pattern=PIN_PATTERN), db: AsyncSession = Depends(get_db)):
     """Only the bozorkom adds a pattachi: they are approved at once and sign in with this phone and PIN."""
@@ -306,7 +308,7 @@ async def unblock_customer(key: str, db: AsyncSession = Depends(get_db)):
     return {"success": True}
 
 
-@router.get("/patta", dependencies=admin_only)
+@router.get("/patta", dependencies=admin_only + [Depends(require_patta)])
 async def patta_report(day: Optional[str] = None, db: AsyncSession = Depends(get_db)):
     return await day_report(db, day or tashkent_day())
 
@@ -332,6 +334,7 @@ async def update_settings(
     taxi_trip_max_min: Optional[int] = Body(None, ge=15, le=240),
     taxi_reassign_alert: Optional[int] = Body(None, ge=1, le=10),
     self_pickup_only: Optional[bool] = Body(None),
+    patta_enabled: Optional[bool] = Body(None),
     db: AsyncSession = Depends(get_db)
 ):
     if delivery_radius_km is not None:
@@ -342,6 +345,8 @@ async def update_settings(
         await set_setting(db, "support_phone", support_phone.strip())
     if self_pickup_only is not None:
         await set_setting(db, "self_pickup_only", "1" if self_pickup_only else "0")
+    if patta_enabled is not None:
+        await set_setting(db, "patta_enabled", "1" if patta_enabled else "0")
     for key, value in (("porter_fee", porter_fee), ("taxi_fee", taxi_fee), ("max_open_orders", max_open_orders),
                        ("new_customer_max_open", new_customer_max_open), ("new_customer_max_total", new_customer_max_total),
                        ("orders_per_10_min", orders_per_10_min), ("morning_stock_hour", morning_stock_hour),

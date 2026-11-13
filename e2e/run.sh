@@ -70,7 +70,7 @@ stop; server search; chrome; "$PY" "$E/search_ui.py" "$S" > "$S/search.txt" 2>&1
 report "Search: a seller's new product shows up without reopening; uz/ru, stalls, nothing found" "$S/search.txt"
 
 stop; server pattachi; chrome; "$PY" "$E/pattachi_admin_ui.py" "$S" > "$S/pattachi.txt" 2>&1
-report "Pattachi: only the bozorkom adds them (no applying, no link)" "$S/pattachi.txt"
+report "Patta off by default (bozorkom); when on: only the bozorkom adds pattachi" "$S/pattachi.txt"
 
 stop; server stallqr; chrome; "$PY" "$E/stall_qr_ui.py" "$S" > "$S/stallqr.txt" 2>&1
 report "Stall QR: printable poster in the seller cabinet" "$S/stallqr.txt"

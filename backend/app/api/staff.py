@@ -67,6 +67,10 @@ async def login_staff(
     if not staff or staff.pin != data.pin.strip():
         record_failure(request, f"staff:{phone}")
         raise HTTPException(status_code=401, detail="Telefon yoki PIN-kod noto'g'ri / Неверный телефон или PIN-код")
+    if staff.role == "pattachi":
+        from app.services.config_store import get_setting
+        if await get_setting(db, "patta_enabled") != "1":
+            raise HTTPException(status_code=403, detail="Bu bo'lim o'chirilgan / Раздел отключён")
     if staff.status == "pending":
         raise HTTPException(status_code=403, detail="Arizangiz bozorkomda ko'rib chiqilmoqda / Ваша заявка на рассмотрении у администрации")
     if staff.status != "approved":

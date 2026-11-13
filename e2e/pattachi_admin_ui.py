@@ -22,6 +22,7 @@ set.call(i,v);i.dispatchEvent(new Event('input',{bubbles:true}));})"""
 
 async def main():
     admin = api("POST", "/api/admin/login", {"pin": "909090"})
+    A = {"x-admin-token": admin["token"]}
     t = [x for x in json.loads(urllib.request.urlopen("http://127.0.0.1:9333/json").read()) if x["type"] == "page"][0]
     async with websockets.connect(t["webSocketDebuggerUrl"], max_size=None, ping_interval=None) as ws:
         n = [0]
@@ -40,6 +41,21 @@ async def main():
         await cmd("Page.enable"); await cmd("Runtime.enable")
         await cmd("Emulation.setDeviceMetricsOverride", {"width": 375, "height": 800, "deviceScaleFactor": 2, "mobile": True})
 
+        # Off by default (the bozorkom keeps the bazaar's income out of the bot)
+        await cmd("Page.navigate", {"url": f"{B}/?lang=uz"}); await asyncio.sleep(2)
+        await js(f"localStorage.setItem('admin_session', {json.dumps(json.dumps({'token': admin['token']}))})")
+        await cmd("Page.navigate", {"url": f"{B}/?lang=uz&tab=admin"}); await asyncio.sleep(2.5)
+        tabs = await js("[...document.querySelectorAll('button')].map(b=>b.innerText.trim())")
+        text = await js("document.body.innerText")
+        ok("Umumiy" in tabs and "Patta" not in tabs and "patta" not in text.lower(), f"patta off: no Patta tab or figures in Bozorkom {tabs[:12]}")
+        await shot("bozorkom_no_patta")
+        await js("[...document.querySelectorAll('button')].find(b=>b.innerText.trim()==='Xodimlar').click()"); await asyncio.sleep(1)
+        ok(not await js("!!document.querySelector('[data-testid=add-pattachi]')"), "patta off: no «Pattachi qo'shish»")
+        await js("localStorage.removeItem('admin_session')")
+        await cmd("Page.navigate", {"url": f"{B}/?lang=uz&tab=seller"}); await asyncio.sleep(2)
+        ok("Pattachi" not in await js("document.body.innerText"), "patta off: no pattachi entry on the Sotuvchi page")
+
+        api("PUT", "/api/admin/settings", {"patta_enabled": True}, A)
         await cmd("Page.navigate", {"url": f"{B}/?lang=ru&tab=pattachi"}); await asyncio.sleep(2.5)
         text = await js("document.body.innerText")
         ok("только администрация" in text and "Нет аккаунта" not in text, "pattachi screen: no «register», says the bozorkom adds them")

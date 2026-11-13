@@ -10,6 +10,8 @@ BAZAAR_LNG = 69.29089
 DEFAULTS = {
     "delivery_radius_km": "3",
     "patta_amount": "20000",
+    # The bozorkom: the bazaar's income (patta) is not kept in the bot. "1" brings the patta section back
+    "patta_enabled": "0",
     "admin_tg_id": "",
     "support_phone": "",
     # Customer pays the aravachi for carrying, and the taxi for the ride home

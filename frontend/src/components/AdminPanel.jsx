@@ -170,7 +170,7 @@ export default function AdminPanel({ onBackToMarket }) {
     if (!signedIn) return;
     try {
       const [overview, stores, staff, orders, patta] = await Promise.all([
-        api.adminOverview(), api.adminStores(), api.adminStaff(), api.adminOrders(), api.adminPatta()
+        api.adminOverview(), api.adminStores(), api.adminStaff(), api.adminOrders(), api.adminPatta().catch(() => null)
       ]);
       setData({ overview, stores, staff, orders, patta });
       setSettingsForm((prev) => prev.radius ? prev : {
@@ -300,6 +300,8 @@ export default function AdminPanel({ onBackToMarket }) {
 
       <div style={{ display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -12px 12px', padding: '0 12px 4px' }}>
         {t('tabs').map((name, i) => {
+          // The bozorkom keeps the bazaar's income (patta) out of the bot: no Patta tab unless it is turned on
+          if (i === 5 && !overview?.patta_enabled) return null;
           const badge = i === 1 ? pendingStores.length + pendingStaff.length : 0;
           return (
             <button key={name} type="button" onClick={() => { triggerHaptic('selection'); setTab(i); }} style={{ flexShrink: 0, padding: '9px 14px', borderRadius: 999, fontWeight: 800, fontSize: 13, cursor: 'pointer', border: 'none', background: tab === i ? '#0f172a' : '#ffffff', color: tab === i ? '#ffffff' : '#334155' }}>
@@ -316,10 +318,10 @@ export default function AdminPanel({ onBackToMarket }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {stat(t('pending'), overview.pending_stores + overview.pending_staff, null, overview.pending_stores + overview.pending_staff ? '#dc2626' : '#0f172a', () => setTab(1))}
           {stat(t('stalls'), overview.stores, null, '#0f172a', () => setTab(2))}
-          {stat(`${ROLE_INFO.porter.emoji} ${ROLE_INFO.porter[lang]} · ${ROLE_INFO.taxi.emoji} ${ROLE_INFO.taxi[lang]}`, `${overview.staff.porter} · ${overview.staff.taxi}`, `${ROLE_INFO.pattachi.emoji} ${ROLE_INFO.pattachi[lang]}: ${overview.staff.pattachi}`, '#0f172a', () => setTab(3))}
+          {stat(`${ROLE_INFO.porter.emoji} ${ROLE_INFO.porter[lang]} · ${ROLE_INFO.taxi.emoji} ${ROLE_INFO.taxi[lang]}`, `${overview.staff.porter} · ${overview.staff.taxi}`, overview.patta_enabled ? `${ROLE_INFO.pattachi.emoji} ${ROLE_INFO.pattachi[lang]}: ${overview.staff.pattachi}` : null, '#0f172a', () => setTab(3))}
           {stat(t('orders24'), overview.orders_24h, Object.entries(overview.orders_by_status).map(([k, v]) => `${T.order_status[k] || k} ${v}`).join('  '), '#0f172a', () => setTab(4))}
           {stat(t('revenue'), Math.round(overview.revenue_24h).toLocaleString(), 'UZS')}
-          {stat(t('patta_today'), `${overview.patta_today.paid} / ${overview.patta_today.of}`, `${Math.round(overview.patta_today.total).toLocaleString()} UZS`, '#6d28d9', () => setTab(5))}
+          {overview.patta_enabled && overview.patta_today && stat(t('patta_today'), `${overview.patta_today.paid} / ${overview.patta_today.of}`, `${Math.round(overview.patta_today.total).toLocaleString()} UZS`, '#6d28d9', () => setTab(5))}
           {stat(t('radius'), `${overview.delivery_radius_km} km`, null, '#047857', () => setTab(6))}
         </div>
       )}
@@ -333,7 +335,7 @@ export default function AdminPanel({ onBackToMarket }) {
       )}
 
       {tab === 2 && stores.map(storeCard)}
-      {tab === 3 && (
+      {tab === 3 && overview?.patta_enabled && (
         <form data-testid="add-pattachi" style={{ ...card, background: '#f5f3ff', border: '1px solid #ddd6fe' }} onSubmit={(e) => {
           e.preventDefault();
           act(() => api.adminAddPattachi(pattachiForm.name, pattachiForm.phone, pattachiForm.pin).then(() => setPattachiForm({ name: '', phone: '+998 ', pin: '' })), t('p_added'));
@@ -349,7 +351,7 @@ export default function AdminPanel({ onBackToMarket }) {
             style={{ ...smallBtn('#7c3aed'), width: '100%', height: 42, fontSize: 14 }}>{t('p_add')}</button>
         </form>
       )}
-      {tab === 3 && staff.map(staffCard)}
+      {tab === 3 && staff.filter((s) => overview?.patta_enabled || s.role !== 'pattachi').map(staffCard)}
 
       {tab === 4 && orders.map((o) => (
         <div key={o.id} style={card}>
@@ -373,7 +375,7 @@ export default function AdminPanel({ onBackToMarket }) {
         </div>
       ))}
 
-      {tab === 5 && patta && (
+      {tab === 5 && overview?.patta_enabled && patta && (
         <>
           <div style={{ ...card, display: 'flex', justifyContent: 'space-between', fontWeight: 800 }}>
             <span>{patta.day}</span>
@@ -405,8 +407,8 @@ export default function AdminPanel({ onBackToMarket }) {
         <form onSubmit={(e) => { e.preventDefault(); act(() => api.adminSettings({ delivery_radius_km: Number(settingsForm.radius), patta_amount: Number(settingsForm.patta), support_phone: settingsForm.phone, porter_fee: Number(settingsForm.porterFee || 0), taxi_fee: Number(settingsForm.taxiFee || 0), ...Object.fromEntries(LIMIT_KEYS.filter((key) => settingsForm[key]).map((key) => [key, Number(settingsForm[key])])) }), t('saved')); }} style={card}>
           <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>{t('radius')} ({t('km')})</label>
           <input value={settingsForm.radius} onChange={(e) => setSettingsForm({ ...settingsForm, radius: e.target.value.replace(/[^\d.]/g, '') })} inputMode="decimal" style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 16, marginBottom: 12 }} />
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>{t('patta_amount')} (UZS)</label>
-          <input value={settingsForm.patta} onChange={(e) => setSettingsForm({ ...settingsForm, patta: e.target.value.replace(/\D/g, '') })} inputMode="numeric" style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 16, marginBottom: 12 }} />
+          {overview?.patta_enabled && <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>{t('patta_amount')} (UZS)</label>}
+          {overview?.patta_enabled && <input value={settingsForm.patta} onChange={(e) => setSettingsForm({ ...settingsForm, patta: e.target.value.replace(/\D/g, '') })} inputMode="numeric" style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 16, marginBottom: 12 }} />}
           <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>{t('support_phone')}</label>
           <input value={settingsForm.phone} onChange={(e) => setSettingsForm({ ...settingsForm, phone: e.target.value.replace(/[^\d\s()+-]/g, '') })} type="tel" inputMode="tel" placeholder="+998 71 000 00 00" maxLength={30} style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 16, marginBottom: 12 }} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

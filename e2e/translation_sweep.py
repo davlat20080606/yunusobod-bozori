@@ -5,6 +5,7 @@ def api(m, p, body=None, h=None):
     r = urllib.request.Request(B + p, data=json.dumps(body).encode() if body is not None else None, headers={"Content-Type": "application/json", **(h or {})}, method=m)
     return json.loads(urllib.request.urlopen(r).read())
 A = {"x-admin-token": api("POST", "/api/admin/login", {"pin": "909090"})["token"]}
+api("PUT", "/api/admin/settings", {"patta_enabled": True}, A)  # check the patta screens' translations too
 admin_login = api("POST", "/api/admin/login", {"pin": "909090"})
 seller = api("POST", "/api/seller/login", {"phone_or_slug": "+998 93 222-33-44", "pin": "2222"})
 staff = {}

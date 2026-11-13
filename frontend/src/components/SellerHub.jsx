@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { api } from '../services/api';
 import { ShoppingBag, Store, ShoppingCart, ChevronRight, Car, Receipt, Landmark } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { triggerHaptic } from '../services/telegram';
@@ -27,6 +28,9 @@ const card = { background: '#ffffff', borderRadius: 20, padding: 16, marginBotto
 export default function SellerHub({ cartItemsCount, cartTotal, onOpenCart, onOpenSellerCabinet, onOpenRole }) {
   const { language } = useLanguage();
   const t = (key) => T[key]?.[language] || T[key]?.uz || key;
+  // The bozorkom keeps the bazaar's income out of the bot: the pattachi entry shows only if patta is turned on
+  const [pattaOn, setPattaOn] = useState(false);
+  useEffect(() => { api.getConfig().then((cfg) => setPattaOn(Boolean(cfg.patta_enabled))).catch(() => {}); }, []);
 
   const row = (Icon, color, title, hint, onClick) => (
     <button type="button" onClick={() => { triggerHaptic('light'); onClick(); }} style={{ ...card, width: '100%', display: 'flex', alignItems: 'center', gap: 14, border: 'none', cursor: 'pointer', textAlign: 'left' }}>
@@ -68,7 +72,7 @@ export default function SellerHub({ cartItemsCount, cartTotal, onOpenCart, onOpe
       {row(Store, '#059669', t('seller'), t('seller_hint'), onOpenSellerCabinet)}
       {row(ShoppingCart, '#d97706', t('porter'), t('porter_hint'), () => onOpenRole('porter'))}
       {row(Car, '#2563eb', t('taxi'), t('taxi_hint'), () => onOpenRole('taxi'))}
-      {row(Receipt, '#7c3aed', t('pattachi'), t('pattachi_hint'), () => onOpenRole('pattachi'))}
+      {pattaOn && row(Receipt, '#7c3aed', t('pattachi'), t('pattachi_hint'), () => onOpenRole('pattachi'))}
       {row(Landmark, '#0f172a', t('admin'), t('admin_hint'), () => onOpenRole('admin'))}
     </div>
   );

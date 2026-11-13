@@ -9,7 +9,13 @@ from app.models.schemas import PattaPaymentModel, StoreModel, StaffModel
 from app.api.auth import staff_with_role
 from app.services.config_store import get_setting
 
-router = APIRouter(prefix="/api/patta", tags=["patta"])
+async def require_patta(db: AsyncSession = Depends(get_db)):
+    """The bozorkom asked to keep the bazaar's income out of the bot: the patta section is off unless turned on."""
+    if await get_setting(db, "patta_enabled") != "1":
+        raise HTTPException(status_code=404, detail="Bu bo'lim o'chirilgan / Раздел отключён")
+
+
+router = APIRouter(prefix="/api/patta", tags=["patta"], dependencies=[Depends(require_patta)])
 
 current_pattachi = staff_with_role("pattachi")
 
