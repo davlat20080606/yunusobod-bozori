@@ -34,7 +34,7 @@ async def main():
         await cmd("Page.navigate",{"url":B+"/?lang=uz&tab=seller_cabinet"}); await asyncio.sleep(6)
         print("cabinet opened without PIN:", await js("document.body.innerText.includes('Rasta jamoasi')"))
         await js("[...document.querySelectorAll('h3')].find(h=>h.innerText.includes('Rasta jamoasi'))?.scrollIntoView({block:'start'})"); await js("window.scrollBy(0,-70)")
-        await js("[...document.querySelectorAll('button')].find(b=>b.innerText.includes(\"Yordamchi qo'shish\"))?.click()"); await asyncio.sleep(2)
+        await js("[...document.querySelectorAll('button')].find(b=>b.innerText.includes(\"Bir martalik QR\"))?.click()"); await asyncio.sleep(2)
         await js("document.querySelector('img[alt=QR]')?.scrollIntoView({block:'center'})"); await asyncio.sleep(0.5)
         print("QR shown:", await js("!!document.querySelector('img[alt=QR]')?.src?.startsWith('data:image/png')"))
         await shot("team_qr.png")
