@@ -90,7 +90,8 @@ async def overview(db: AsyncSession = Depends(get_db)):
 
 @router.get("/stores", dependencies=admin_only)
 async def list_stores(db: AsyncSession = Depends(get_db)):
-    stores = (await db.execute(select(StoreModel).order_by(StoreModel.id.desc()))).scalars().all()
+    # Demo stalls hidden by migration 0008 («archived») are not shown to the bozorkom
+    stores = (await db.execute(select(StoreModel).where(StoreModel.status != "archived").order_by(StoreModel.id.desc()))).scalars().all()
     return [store_public(s) for s in stores]
 
 

@@ -147,3 +147,31 @@ def test_backup_restores_into_this_database(url):
         " delivery_fee, payment_method, payment_status, status) VALUES ('YB-BAK-2', 'x', 'x', 'x', 'x', 1, 0, 'cash', 'pending', 'pending')"
         " RETURNING id")).scalar())
     assert new_id == 2, "new orders continue after the restored ones"
+
+
+@pytest.mark.parametrize("url", database_urls())
+def test_demo_stalls_hidden(url):
+    """0008: the demo stalls of the first database are hidden; real stalls (and a demo slug with a real phone) stay."""
+    def up_to(rev):
+        def go(conn):
+            config = Config(str(ALEMBIC_INI))
+            config.attributes["connection"] = conn
+            command.upgrade(config, rev)
+        return go
+
+    def add_stalls(conn):
+        conn.execute(text("INSERT INTO categories (slug, name_uz, name_ru, name_en) VALUES ('meat', 'Go''sht', 'Мясо', 'Meat')"))
+        for slug, phone in (("karen-aka-gosht", "+998 93 222-33-44"), ("hoshimjon-511", "+998 977557315"),
+                            ("dilshod-ota-sabzavot", "+998 90 999-99-99")):
+            conn.execute(text("INSERT INTO stores (slug, name_uz, name_ru, name_en, stall_number, owner_name, owner_phone, category_slug, status,"
+                              " is_open, seller_pin)"
+                              " VALUES (:slug, 'N', 'N', 'N', 'R', 'O', :phone, 'meat', 'approved', true, '123456')"),
+                         {"slug": slug, "phone": phone})
+
+    status = lambda c: dict(c.execute(text("SELECT slug, status FROM stores")).all())
+    run(url, wipe)
+    run(url, up_to("0007"))
+    run(url, add_stalls)
+    run(url, upgrade)
+    s = run(url, status)
+    assert s == {"karen-aka-gosht": "archived", "hoshimjon-511": "approved", "dilshod-ota-sabzavot": "approved"}, s
