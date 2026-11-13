@@ -339,6 +339,20 @@ async def stall_qr(message: types.Message, store_id: str):
         member = (await db.execute(select(StoreMemberModel).where(
             StoreMemberModel.store_id == store.id, StoreMemberModel.tg_id == uid))).scalars().first()
         is_member = bool(member) or str(store.telegram_chat_id or "") == uid
+        if not is_member:
+            # The stall's registered owner is never asked (Shuhrat): Telegram confirmed this person's own phone at
+            # registration, and it is the stall's owner phone, so they become the owner in the bot right away
+            from app.api.auth import normalize_phone
+            from app.api.seller import add_member
+            customer = await get_customer(message.from_user.id)
+            if customer and customer.phone and normalize_phone(customer.phone) == normalize_phone(store.owner_phone):
+                user = message.from_user
+                await add_member(db, store.id, {"id": user.id, "first_name": user.first_name,
+                                                "last_name": getattr(user, "last_name", None), "username": getattr(user, "username", None)}, "owner")
+                if not store.telegram_chat_id:
+                    store.telegram_chat_id = uid
+                await db.commit()
+                is_member = True
     name = escape(getattr(store, f"name_{lang}", None) or store.name_uz)
     url = settings.WEBAPP_URL
     if is_member:

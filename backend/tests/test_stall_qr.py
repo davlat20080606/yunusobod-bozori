@@ -4,7 +4,7 @@ import asyncio
 
 from test_stall_team import init_data
 
-OWNER, HELPER, STRANGER, CUSTOMER = 4004, 5005, 6006, 7007
+OWNER, HELPER, STRANGER, CUSTOMER, OWNER2 = 4004, 5005, 6006, 7007, 8008
 
 
 class U:
@@ -76,3 +76,25 @@ def test_stall_qr(api, ok, admin, monkeypatch):
 
     m = Msg(CUSTOMER, "Xaridor"); asyncio.run(botmod.stall_qr(m, "999999"))
     ok("не найдена" in m.replies[-1][0], "a wrong stall number: «stall not found»")
+
+
+def test_registered_owner_never_asked(api, ok, admin, monkeypatch):
+    """Shuhrat: the stall's registered owner who scans the QR goes in without any approval, even the very first time."""
+    from app.bot import bot as botmod, notify
+    monkeypatch.setattr(botmod.settings, "WEBAPP_URL", "https://bozorbot.uz")
+    async def fake_send(chat, text, keyboard=None): pass
+    monkeypatch.setattr(notify, "_send", fake_send)
+    stores = api("GET", "/stores")[1]
+    st = [x for x in stores if x["owner_phone"] == "+998 90 123-45-67"] or [x for x in stores if x["id"] != 2]
+    st = st[0]
+    ok(api("POST", "/seller/tg-login", None, {"x-telegram-init-data": init_data(OWNER2, "Egasi")})[0] == 404, "before: the bot does not know this owner")
+    # the owner registered in the bot as a customer with their own (Telegram-confirmed) phone, never opened the cabinet
+    asyncio.run(botmod.save_customer(OWNER2, lang="uz", phone=st["owner_phone"], name=st["owner_name"]))
+    m = Msg(OWNER2, "Egasi"); asyncio.run(botmod.stall_qr(m, str(st["id"])))
+    ok("tab=seller_cabinet" in str(buttons(m)) and "jreq_" not in str(m.replies), "the owner scans the QR: straight to the cabinet, nothing asked")
+    c, r = api("POST", "/seller/tg-login", None, {"x-telegram-init-data": init_data(OWNER2, "Egasi")})
+    ok(c == 200 and r["role"] == "owner" and r["store"]["id"] == st["id"], "and the cabinet opens as the owner, no PIN")
+    # someone with another phone is still only a customer
+    asyncio.run(botmod.save_customer(OWNER2 + 1, lang="uz", phone="+998977777777", name="Boshqa"))
+    m = Msg(OWNER2 + 1, "Boshqa"); asyncio.run(botmod.stall_qr(m, str(st["id"])))
+    ok("tab=seller_cabinet" not in str(m.replies), "a different phone is not the owner")
