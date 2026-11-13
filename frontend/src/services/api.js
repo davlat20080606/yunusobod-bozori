@@ -358,6 +358,8 @@ export const api = {
     return res.json();
   },
   sellerInvite: () => sellerFetch('/invite', { method: 'POST' }),
+  sellerStallQr: () => sellerFetch('/stall-qr'),
+  sellerSendStallQr: (image) => sellerFetch('/stall-qr/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) }),
   sellerMembers: () => sellerFetch('/members'),
   sellerRemoveMember: (id) => sellerFetch(`/members/${id}`, { method: 'DELETE' }),
   sellerItemWeight: (itemId, actualQuantity) => sellerFetch(`/items/${itemId}/weight`, { method: 'PATCH', body: JSON.stringify({ actual_quantity: actualQuantity }) }),

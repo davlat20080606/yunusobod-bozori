@@ -1,0 +1,66 @@
+"""The stall's permanent QR (Shuhrat: print once, stick on the stall): its people go to the cabinet, customers to the
+stall's shop, and someone new who works there is added after one «yes» from the owner."""
+import asyncio
+
+from test_stall_team import init_data
+
+OWNER, HELPER, STRANGER, CUSTOMER = 4004, 5005, 6006, 7007
+
+
+class U:
+    def __init__(s, uid, first): s.id = uid; s.first_name = first; s.last_name = None; s.username = None; s.language_code = "ru"
+
+
+class Msg:
+    def __init__(s, uid, first): s.from_user = U(uid, first); s.replies = []
+    async def answer(s, text, **kw): s.replies.append((text, kw.get("reply_markup")))
+
+
+def buttons(m):
+    return [(b.text, b.web_app.url if b.web_app else b.callback_data) for row in m.replies[-1][1].inline_keyboard for b in row]
+
+
+def test_stall_qr(api, ok, admin, monkeypatch):
+    from app.bot import bot as botmod, notify
+    monkeypatch.setattr(botmod.settings, "WEBAPP_URL", "https://bozorbot.uz")
+    sent = []
+    async def fake_send(chat, text, keyboard=None): sent.append((str(chat), text, keyboard))
+    monkeypatch.setattr(notify, "_send", fake_send)
+
+    # the owner signs in once inside Telegram, so the bot knows them
+    c, r = api("POST", "/seller/login", {"phone_or_slug": "+998 93 222-33-44", "pin": "2222"}, {"x-telegram-init-data": init_data(OWNER, "Karen")})
+    OT = {"x-seller-token": r["token"]}
+    c, q = api("GET", "/seller/stall-qr", None, OT)
+    ok(c == 200 and q["link"] == f"https://t.me/TestBozorBot?start=stall_{r['store']['id']}", f"owner gets the permanent QR link {q}")
+    sid = str(r["store"]["id"])
+    c2, q2 = api("GET", "/seller/stall-qr", None, OT)
+    ok(q2["link"] == q["link"], "the same QR every time (it is printed)")
+
+    m = Msg(OWNER, "Karen"); asyncio.run(botmod.stall_qr(m, sid))
+    ok([u for _, u in buttons(m)] == ["https://bozorbot.uz?tab=seller_cabinet&lang=ru"], "owner scans: straight to the cabinet")
+
+    m = Msg(CUSTOMER, "Xaridor"); asyncio.run(botmod.stall_qr(m, sid))
+    b = buttons(m)
+    ok(b[0][1] == f"https://bozorbot.uz?store={sid}&lang=ru" and "Купить" in b[0][0], "customer scans: this stall's shop")
+    ok(b[1][1] == f"jreq_{sid}", "and a «I work here» button")
+
+    # someone new asks; only the owner can let them in
+    key = asyncio.run(botmod.request_join(U(HELPER, "Aziz"), int(sid)))
+    asks = [s for s in sent if s[0] == str(OWNER)]
+    ok(key == "asked" and asks and "Aziz" in asks[-1][1], "the owner gets «Aziz wants to join — yes / no»")
+    ok(asyncio.run(botmod.decide_join(STRANGER, int(sid), str(HELPER), True, "Aziz")) is False, "a stranger cannot approve")
+    m = Msg(HELPER, "Aziz"); asyncio.run(botmod.stall_qr(m, sid))
+    ok("jreq_" in str(buttons(m)), "before the owner says yes, Aziz is still a customer")
+    ok(asyncio.run(botmod.decide_join(OWNER, int(sid), str(HELPER), True, "Aziz")) is True, "the owner says yes")
+    ok(any(s[0] == str(HELPER) and "добавлены" in s[1] for s in sent), "Aziz is told he was added")
+    m = Msg(HELPER, "Aziz"); asyncio.run(botmod.stall_qr(m, sid))
+    ok("tab=seller_cabinet" in str(buttons(m)), "now Aziz scans the same QR and goes straight to the cabinet")
+    c, r = api("POST", "/seller/tg-login", None, {"x-telegram-init-data": init_data(HELPER, "Aziz")})
+    ok(c == 200 and r["role"] == "helper", "and the cabinet lets him in by Telegram, no PIN")
+
+    asyncio.run(botmod.request_join(U(STRANGER, "Begona"), int(sid)))
+    ok(asyncio.run(botmod.decide_join(OWNER, int(sid), str(STRANGER), False)) is True, "the owner says no to a stranger")
+    ok(api("POST", "/seller/tg-login", None, {"x-telegram-init-data": init_data(STRANGER, "Begona")})[0] == 404, "the stranger is not let in")
+
+    m = Msg(CUSTOMER, "Xaridor"); asyncio.run(botmod.stall_qr(m, "999999"))
+    ok("не найдена" in m.replies[-1][0], "a wrong stall number: «stall not found»")

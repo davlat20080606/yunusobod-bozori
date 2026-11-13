@@ -266,6 +266,130 @@ async def join_stall(message: types.Message, token: str):
     await message.answer(JOIN_TEXTS["ok"][lang].format(store=escape(store_name), stall=escape(store.stall_number)), reply_markup=keyboard, parse_mode="HTML")
 
 
+STALL_TEXTS = {
+    "member": {
+        "uz": "🏪 <b>{store}</b> ({stall})\nKabinetingiz tayyor — tugmani bosing.",
+        "ru": "🏪 <b>{store}</b> ({stall})\nВаш кабинет готов — нажмите кнопку.",
+        "en": "🏪 <b>{store}</b> ({stall})\nYour cabinet is ready — tap the button.",
+    },
+    "customer": {
+        "uz": "🏪 <b>{store}</b> ({stall})\nShu rastadan xarid qilish uchun tugmani bosing 👇",
+        "ru": "🏪 <b>{store}</b> ({stall})\nНажмите кнопку, чтобы купить на этой расте 👇",
+        "en": "🏪 <b>{store}</b> ({stall})\nTap the button to shop at this stall 👇",
+    },
+    "shop": {"uz": "🛒 Xarid qilish", "ru": "🛒 Купить", "en": "🛒 Shop"},
+    "work": {"uz": "👷 Men shu rastada ishlayman", "ru": "👷 Я работаю на этой расте", "en": "👷 I work at this stall"},
+    "asked": {
+        "uz": "✅ So'rov rasta egasiga yuborildi. U tasdiqlasa, bot sizga xabar beradi.",
+        "ru": "✅ Запрос отправлен владельцу расты. Когда он подтвердит, бот вам напишет.",
+        "en": "✅ Sent to the stall owner. The bot will tell you once they approve.",
+    },
+    "no_owner": {
+        "uz": "Bu rasta egasi botga hali ulanmagan. Unga ayting: kabinetga Telegram orqali bir marta kirsin.",
+        "ru": "Владелец этой расты ещё не подключён к боту. Попросите его один раз войти в кабинет через Telegram.",
+        "en": "This stall's owner has not connected to the bot yet. Ask them to open the cabinet in Telegram once.",
+    },
+    "bad": {"uz": "❌ Rasta topilmadi.", "ru": "❌ Раста не найдена.", "en": "❌ Stall not found."},
+}
+
+
+async def _lang_of(user) -> str:
+    customer = await get_customer(user.id)
+    return (customer.lang if customer and customer.lang else None) or {"ru": "ru", "en": "en"}.get((getattr(user, "language_code", None) or "")[:2], "uz")
+
+
+async def _stall_owners(db, store) -> set:
+    from sqlalchemy import select
+    from app.models.schemas import StoreMemberModel
+    owners = set((await db.execute(select(StoreMemberModel.tg_id).where(
+        StoreMemberModel.store_id == store.id, StoreMemberModel.role == "owner"))).scalars().all())
+    if store.telegram_chat_id:
+        owners.add(str(store.telegram_chat_id))
+    return owners
+
+
+async def stall_qr(message: types.Message, store_id: str):
+    """The stall's permanent QR (printed and stuck on the stall): its people go to the cabinet, everyone else
+    to this stall's shop. Someone new who works there asks the owner once."""
+    from sqlalchemy import select
+    from app.database import async_session_factory
+    from app.models.schemas import StoreModel, StoreMemberModel
+    lang = await _lang_of(message.from_user)
+    uid = str(message.from_user.id)
+    async with async_session_factory() as db:
+        store = await db.get(StoreModel, int(store_id)) if store_id.isdigit() else None
+        if not store or store.status != "approved":
+            await message.answer(STALL_TEXTS["bad"][lang])
+            return
+        member = (await db.execute(select(StoreMemberModel).where(
+            StoreMemberModel.store_id == store.id, StoreMemberModel.tg_id == uid))).scalars().first()
+        is_member = bool(member) or str(store.telegram_chat_id or "") == uid
+    name = escape(getattr(store, f"name_{lang}", None) or store.name_uz)
+    url = settings.WEBAPP_URL
+    if is_member:
+        rows = [[InlineKeyboardButton(text=JOIN_TEXTS["button"][lang], web_app=WebAppInfo(url=f"{url}?tab=seller_cabinet&lang={lang}"))]]
+        text = STALL_TEXTS["member"][lang]
+    else:
+        rows = [[InlineKeyboardButton(text=STALL_TEXTS["shop"][lang], web_app=WebAppInfo(url=f"{url}?store={store.id}&lang={lang}"))],
+                [InlineKeyboardButton(text=STALL_TEXTS["work"][lang], callback_data=f"jreq_{store.id}")]]
+        text = STALL_TEXTS["customer"][lang]
+    await message.answer(text.format(store=name, stall=escape(store.stall_number)),
+                         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode="HTML")
+
+
+async def request_join(user, store_id: int) -> str:
+    """«I work at this stall»: the owner gets «add them? yes / no». Returns the key of the answer for the asker."""
+    from app.database import async_session_factory
+    from app.models.schemas import StoreModel
+    from app.bot import notify
+    from app.services.customer_guard import rate_limit
+    try:
+        rate_limit(f"jreq:{user.id}", 3, 3600)
+    except Exception:
+        return "asked"  # asked enough already; the owner has the earlier messages
+    async with async_session_factory() as db:
+        store = await db.get(StoreModel, store_id)
+        owners = await _stall_owners(db, store) if store else set()
+    if not owners:
+        return "no_owner"
+    who = " ".join(x for x in (user.first_name, getattr(user, "last_name", None)) if x) or "—"
+    if getattr(user, "username", None):
+        who += f" (@{user.username})"
+    text = (f"👷 <b>{escape(who)}</b> rastangizga yordamchi bo'lib qo'shilmoqchi. Qo'shaymi?\n"
+            f"👷 <b>{escape(who)}</b> хочет стать помощником вашей расты. Добавить?")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="✅ Ha · Да", callback_data=f"jok_{store_id}_{user.id}"),
+        InlineKeyboardButton(text="❌ Yo'q · Нет", callback_data=f"jno_{store_id}_{user.id}"),
+    ]])
+    for owner in owners:
+        await notify._send(owner, text, keyboard)
+    return "asked"
+
+
+async def decide_join(owner_id, store_id: int, helper_id: str, approve: bool, helper_name: str = "") -> bool:
+    """The owner's answer. Only an owner of this stall can add people to it."""
+    from app.database import async_session_factory
+    from app.models.schemas import StoreModel
+    from app.api.seller import add_member
+    from app.bot import notify
+    async with async_session_factory() as db:
+        store = await db.get(StoreModel, store_id)
+        if not store or str(owner_id) not in await _stall_owners(db, store):
+            return False
+        if approve:
+            await add_member(db, store.id, {"id": helper_id, "first_name": helper_name or "Yordamchi"}, "helper")
+            await db.commit()
+        stall = store.stall_number
+    if approve:
+        url = settings.WEBAPP_URL
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+            text=JOIN_TEXTS["button"]["uz"] + " · Кабинет", web_app=WebAppInfo(url=f"{url}?tab=seller_cabinet"))]])
+        await notify._send(helper_id, f"✅ Siz {escape(stall)} rastasiga qo'shildingiz · Вы добавлены в расту {escape(stall)}", keyboard)
+    else:
+        await notify._send(helper_id, f"❌ Rasta egasi so'rovingizni rad etdi · Владелец расты отклонил запрос ({escape(stall)})")
+    return True
+
+
 async def save_driver_location(message: types.Message):
     """The order id it was written to; 0 for a worker without an order on the way; None for a customer."""
     from app.database import async_session_factory
@@ -283,7 +407,7 @@ async def save_driver_location(message: types.Message):
 # No pattachi link: only the bozorkom adds pattachi, in Bozorkom → Xodimlar.
 # The link opens only the work cabinet; the cabinet itself checks who may enter (seller PIN, Bozorkom approval).
 WORK_LINKS = {
-    "seller": ("🏪 Sotuvchi kabineti · Кабинет продавца", "tab=seller"),
+    "seller": ("🏪 Sotuvchi kabineti · Кабинет продавца", "tab=seller_cabinet"),
     "porter": ("🛒 Aravachi kabineti · Кабинет аравачи", "tab=porter"),
     "taxi": ("🚕 Taksichi kabineti · Кабинет таксиста", "tab=taxi"),
 }
@@ -310,6 +434,10 @@ def setup_dispatcher() -> Dispatcher:
         args = (message.text or "").split(maxsplit=1)
         if len(args) > 1 and args[1].startswith("join_"):
             await join_stall(message, args[1][5:])
+            return
+        # The stall's permanent QR stuck on the stall: t.me/<bot>?start=stall_<id>
+        if len(args) > 1 and args[1].startswith("stall_"):
+            await stall_qr(message, args[1][6:])
             return
         # A worker's link: straight to the work cabinet, without the customer registration
         if len(args) > 1 and (args[1] in WORK_LINKS or args[1] == "work"):
@@ -366,6 +494,31 @@ def setup_dispatcher() -> Dispatcher:
             pass
         await query.answer()
         await continue_registration(query.message, customer, query.from_user.first_name)
+
+    @dp.callback_query(F.data.startswith("jreq_"))
+    async def handle_join_request(query: types.CallbackQuery):
+        lang = await _lang_of(query.from_user)
+        key = await request_join(query.from_user, int(query.data[5:]))
+        await query.answer()
+        await query.message.answer(STALL_TEXTS[key][lang])
+
+    @dp.callback_query(F.data.startswith("jok_") | F.data.startswith("jno_"))
+    async def handle_join_decision(query: types.CallbackQuery):
+        _, store_id, helper_id = query.data.split("_")
+        name = ""
+        try:
+            chat = await query.bot.get_chat(int(helper_id))
+            name = " ".join(x for x in (chat.first_name, chat.last_name) if x)
+        except Exception:
+            pass
+        done = await decide_join(query.from_user.id, int(store_id), helper_id, query.data.startswith("jok_"), name)
+        await query.answer("✅" if done else "❌")
+        if done:
+            mark = "✅ Qo'shildi · Добавлен" if query.data.startswith("jok_") else "❌ Rad etildi · Отклонено"
+            try:
+                await query.message.edit_text(f"{query.message.html_text}\n\n<b>{mark}</b>", parse_mode="HTML")
+            except Exception:
+                pass
 
     @dp.callback_query(F.data.in_(["profile_phone", "profile_name"]))
     async def handle_profile_change(query: types.CallbackQuery):

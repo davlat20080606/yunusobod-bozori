@@ -1,12 +1,41 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { UserPlus, Trash2 } from 'lucide-react';
+import { UserPlus, Trash2, QrCode, Send, Download } from 'lucide-react';
 import { api } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 
 // The stall's team: the owner shows a QR code, a helper (son, apprentice, brother) scans it
 // with the phone camera and gets into the same cabinet with their own Telegram, no PIN
-export default function SellerTeam({ language }) {
+// A printable poster: stall name, number and the permanent QR, big enough to scan from a step away
+async function makePoster(link, title, stall) {
+  const qr = await QRCode.toDataURL(link, { width: 640, margin: 1, errorCorrectionLevel: 'M' });
+  const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = qr; });
+  const canvas = document.createElement('canvas');
+  canvas.width = 800; canvas.height = 1060;
+  const c = canvas.getContext('2d');
+  c.fillStyle = '#ffffff'; c.fillRect(0, 0, 800, 1060);
+  c.fillStyle = '#059669'; c.fillRect(0, 0, 800, 120);
+  c.fillStyle = '#ffffff'; c.textAlign = 'center'; c.font = 'bold 44px sans-serif';
+  c.fillText('Yunusobod Dehqon Bozori', 400, 76);
+  // Long stall names: smaller letters first, then cut, so the whole line fits the poster
+  c.fillStyle = '#0f172a';
+  let size = 40;
+  let name = title;
+  c.font = `bold ${size}px sans-serif`;
+  while (c.measureText(name).width > 740 && size > 26) { size -= 2; c.font = `bold ${size}px sans-serif`; }
+  while (c.measureText(name).width > 740 && name.length > 4) name = `${name.slice(0, -2)}…`;
+  c.fillText(name, 400, 190);
+  c.fillStyle = '#047857'; c.font = 'bold 36px sans-serif';
+  c.fillText(`📍 ${stall}`, 400, 245);
+  c.drawImage(img, 80, 280, 640, 640);
+  c.fillStyle = '#0f172a'; c.font = 'bold 34px sans-serif';
+  c.fillText('📷 Skanerlang — xarid qiling', 400, 975);
+  c.fillStyle = '#475569'; c.font = '30px sans-serif';
+  c.fillText('Сканируйте — покупайте', 400, 1025);
+  return canvas.toDataURL('image/png');
+}
+
+export default function SellerTeam({ language, store }) {
   const lang = language === 'en' ? 'en' : (language === 'ru' ? 'ru' : 'uz');
   const tr = (uz, ru, en) => (lang === 'ru' ? ru : (lang === 'en' ? en : uz));
   const [team, setTeam] = useState({ my_role: 'owner', members: [] });
@@ -24,6 +53,37 @@ export default function SellerTeam({ language }) {
   }, [qr]);
 
   const isOwner = team.my_role === 'owner';
+  const [poster, setPoster] = useState(null);
+  const [posterSent, setPosterSent] = useState(false);
+
+  const showPoster = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const { link } = await api.sellerStallQr();
+      const title = (store && (store[`name_${lang}`] || store.name_uz)) || '';
+      setPoster(await makePoster(link, title, store?.stall_number || ''));
+      setPosterSent(false);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendPoster = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await api.sellerSendStallQr(poster);
+      setPosterSent(true);
+      triggerHaptic('success');
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const showQr = async () => {
     setBusy(true);
@@ -73,9 +133,40 @@ export default function SellerTeam({ language }) {
         </div>
       ))}
 
+      {isOwner && (
+        <div data-testid="stall-qr" style={{ marginTop: 10, padding: 12, borderRadius: 14, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>📌 {tr('Rasta QR kodi', 'QR-код расты', 'Stall QR code')}</div>
+          <div style={{ fontSize: 12, color: '#475569', margin: '2px 0 10px' }}>
+            {tr("Bir marta chop eting va rastaga yopishtiring. Xaridor skanerlasa — rastangizdan xarid qiladi. Siz va yordamchilaringiz skanerlasangiz — to'g'ri kabinetga kirasiz. Yangi yordamchi skanerlasa, bot sizdan «Qo'shaymi?» deb so'raydi.",
+              'Распечатайте один раз и наклейте на расту. Покупатель сканирует — покупает у вас. Вы и ваши помощники сканируете — сразу попадаете в кабинет. Если сканирует новый помощник, бот спросит вас «Добавить?».',
+              'Print it once and stick it on the stall. Customers scan it to shop at your stall; you and your helpers scan it to open the cabinet. A new helper is added only after you say yes in the bot.')}
+          </div>
+          {!poster ? (
+            <button type="button" data-testid="stall-qr-show" onClick={showPoster} disabled={busy} style={{ width: '100%', height: 46, borderRadius: 12, border: 'none', background: '#047857', color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <QrCode size={18} /> {tr("QR kodni ko'rsatish", 'Показать QR-код', 'Show the QR code')}
+            </button>
+          ) : (
+            <div style={{ textAlign: 'center' }}>
+              <img src={poster} alt="QR" data-testid="stall-qr-poster" style={{ width: '100%', maxWidth: 300, borderRadius: 10, border: '1px solid #e2e8f0' }} />
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button type="button" onClick={sendPoster} disabled={busy || posterSent} style={{ flex: 1, height: 44, borderRadius: 12, border: 'none', background: '#059669', color: '#fff', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Send size={16} /> {posterSent ? tr('Yuborildi ✅', 'Отправлено ✅', 'Sent ✅') : tr('Botga yuborish', 'Прислать в бот', 'Send to the bot')}
+                </button>
+                <a href={poster} download="rasta-qr.png" style={{ flex: 1, height: 44, borderRadius: 12, border: '1px solid #e2e8f0', background: '#fff', color: '#0f172a', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, textDecoration: 'none' }}>
+                  <Download size={16} /> {tr('Yuklab olish', 'Скачать', 'Download')}
+                </a>
+              </div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                {tr("Bot rasmni sizga yuboradi — chop etish yoki do'konga jo'natish oson", 'Бот пришлёт картинку вам в чат — её легко распечатать или переслать в печать', 'The bot sends the picture to your chat — easy to print or forward')}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {isOwner && !qr && (
         <button type="button" onClick={showQr} disabled={busy} style={{ width: '100%', height: 48, marginTop: 10, borderRadius: 12, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: busy ? 0.6 : 1 }}>
-          <UserPlus size={18} /> {tr("Yordamchi qo'shish (QR)", 'Добавить помощника (QR)', 'Add a helper (QR)')}
+          <UserPlus size={18} /> {tr("Bir martalik QR (darhol qo'shish)", 'Одноразовый QR (добавить сразу)', 'One-time QR (add at once)')}
         </button>
       )}
 

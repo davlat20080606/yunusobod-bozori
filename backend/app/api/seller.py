@@ -533,6 +533,39 @@ async def seller_tg_login(x_telegram_init_data: Optional[str] = Header(None), db
     raise HTTPException(status_code=404, detail="Siz hech qaysi rastaga ulanmagansiz / Вы не привязаны к расте")
 
 
+@router.get("/stall-qr")
+async def stall_qr_link(store: StoreModel = Depends(current_owner_store)):
+    """The stall's permanent QR: printed once and stuck on the stall. Customers get the stall's shop, its people the cabinet."""
+    from app.bot.bot import get_bot_username
+    username = await get_bot_username()
+    if not username:
+        raise HTTPException(status_code=503, detail="Bot hozir ishlamayapti / Бот сейчас недоступен")
+    return {"link": f"https://t.me/{username}?start=stall_{store.id}"}
+
+
+@router.post("/stall-qr/send")
+async def send_stall_qr(image: str = Body(..., embed=True, max_length=2_000_000), store: StoreModel = Depends(current_owner_store),
+                        db: AsyncSession = Depends(get_db)):
+    """The printable QR poster goes to the owner's Telegram chat: easy to print or forward to a print shop."""
+    import base64
+    from aiogram.types import BufferedInputFile
+    from app.bot.bot import get_bot, _stall_owners
+    data = base64.b64decode(image.split(",", 1)[-1] or "", validate=False)
+    if not data.startswith(b"\x89PNG") or len(data) > 1_500_000:
+        raise HTTPException(status_code=400, detail="Rasm noto'g'ri / Неверная картинка")
+    bot = get_bot()
+    owners = await _stall_owners(db, store)
+    if not bot or not owners:
+        raise HTTPException(status_code=503, detail="Kabinetni Telegram ichida oching / Откройте кабинет в Telegram")
+    for chat in owners:
+        try:
+            await bot.send_document(int(chat), BufferedInputFile(data, filename=f"QR-{store.stall_number}.png"),
+                                    caption="📌 Rasta QR kodi — chop etib rastaga yopishtiring · QR расты — распечатайте и наклейте")
+        except Exception:
+            pass
+    return {"success": True}
+
+
 @router.post("/invite")
 async def create_invite(store: StoreModel = Depends(current_owner_store), db: AsyncSession = Depends(get_db)):
     """QR code for a helper: a one-time t.me link that lives 15 minutes."""

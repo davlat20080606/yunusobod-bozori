@@ -503,7 +503,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
           </div>
 
           <SellerPromos language={language} products={storeData?.products || []} />
-          <SellerTeam language={language} />
+          <SellerTeam language={language} store={storeData?.store} />
 
           {/* Incoming Orders Section */}
           <div className="section-header">

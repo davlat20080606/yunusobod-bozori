@@ -209,6 +209,13 @@ export default function App() {
       setCategories(catList);
       setStores(storeList);
       setProducts(prodList);
+      // The stall's QR (stuck on the stall) opens that stall's shop: ?store=<id>
+      const fromQr = Number(new URLSearchParams(window.location.search).get('store'));
+      const stall = fromQr && storeList.find((st) => st.id === fromQr);
+      if (stall) {
+        setActiveTab('market');
+        setSelectedStore(stall);
+      }
     } catch (err) {
       console.warn('API error, using local fallback:', err);
     } finally {
