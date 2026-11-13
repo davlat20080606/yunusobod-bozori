@@ -19,6 +19,7 @@ import ProductSheet from './components/ProductSheet';
 import ProductMediaModal from './components/ProductMediaModal';
 import CartDrawer from './components/CartDrawer';
 import CheckoutModal from './components/CheckoutModal';
+import SearchResults from './components/SearchResults';
 import SellerPanel from './components/SellerPanel';
 import SellerLogin from './components/SellerLogin';
 import SellerHub from './components/SellerHub';
@@ -178,6 +179,25 @@ export default function App() {
     loadInitialData();
   }, []);
 
+  // A seller may add a product while the app is open: fetch the list again when the customer starts searching
+  // and when they come back to the app, so new products show up without reopening it
+  const refreshCatalog = async () => {
+    try {
+      const [storeList, prodList] = await Promise.all([api.getStores(), api.getProducts()]);
+      setStores(storeList);
+      setProducts(prodList);
+    } catch {}
+  };
+  const searching = searchQuery.trim() !== '';
+  useEffect(() => {
+    if (searching) refreshCatalog();
+  }, [searching]);
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshCatalog(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
   const loadInitialData = async () => {
     setLoading(true);
     try {
@@ -247,17 +267,6 @@ export default function App() {
     setCart([]);
   };
 
-  // Filter Products by Category & Search
-  const filteredProducts = products.filter((product) => {
-    const matchesCategory = activeCategory ? product.category_slug === activeCategory : true;
-    const matchesSearch = searchQuery
-      ? (product.name_uz + product.name_ru + product.name_en + product.description_uz + product.description_ru)
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase())
-      : true;
-    return matchesCategory && matchesSearch;
-  });
-
   const savedProducts = products.filter((p) => savedProductIds.includes(p.id));
   const cartItemsCount = cart.reduce((sum, item) => sum + (item.quantity > 0 ? 1 : 0), 0);
   const cartTotal = cart.reduce((sum, item) => sum + ((item.product?.price || 0) * (item.quantity || 1)), 0);
@@ -297,6 +306,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setSelectedProduct(null);
+          setSearchQuery('');
           if (tab === 'market') {
             handleGoHome();
           } else {
@@ -394,7 +404,24 @@ export default function App() {
       <main className="flex-1 w-full">
         <div className="bozor-container">
           
-          {(
+          {searching && !selectedProduct ? (
+            <SearchResults
+              query={searchQuery}
+              products={products}
+              stores={stores}
+              onClear={() => setSearchQuery('')}
+              onSelectStore={(store) => {
+                setSearchQuery('');
+                setActiveTab('market');
+                setSelectedStore(store);
+                window.scrollTo(0, 0);
+              }}
+              onAddToCart={handleAddToCart}
+              onOpenMediaModal={setSelectedProduct}
+              savedProductIds={savedProductIds}
+              onToggleSave={handleToggleSave}
+            />
+          ) : (
             <>
               {/* VIEW A0: "Sotuvchi" page — cart, seller and porter entries */}
               {activeTab === 'seller' && (
@@ -573,6 +600,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setSelectedProduct(null);
+          setSearchQuery('');
           if (tab === 'market') {
             handleGoHome();
           } else {

@@ -66,6 +66,8 @@ report "All phone sizes + language on the home screen" "$S/phones.txt"
 
 stop; server porter_search; chrome; "$PY" "$E/porter_search_ui.py" "$S" > "$S/porter_search.txt" 2>&1
 report "Aravachi search: 7-minute countdown, wait / self pickup / cancel; stalls in two columns" "$S/porter_search.txt"
+stop; server search; chrome; "$PY" "$E/search_ui.py" "$S" > "$S/search.txt" 2>&1
+report "Search: a seller's new product shows up without reopening; uz/ru, stalls, nothing found" "$S/search.txt"
 
 stop; server analytics; chrome; "$PY" "$E/analytics_ui.py" "$S" > "$S/analytics.txt" 2>&1
 report "Analytics + CSV + backup state (Bozorkom)" "$S/analytics.txt"
