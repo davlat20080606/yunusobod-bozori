@@ -1,4 +1,4 @@
-"""The stall's permanent QR: the seller sees a printable poster in the cabinet; a customer who scans it lands on that stall's shop."""
+"""The stall's permanent QR: the seller sees a printable poster in the cabinet; a ?store link opens the stall."""
 import asyncio, base64, json, sys, urllib.request, websockets
 S = sys.argv[1]
 B = "http://127.0.0.1:8099"
@@ -36,10 +36,10 @@ async def main():
         await cmd("Page.enable"); await cmd("Runtime.enable")
         await cmd("Emulation.setDeviceMetricsOverride", {"width": 375, "height": 800, "deviceScaleFactor": 2, "mobile": True})
 
-        # A customer scans the QR: the bot's «Shop» button opens ?store=<id>
+        # A link with ?store=<id> still opens that stall (customers who scan the QR get the bot's start page, checked in the API test)
         await cmd("Page.navigate", {"url": f"{B}/?store={sid}&lang=ru"}); await asyncio.sleep(3)
         text = await js("document.body.innerText")
-        ok("Карен" in text and "Rasta 14" in text.replace("Раста", "Rasta"), "customer lands on Karen's stall page")
+        ok("Карен" in text and "Rasta 14" in text.replace("Раста", "Rasta"), "?store link opens Karen's stall page")
         await shot("stall_from_qr")
 
         await js(f"localStorage.setItem('seller_session', {json.dumps(json.dumps({'token': seller['token'], 'store': seller['store']}))})")

@@ -266,18 +266,33 @@ async def join_stall(message: types.Message, token: str):
     await message.answer(JOIN_TEXTS["ok"][lang].format(store=escape(store_name), stall=escape(store.stall_number)), reply_markup=keyboard, parse_mode="HTML")
 
 
+async def start_customer(message: types.Message) -> bool:
+    """The bot's normal start: registration first, then the welcome with the shop button. True once registered."""
+    customer = await get_customer(message.from_user.id)
+    if not customer or not customer.lang:
+        # First visit: language first, like Evos / Bellissimo
+        await message.answer(REG_TEXTS["choose_lang"], reply_markup=language_keyboard("reglang"))
+        return False
+    if not customer.phone or not customer.name:
+        await continue_registration(message, customer, message.from_user.first_name)
+        return False
+    # Clear any old reply keyboard left by earlier versions
+    try:
+        cleanup = await message.answer("…", reply_markup=ReplyKeyboardRemove())
+        await cleanup.delete()
+    except Exception:
+        pass
+    await send_welcome(message, customer.lang)
+    return True
+
+
 STALL_TEXTS = {
     "member": {
         "uz": "🏪 <b>{store}</b> ({stall})\nKabinetingiz tayyor — tugmani bosing.",
         "ru": "🏪 <b>{store}</b> ({stall})\nВаш кабинет готов — нажмите кнопку.",
         "en": "🏪 <b>{store}</b> ({stall})\nYour cabinet is ready — tap the button.",
     },
-    "customer": {
-        "uz": "🏪 <b>{store}</b> ({stall})\nShu rastadan xarid qilish uchun tugmani bosing 👇",
-        "ru": "🏪 <b>{store}</b> ({stall})\nНажмите кнопку, чтобы купить на этой расте 👇",
-        "en": "🏪 <b>{store}</b> ({stall})\nTap the button to shop at this stall 👇",
-    },
-    "shop": {"uz": "🛒 Xarid qilish", "ru": "🛒 Купить", "en": "🛒 Shop"},
+    "staff_hint": {"uz": "Shu rastada ishlaysizmi? 👇", "ru": "Работаете на этой расте? 👇", "en": "Do you work at this stall? 👇"},
     "work": {"uz": "👷 Men shu rastada ishlayman", "ru": "👷 Я работаю на этой расте", "en": "👷 I work at this stall"},
     "asked": {
         "uz": "✅ So'rov rasta egasiga yuborildi. U tasdiqlasa, bot sizga xabar beradi.",
@@ -310,7 +325,7 @@ async def _stall_owners(db, store) -> set:
 
 async def stall_qr(message: types.Message, store_id: str):
     """The stall's permanent QR (printed and stuck on the stall): its people go to the cabinet, everyone else
-    to this stall's shop. Someone new who works there asks the owner once."""
+    to the bot's start page. Someone new who works there asks the owner once."""
     from sqlalchemy import select
     from app.database import async_session_factory
     from app.models.schemas import StoreModel, StoreMemberModel
@@ -328,13 +343,15 @@ async def stall_qr(message: types.Message, store_id: str):
     url = settings.WEBAPP_URL
     if is_member:
         rows = [[InlineKeyboardButton(text=JOIN_TEXTS["button"][lang], web_app=WebAppInfo(url=f"{url}?tab=seller_cabinet&lang={lang}"))]]
-        text = STALL_TEXTS["member"][lang]
-    else:
-        rows = [[InlineKeyboardButton(text=STALL_TEXTS["shop"][lang], web_app=WebAppInfo(url=f"{url}?store={store.id}&lang={lang}"))],
-                [InlineKeyboardButton(text=STALL_TEXTS["work"][lang], callback_data=f"jreq_{store.id}")]]
-        text = STALL_TEXTS["customer"][lang]
-    await message.answer(text.format(store=name, stall=escape(store.stall_number)),
-                         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode="HTML")
+        await message.answer(STALL_TEXTS["member"][lang].format(store=name, stall=escape(store.stall_number)),
+                             reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode="HTML")
+        return
+    # Everyone else: the bot's normal start page, like opening the bot (Davlatbek's wish). A registered person also
+    # gets a small «I work at this stall» button, so a new helper can ask the owner
+    if await start_customer(message):
+        await message.answer(STALL_TEXTS["staff_hint"][lang],
+                             reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+                                 text=STALL_TEXTS["work"][lang], callback_data=f"jreq_{store.id}")]]))
 
 
 async def request_join(user, store_id: int) -> str:
@@ -443,21 +460,7 @@ def setup_dispatcher() -> Dispatcher:
         if len(args) > 1 and (args[1] in WORK_LINKS or args[1] == "work"):
             await send_work_entry(message, args[1])
             return
-        customer = await get_customer(message.from_user.id)
-        if not customer or not customer.lang:
-            # First visit: language first, like Evos / Bellissimo
-            await message.answer(REG_TEXTS["choose_lang"], reply_markup=language_keyboard("reglang"))
-            return
-        if not customer.phone or not customer.name:
-            await continue_registration(message, customer, message.from_user.first_name)
-            return
-        # Clear any old reply keyboard left by earlier versions
-        try:
-            cleanup = await message.answer("…", reply_markup=ReplyKeyboardRemove())
-            await cleanup.delete()
-        except Exception:
-            pass
-        await send_welcome(message, customer.lang)
+        await start_customer(message)
 
     @dp.message(Command("help"))
     async def cmd_help(message: types.Message):

@@ -1,5 +1,5 @@
 """The stall's permanent QR (Shuhrat: print once, stick on the stall): its people go to the cabinet, customers to the
-stall's shop, and someone new who works there is added after one «yes» from the owner."""
+bot's normal start page, and someone new who works there is added after one «yes» from the owner."""
 import asyncio
 
 from test_stall_team import init_data
@@ -11,9 +11,17 @@ class U:
     def __init__(s, uid, first): s.id = uid; s.first_name = first; s.last_name = None; s.username = None; s.language_code = "ru"
 
 
+class FakeBot:
+    async def set_chat_menu_button(s, *a, **kw): pass
+
+
 class Msg:
-    def __init__(s, uid, first): s.from_user = U(uid, first); s.replies = []
-    async def answer(s, text, **kw): s.replies.append((text, kw.get("reply_markup")))
+    def __init__(s, uid, first):
+        s.from_user = U(uid, first); s.replies = []; s.bot = FakeBot(); s.chat = type("C", (), {"id": uid})()
+    async def answer(s, text, **kw):
+        s.replies.append((text, kw.get("reply_markup")))
+        return type("Sent", (), {"delete": lambda self: asyncio.sleep(0)})()
+    async def answer_photo(s, photo=None, caption="", **kw): s.replies.append((caption, kw.get("reply_markup")))
 
 
 def buttons(m):
@@ -40,9 +48,13 @@ def test_stall_qr(api, ok, admin, monkeypatch):
     ok([u for _, u in buttons(m)] == ["https://bozorbot.uz?tab=seller_cabinet&lang=ru"], "owner scans: straight to the cabinet")
 
     m = Msg(CUSTOMER, "Xaridor"); asyncio.run(botmod.stall_qr(m, sid))
-    b = buttons(m)
-    ok(b[0][1] == f"https://bozorbot.uz?store={sid}&lang=ru" and "Купить" in b[0][0], "customer scans: this stall's shop")
-    ok(b[1][1] == f"jreq_{sid}", "and a «I work here» button")
+    ok(m.replies and m.replies[0][0] == botmod.REG_TEXTS["choose_lang"] and "jreq_" not in str(m.replies),
+       "a new customer scans: the bot's normal start (choose a language), nothing about the stall")
+    asyncio.run(botmod.save_customer(CUSTOMER, lang="ru", phone="+998901112299", name="Xaridor"))
+    m = Msg(CUSTOMER, "Xaridor"); asyncio.run(botmod.stall_qr(m, sid))
+    welcome = botmod.TEXTS["ru"]["welcome"]
+    ok(any(text == welcome for text, _ in m.replies), "a registered customer scans: the bot's start page (welcome + shop)")
+    ok(f"jreq_{sid}" in str(buttons(m)) and "tab=seller_cabinet" not in str(m.replies), "plus a small «I work here» button, no cabinet")
 
     # someone new asks; only the owner can let them in
     key = asyncio.run(botmod.request_join(U(HELPER, "Aziz"), int(sid)))
@@ -50,7 +62,7 @@ def test_stall_qr(api, ok, admin, monkeypatch):
     ok(key == "asked" and asks and "Aziz" in asks[-1][1], "the owner gets «Aziz wants to join — yes / no»")
     ok(asyncio.run(botmod.decide_join(STRANGER, int(sid), str(HELPER), True, "Aziz")) is False, "a stranger cannot approve")
     m = Msg(HELPER, "Aziz"); asyncio.run(botmod.stall_qr(m, sid))
-    ok("jreq_" in str(buttons(m)), "before the owner says yes, Aziz is still a customer")
+    ok("tab=seller_cabinet" not in str(m.replies), "before the owner says yes, Aziz is still a customer")
     ok(asyncio.run(botmod.decide_join(OWNER, int(sid), str(HELPER), True, "Aziz")) is True, "the owner says yes")
     ok(any(s[0] == str(HELPER) and "добавлены" in s[1] for s in sent), "Aziz is told he was added")
     m = Msg(HELPER, "Aziz"); asyncio.run(botmod.stall_qr(m, sid))

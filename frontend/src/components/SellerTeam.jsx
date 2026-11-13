@@ -137,9 +137,9 @@ export default function SellerTeam({ language, store }) {
         <div data-testid="stall-qr" style={{ marginTop: 10, padding: 12, borderRadius: 14, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
           <div style={{ fontWeight: 800, fontSize: 15 }}>📌 {tr('Rasta QR kodi', 'QR-код расты', 'Stall QR code')}</div>
           <div style={{ fontSize: 12, color: '#475569', margin: '2px 0 10px' }}>
-            {tr("Bir marta chop eting va rastaga yopishtiring. Xaridor skanerlasa — rastangizdan xarid qiladi. Siz va yordamchilaringiz skanerlasangiz — to'g'ri kabinetga kirasiz. Yangi yordamchi skanerlasa, bot sizdan «Qo'shaymi?» deb so'raydi.",
-              'Распечатайте один раз и наклейте на расту. Покупатель сканирует — покупает у вас. Вы и ваши помощники сканируете — сразу попадаете в кабинет. Если сканирует новый помощник, бот спросит вас «Добавить?».',
-              'Print it once and stick it on the stall. Customers scan it to shop at your stall; you and your helpers scan it to open the cabinet. A new helper is added only after you say yes in the bot.')}
+            {tr("Bir marta chop eting va rastaga yopishtiring. Xaridor skanerlasa — botning bosh sahifasi ochiladi va xarid qiladi. Siz va yordamchilaringiz skanerlasangiz — to'g'ri kabinetga kirasiz. Yangi yordamchi skanerlasa, bot sizdan «Qo'shaymi?» deb so'raydi.",
+              'Распечатайте один раз и наклейте на расту. Покупатель сканирует — открывается главная страница бота, где он делает заказ. Вы и ваши помощники сканируете — сразу попадаете в кабинет. Если сканирует новый помощник, бот спросит вас «Добавить?».',
+              'Print it once and stick it on the stall. Customers scan it and land on the bot start page to order; you and your helpers scan it to open the cabinet. A new helper is added only after you say yes in the bot.')}
           </div>
           {!poster ? (
             <button type="button" data-testid="stall-qr-show" onClick={showPoster} disabled={busy} style={{ width: '100%', height: 46, borderRadius: 12, border: 'none', background: '#047857', color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>

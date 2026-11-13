@@ -73,7 +73,7 @@ stop; server pattachi; chrome; "$PY" "$E/pattachi_admin_ui.py" "$S" > "$S/pattac
 report "Pattachi: only the bozorkom adds them (no applying, no link)" "$S/pattachi.txt"
 
 stop; server stallqr; chrome; "$PY" "$E/stall_qr_ui.py" "$S" > "$S/stallqr.txt" 2>&1
-report "Stall QR: printable poster; a customer who scans lands on the stall" "$S/stallqr.txt"
+report "Stall QR: printable poster in the seller cabinet" "$S/stallqr.txt"
 
 stop; server analytics; chrome; "$PY" "$E/analytics_ui.py" "$S" > "$S/analytics.txt" 2>&1
 report "Analytics + CSV + backup state (Bozorkom)" "$S/analytics.txt"
