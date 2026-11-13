@@ -10,9 +10,12 @@ seller = api("POST", "/api/seller/login", {"phone_or_slug": "+998 93 222-33-44",
 staff = {}
 for role in ("porter", "taxi", "pattachi"):
     ph = f"+99894{random.randint(1000000, 9999999)}"
-    api("POST", "/api/staff/register", {"role": role, "name": "Test " + role, "phone": ph, "pin": "1234", "car": "Cobalt" if role == "taxi" else None})
-    sid = [x for x in api("GET", "/api/admin/staff", h=A) if x["phone"].replace(" ", "").endswith(ph[-9:])][0]["id"]
-    api("POST", f"/api/admin/staff/{sid}/status", {"status": "approved"}, A)
+    if role == "pattachi":  # only the bozorkom adds a pattachi
+        api("POST", "/api/admin/staff/pattachi", {"name": "Test " + role, "phone": ph, "pin": "1234"}, A)
+    else:
+        api("POST", "/api/staff/register", {"role": role, "name": "Test " + role, "phone": ph, "pin": "1234", "car": "Cobalt" if role == "taxi" else None})
+        sid = [x for x in api("GET", "/api/admin/staff", h=A) if x["phone"].replace(" ", "").endswith(ph[-9:])][0]["id"]
+        api("POST", f"/api/admin/staff/{sid}/status", {"status": "approved"}, A)
     staff[role] = api("POST", "/api/staff/login", {"phone": ph, "pin": "1234"})
 orders = [o["order_number"] for o in api("GET", "/api/admin/orders", h=A)]
 # Uzbek giveaways: o'/g' apostrophes and common Uzbek words

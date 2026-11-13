@@ -279,13 +279,13 @@ async def save_driver_location(message: types.Message):
     return order_id
 
 
-# One link per job for the bazaar's workers: t.me/<bot>?start=seller (sotuvchi), porter (aravachi), taxi, pattachi, work (all four).
+# One link per job for the bazaar's workers: t.me/<bot>?start=seller (sotuvchi), porter (aravachi), taxi, work (all three).
+# No pattachi link: only the bozorkom adds pattachi, in Bozorkom → Xodimlar.
 # The link opens only the work cabinet; the cabinet itself checks who may enter (seller PIN, Bozorkom approval).
 WORK_LINKS = {
     "seller": ("🏪 Sotuvchi kabineti · Кабинет продавца", "tab=seller"),
     "porter": ("🛒 Aravachi kabineti · Кабинет аравачи", "tab=porter"),
     "taxi": ("🚕 Taksichi kabineti · Кабинет таксиста", "tab=taxi"),
-    "pattachi": ("🧾 Pattachi kabineti · Кабинет паттачи", "tab=pattachi"),
 }
 WORK_TEXT = ("👷 <b>Bozor xodimlari uchun · Для работников базара</b>\n"
              "Tugmani bosing — kabinetingiz ochiladi. Birinchi marta bo'lsa, ariza yuboring, bozorkom tasdiqlaydi.\n"

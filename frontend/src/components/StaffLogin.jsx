@@ -17,6 +17,7 @@ const T = {
   pin: { uz: 'PIN-kod', ru: 'PIN-код', en: 'PIN code' },
   enter: { uz: 'Kirish', ru: 'Войти', en: 'Sign in' },
   register: { uz: "Ro'yxatdan o'tish", ru: 'Зарегистрироваться', en: 'Register' },
+  pattachi_note: { uz: "Pattachini faqat bozorkom qo'shadi. Telefon va PIN-kodni bozorkomdan oling.", ru: 'Паттачи добавляет только администрация базара. Телефон и PIN получите у бозоркома.', en: 'Only the bazaar administration adds fee collectors. Get your phone login and PIN from them.' },
   no_account: { uz: "Hisobingiz yo'qmi?", ru: 'Нет аккаунта?', en: 'No account yet?' },
   back: { uz: 'Orqaga', ru: 'Назад', en: 'Back' },
   name: { uz: 'Ismingiz', ru: 'Ваше имя', en: 'Your name' },
@@ -136,7 +137,10 @@ export default function StaffLogin({ role, onSignedIn, onBack }) {
         </button>
       </form>
 
-      {mode === 'login' && (
+      {mode === 'login' && role === 'pattachi' && (
+        <p data-testid="pattachi-note" style={{ textAlign: 'center', marginTop: 18, fontSize: 14, color: '#64748b' }}>{t('pattachi_note')}</p>
+      )}
+      {mode === 'login' && role !== 'pattachi' && (
         <p style={{ textAlign: 'center', marginTop: 18, fontSize: 14, color: '#64748b' }}>
           {t('no_account')}{' '}
           <button type="button" onClick={() => { setMode('register'); setError(''); setDone(''); }} style={{ background: 'none', border: 'none', color: info.color, fontWeight: 800, fontSize: 14, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>

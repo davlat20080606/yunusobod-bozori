@@ -152,6 +152,7 @@ export const api = {
   adminStorePin: (id, pin) => adminFetch(`/admin/stores/${id}/reset-pin`, json('POST', { pin })),
   adminStaff: () => adminFetch('/admin/staff'),
   adminStaffStatus: (id, status) => adminFetch(`/admin/staff/${id}/status`, json('POST', { status })),
+  adminAddPattachi: (name, phone, pin) => adminFetch('/admin/staff/pattachi', json('POST', { name, phone, pin })),
   adminStaffPin: (id, pin) => adminFetch(`/admin/staff/${id}/reset-pin`, json('POST', { pin })),
   adminOrders: () => adminFetch('/admin/orders'),
   adminCancelOrder: (id) => adminFetch(`/admin/orders/${id}/cancel`, json('POST', {})),

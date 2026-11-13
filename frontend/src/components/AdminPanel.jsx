@@ -29,6 +29,13 @@ const T = {
   reject: { uz: 'Rad etish', ru: 'Отклонить', en: 'Reject' },
   block: { uz: 'Bloklash', ru: 'Заблокировать', en: 'Block' },
   unblock: { uz: 'Faollashtirish', ru: 'Разблокировать', en: 'Activate' },
+  add_pattachi: { uz: "🧾 Pattachi qo'shish", ru: '🧾 Добавить паттачи', en: '🧾 Add a fee collector' },
+  add_pattachi_hint: { uz: "Pattachini faqat bozorkom qo'shadi. Telefon va PIN-kodni pattachiga o'zingiz ayting.", ru: 'Паттачи добавляет только бозорком. Телефон и PIN сообщите паттачи сами.', en: 'Only the bozorkom adds fee collectors. Tell them the phone and PIN yourself.' },
+  p_name: { uz: 'Ism', ru: 'Имя', en: 'Name' },
+  p_phone: { uz: 'Telefon', ru: 'Телефон', en: 'Phone' },
+  p_pin: { uz: 'PIN-kod (4–6 raqam)', ru: 'PIN-код (4–6 цифр)', en: 'PIN (4–6 digits)' },
+  p_add: { uz: "Qo'shish", ru: 'Добавить', en: 'Add' },
+  p_added: { uz: "Pattachi qo'shildi", ru: 'Паттачи добавлен', en: 'Fee collector added' },
   new_pin: { uz: 'Yangi PIN', ru: 'Новый PIN', en: 'New PIN' },
   pin_prompt: { uz: 'Yangi PIN-kod (4–6 raqam):', ru: 'Новый PIN-код (4–6 цифр):', en: 'New PIN (4–6 digits):' },
   pin_done: { uz: "PIN o'zgartirildi", ru: 'PIN изменён', en: 'PIN changed' },
@@ -149,6 +156,7 @@ export default function AdminPanel({ onBackToMarket }) {
   const [customers, setCustomers] = useState([]);
   const [customerQuery, setCustomerQuery] = useState('');
   const [categories, setCategories] = useState({});
+  const [pattachiForm, setPattachiForm] = useState({ name: '', phone: '+998 ', pin: '' });
 
   useEffect(() => {
     api.getCategories().then((list) => setCategories(Object.fromEntries(list.map((c) => [c.slug, c])))).catch(() => {});
@@ -325,6 +333,22 @@ export default function AdminPanel({ onBackToMarket }) {
       )}
 
       {tab === 2 && stores.map(storeCard)}
+      {tab === 3 && (
+        <form data-testid="add-pattachi" style={{ ...card, background: '#f5f3ff', border: '1px solid #ddd6fe' }} onSubmit={(e) => {
+          e.preventDefault();
+          act(() => api.adminAddPattachi(pattachiForm.name, pattachiForm.phone, pattachiForm.pin).then(() => setPattachiForm({ name: '', phone: '+998 ', pin: '' })), t('p_added'));
+        }}>
+          <b style={{ fontSize: 15 }}>{t('add_pattachi')}</b>
+          <div style={{ fontSize: 12, color: '#64748b', margin: '2px 0 8px' }}>{t('add_pattachi_hint')}</div>
+          {[['name', 'p_name', 'text'], ['phone', 'p_phone', 'tel'], ['pin', 'p_pin', 'tel']].map(([key, label, type]) => (
+            <input key={key} name={key} type={type} inputMode={key === 'name' ? 'text' : 'numeric'} placeholder={t(label)} value={pattachiForm[key]} maxLength={key === 'pin' ? 6 : 100}
+              onChange={(e) => setPattachiForm((f) => ({ ...f, [key]: key === 'pin' ? e.target.value.replace(/\D/g, '') : e.target.value }))}
+              style={{ width: '100%', boxSizing: 'border-box', height: 42, borderRadius: 10, border: '1px solid #e2e8f0', padding: '0 12px', fontSize: 15, marginBottom: 6 }} />
+          ))}
+          <button type="submit" disabled={pattachiForm.name.trim().length < 2 || pattachiForm.phone.replace(/\D/g, '').length < 12 || !/^\d{4,6}$/.test(pattachiForm.pin)}
+            style={{ ...smallBtn('#7c3aed'), width: '100%', height: 42, fontSize: 14 }}>{t('p_add')}</button>
+        </form>
+      )}
       {tab === 3 && staff.map(staffCard)}
 
       {tab === 4 && orders.map((o) => (

@@ -69,6 +69,9 @@ report "Aravachi search: 7-minute countdown, wait / self pickup / cancel; stalls
 stop; server search; chrome; "$PY" "$E/search_ui.py" "$S" > "$S/search.txt" 2>&1
 report "Search: a seller's new product shows up without reopening; uz/ru, stalls, nothing found" "$S/search.txt"
 
+stop; server pattachi; chrome; "$PY" "$E/pattachi_admin_ui.py" "$S" > "$S/pattachi.txt" 2>&1
+report "Pattachi: only the bozorkom adds them (no applying, no link)" "$S/pattachi.txt"
+
 stop; server analytics; chrome; "$PY" "$E/analytics_ui.py" "$S" > "$S/analytics.txt" 2>&1
 report "Analytics + CSV + backup state (Bozorkom)" "$S/analytics.txt"
 

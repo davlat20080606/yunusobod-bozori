@@ -13,7 +13,8 @@ from app.models.schemas import StoreModel, StaffModel, OrderModel, OrderEventMod
 from app.api.auth import make_admin_token, current_admin, check_not_locked, record_failure, client_ip
 from app.api.tg_auth import telegram_user
 from app.api.patta import day_report, tashkent_day
-from app.api.staff import staff_public
+from app.api.staff import staff_public, find_by_phone
+from app.api.auth import normalize_phone
 from app.services.config_store import get_setting, set_setting
 from app.services.customer_guard import phone_key
 from app.services import stock, no_show, taxi_control, analytics, backup
@@ -120,6 +121,21 @@ async def list_staff(db: AsyncSession = Depends(get_db)):
     incidents = await taxi_control.incident_counts(db)
     return [{**staff_public(s), "created_at": s.created_at.isoformat() if s.created_at else None,
              "incidents": incidents.get(s.id, {})} for s in staff]
+
+
+@router.post("/staff/pattachi", dependencies=admin_only)
+async def add_pattachi(name: str = Body(..., min_length=2, max_length=100), phone: str = Body(..., max_length=50),
+                       pin: str = Body(..., pattern=PIN_PATTERN), db: AsyncSession = Depends(get_db)):
+    """Only the bozorkom adds a pattachi: they are approved at once and sign in with this phone and PIN."""
+    if len(normalize_phone(phone)) < 9:
+        raise HTTPException(status_code=400, detail="Telefon raqamini to'liq kiriting / Введите номер телефона полностью")
+    if await find_by_phone(db, phone):
+        raise HTTPException(status_code=409, detail="Bu telefon raqami allaqachon ro'yxatdan o'tgan / Этот номер уже зарегистрирован")
+    staff = StaffModel(role="pattachi", name=name.strip(), phone=phone.strip(), pin=pin, status="approved")
+    db.add(staff)
+    await db.commit()
+    await db.refresh(staff)
+    return staff_public(staff)
 
 
 @router.post("/staff/{staff_id}/status", dependencies=admin_only)

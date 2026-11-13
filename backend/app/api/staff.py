@@ -30,6 +30,9 @@ async def register_staff(
     x_telegram_init_data: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db)
 ):
+    # Pattachi collect money from the stalls: only the bozorkom adds them (Shuhrat's rule), nobody applies
+    if data.role == "pattachi":
+        raise HTTPException(status_code=403, detail="Pattachini faqat bozorkom qo'shadi / Паттачи добавляет только администрация")
     if len(normalize_phone(data.phone)) < 9:
         raise HTTPException(status_code=400, detail="Telefon raqamini to'liq kiriting / Введите номер телефона полностью")
     if await find_by_phone(db, data.phone):
