@@ -1,4 +1,4 @@
-"""Davlatbek (the bot's founder) signs into the Bozorkom panel with his own PIN and sees everything."""
+"""Davlatbek (the bot's founder) signs into the Bozorkom panel with a separate PIN and sees everything."""
 from tests.conftest import FOUNDER_PIN, ADMIN_PIN
 
 
