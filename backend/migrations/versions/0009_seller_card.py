@@ -1,0 +1,24 @@
+"""Seller's own card number: shown to the stall's customers, who settle payment with the seller directly.
+
+Revision ID: 0009
+Revises: 0008
+Create Date: 2026-11-15 12:00:00
+"""
+from alembic import op
+import sqlalchemy as sa
+
+
+revision = '0009'
+down_revision = '0008'
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    with op.batch_alter_table('stores', schema=None) as batch_op:
+        batch_op.add_column(sa.Column('payment_card', sa.String(30), nullable=True))
+
+
+def downgrade():
+    with op.batch_alter_table('stores', schema=None) as batch_op:
+        batch_op.drop_column('payment_card')

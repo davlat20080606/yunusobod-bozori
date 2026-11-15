@@ -454,6 +454,11 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                 </span>
               </span>
             </button>
+            <div data-testid="pay-agree-note" style={{ fontSize: 12, color: '#64748b', margin: '-2px 4px 10px', lineHeight: 1.4 }}>
+              {tr("Kartaga o'tkazmoqchi bo'lsangiz, sotuvchi bilan o'zingiz kelishasiz: karta raqami buyurtmada ko'rinadi. Bot to'lovda qatnashmaydi.",
+                'Хотите перевести на карту? Договоритесь с продавцом сами: номер карты будет в заказе. Бот в оплате не участвует.',
+                'Want to pay by card? Agree with the seller yourself: the card number is shown in the order. The bot takes no part in payment.')}
+            </div>
             {/* Click/Payme are not connected to a merchant account yet, so they cannot be chosen */}
             <div style={{ display: 'flex', gap: 10 }}>
               {[['click', <ClickLogo key="c" height={20} color="blue" />], ['payme', <PaymeLogo key="p" height={20} variant="color" />]].map(([id, logo]) => (

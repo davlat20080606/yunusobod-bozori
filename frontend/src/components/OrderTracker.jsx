@@ -43,7 +43,7 @@ const T = {
   rate_send: { uz: 'Yuborish', ru: 'Отправить', en: 'Send' },
   rate_thanks: { uz: 'Bahoyingiz uchun rahmat!', ru: 'Спасибо за оценку!', en: 'Thanks for your rating!' },
   cancel_confirm: { uz: 'Buyurtmani bekor qilasizmi?', ru: 'Отменить заказ?', en: 'Cancel this order?' },
-  cash: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' },
+  cash: { uz: 'Naqd yoki karta', ru: 'Наличные или карта', en: 'Cash or card' },
   help: { uz: 'Savol yoki muammo bormi?', ru: 'Есть вопрос или проблема?', en: 'Question or problem?' },
   help_call: { uz: "Bozorga qo'ng'iroq qiling", ru: 'Позвоните на базар', en: 'Call the bazaar' },
   code_title: { uz: 'Qabul qilish kodi', ru: 'Код получения', en: 'Pickup code' },
@@ -185,6 +185,41 @@ function formatTime(date) {
 }
 
 // Express: until search_until the customer just waits; after it, three choices (Shuhrat's request)
+// The customer and the seller settle payment themselves (cash or the seller's card); the bot does not handle money
+function SellerPay({ order, lang }) {
+  const [copiedId, setCopiedId] = useState(null);
+  const cards = order.seller_cards || [];
+  if (order.status === 'cancelled') return null;
+  const tr = (uz, ru, en) => (lang === 'ru' ? ru : (lang === 'en' ? en : uz));
+  const copy = (c) => {
+    try { navigator.clipboard.writeText(c.card.replace(/\s/g, '')); } catch {}
+    setCopiedId(c.store_id);
+    setTimeout(() => setCopiedId(null), 1800);
+  };
+  return (
+    <div data-testid="seller-pay" style={card}>
+      <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>💳 {tr("To'lov", 'Оплата', 'Payment')}</div>
+      <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.45 }}>
+        {tr("Naqd yoki kartaga o'tkazma — sotuvchi bilan o'zingiz kelishasiz. Bot to'lovda qatnashmaydi.",
+          'Наличными или переводом на карту — договариваетесь с продавцом сами. Бот в оплате не участвует.',
+          'Cash or a card transfer: agree with the seller yourself. The bot takes no part in payment.')}
+      </div>
+      {cards.map((c) => (
+        <div key={c.store_id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, padding: '10px 12px', borderRadius: 14, background: '#f8fafc' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', overflowWrap: 'anywhere' }}>{c.owner_name} · {stallLabel(c.stall_number, lang)}</div>
+            <div data-testid="seller-card-number" style={{ fontSize: 15, fontWeight: 800, color: '#047857', letterSpacing: 0.5 }}>{c.card}</div>
+          </div>
+          <button type="button" onClick={() => copy(c)} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none', borderRadius: 10, padding: '8px 10px', background: '#ecfdf5', color: '#047857', fontWeight: 800, fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+            {copiedId === c.store_id ? <Check size={14} /> : <Copy size={14} />}
+            {copiedId === c.store_id ? tr('Nusxalandi', 'Скопировано', 'Copied') : tr('Nusxalash', 'Копировать', 'Copy')}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PorterSearch({ order, t, busy, onWait, onSelf, onCancel }) {
   const deadline = parseDate(order.search_until);
   const [now, setNow] = useState(() => Date.now());
@@ -742,6 +777,8 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             {t('order')} #{openOrder.order_number}{copied ? ` · ${t('copied')}` : ''}
           </button>
         </div>
+
+        <SellerPay order={openOrder} lang={lang} />
 
         {supportPhone && (
           <a href={`tel:${supportPhone.replace(/[^\d+]/g, '')}`} style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: '#0f172a' }}>

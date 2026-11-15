@@ -155,6 +155,16 @@ async def register_store(
     }
 
 
+def clean_card(text: str) -> Optional[str]:
+    """Keeps the digits in groups of four; empty removes the card."""
+    digits = re.sub(r"\D", "", text or "")
+    if not digits:
+        return None
+    if not 16 <= len(digits) <= 19:
+        raise HTTPException(status_code=400, detail="Karta raqami 16 ta raqamdan iborat bo'lishi kerak / Номер карты должен содержать 16 цифр")
+    return " ".join(digits[i:i + 4] for i in range(0, len(digits), 4))
+
+
 @router.patch("/stores/me")
 async def update_store_profile(data: StoreUpdateSchema, store: StoreModel = Depends(current_owner_store), db: AsyncSession = Depends(get_db)):
     if data.owner_phone is not None:
@@ -167,6 +177,8 @@ async def update_store_profile(data: StoreUpdateSchema, store: StoreModel = Depe
         value = getattr(data, field)
         if value is not None:
             setattr(store, field, value.strip())
+    if data.payment_card is not None:
+        store.payment_card = clean_card(data.payment_card)
     pin_changed = data.pin is not None and data.pin != store.seller_pin
     if data.pin is not None:
         store.seller_pin = data.pin
@@ -255,7 +267,9 @@ async def get_my_store_dashboard(store: StoreModel = Depends(current_store), db:
     return {
         "store": StoreSchema.from_orm(store),
         "products": [ProductSchema.from_orm(p) for p in products],
-        "recent_items_count": len(recent_items)
+        "recent_items_count": len(recent_items),
+        # Not in the public store data: only this stall's own customers see it, in their order
+        "payment_card": store.payment_card,
     }
 
 

@@ -75,6 +75,9 @@ report "Patta off by default (bozorkom); when on: only the bozorkom adds pattach
 stop; server stallqr; chrome; "$PY" "$E/stall_qr_ui.py" "$S" > "$S/stallqr.txt" 2>&1
 report "Stall QR: printable poster in the seller cabinet" "$S/stallqr.txt"
 
+stop; server sellercard; chrome; "$PY" "$E/seller_card_ui.py" "$S" > "$S/sellercard.txt" 2>&1
+report "Payment between customer and seller: the seller's card in the order" "$S/sellercard.txt"
+
 stop; server analytics; chrome; "$PY" "$E/analytics_ui.py" "$S" > "$S/analytics.txt" 2>&1
 report "Analytics + CSV + backup state (Bozorkom)" "$S/analytics.txt"
 

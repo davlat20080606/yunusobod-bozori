@@ -56,6 +56,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
     owner_name: '',
     owner_phone: '',
     stall_number: '',
+    payment_card: '',
     pin: ''
   });
   const [editStoreLoading, setEditStoreLoading] = useState(false);
@@ -98,6 +99,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
         owner_name: data.store.owner_name || '',
         owner_phone: data.store.owner_phone || '',
         stall_number: data.store.stall_number || '',
+        payment_card: data.payment_card || '',
         pin: ''
       });
 
@@ -229,14 +231,16 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
         name_ru: editStoreForm.name_uz,
         owner_name: editStoreForm.owner_name,
         owner_phone: editStoreForm.owner_phone,
-        stall_number: editStoreForm.stall_number
+        stall_number: editStoreForm.stall_number,
+        payment_card: editStoreForm.payment_card || ''
       };
       if (editStoreForm.pin) payload.pin = editStoreForm.pin;
 
       const res = await api.updateStoreProfile(payload);
       triggerHaptic('success');
       setShowEditStoreModal(false);
-      setStoreData(prev => ({ ...prev, store: res.store }));
+      setStoreData(prev => ({ ...prev, store: res.store, payment_card: res.payment_card }));
+      setEditStoreForm(f => ({ ...f, payment_card: res.payment_card || '' }));
       // A new PIN comes with a new session token
       const session = getSellerSession();
       setSellerSession({ ...session, store: res.store, token: res.token || session?.token });
@@ -576,6 +580,22 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
                     onChange={(e) => setEditStoreForm({ ...editStoreForm, owner_phone: e.target.value })}
                     required
                   />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{language === 'ru' ? '💳 Номер карты (по желанию)' : (language === 'en' ? '💳 Card number (optional)' : '💳 Karta raqami (ixtiyoriy)')}</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    data-testid="seller-card"
+                    className="form-input"
+                    placeholder="8600 0000 0000 0000"
+                    value={editStoreForm.payment_card}
+                    onChange={(e) => setEditStoreForm({ ...editStoreForm, payment_card: e.target.value })}
+                  />
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                    {language === 'ru' ? 'Покупатели вашей расты увидят его в своём заказе и смогут перевести вам напрямую. Бот в оплате не участвует.' : (language === 'en' ? 'Your customers see it in their order and can transfer to you directly. The bot takes no part in payment.' : "Rastangiz xaridorlari uni buyurtmasida ko'radi va sizga to'g'ridan-to'g'ri o'tkaza oladi. Bot to'lovda qatnashmaydi.")}
+                  </div>
                 </div>
 
                 <div className="form-group">

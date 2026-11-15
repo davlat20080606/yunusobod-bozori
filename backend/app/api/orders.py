@@ -208,6 +208,14 @@ async def get_order(order_number_or_id: str, db: AsyncSession = Depends(get_db))
         result.taxi_lat = result.taxi_lng = result.taxi_loc_at = None
     review = (await db.execute(select(ReviewModel).where(ReviewModel.order_id == order.id))).scalars().first()
     result.review_rating = review.rating if review else None
+    # The customer pays each seller directly (cash or the seller's card), the bot does not handle money
+    store_ids = sorted({i.store_id for i in order.items})
+    if store_ids and order.status != "cancelled":
+        stores = (await db.execute(select(StoreModel).where(StoreModel.id.in_(store_ids)))).scalars().all()
+        result.seller_cards = [
+            {"store_id": s.id, "name": s.name_uz, "stall_number": s.stall_number, "owner_name": s.owner_name, "card": s.payment_card}
+            for s in stores if s.payment_card
+        ]
     return result
 
 @router.patch("/{order_id}/status", dependencies=[Depends(current_admin)])

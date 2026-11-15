@@ -43,6 +43,9 @@ class StoreModel(Base):
     description_ru = Column(Text, nullable=True)
     description_en = Column(Text, nullable=True)
     is_open = Column(Boolean, default=True)
+    # The seller's own card (optional). Customers of this stall see it in their order and pay the seller directly;
+    # the bot takes no part in payments
+    payment_card = Column(String(30), nullable=True)
     # pending → approved by the bazaar administration (bozorkom) → visible to customers
     status = Column(String(20), default="approved")
     rating = Column(Float, default=4.9)
@@ -606,6 +609,8 @@ class OrderSchema(BaseModel):
     items: List[OrderItemSchema] = []
     bonuses: List[OrderBonusSchema] = []
     review_rating: Optional[int] = None
+    # Card numbers of this order's stalls (only those that gave one); see orders.get_order
+    seller_cards: List[dict] = []
 
     class Config:
         from_attributes = True
@@ -653,6 +658,8 @@ class StoreUpdateSchema(BaseModel):
     pin: Optional[str] = Field(None, pattern=PIN_PATTERN)
     description_uz: Optional[str] = Field(None, max_length=2000)
     description_ru: Optional[str] = Field(None, max_length=2000)
+    # Empty text removes the card
+    payment_card: Optional[str] = Field(None, max_length=40)
 
 
 class StoreRegisterSchema(BaseModel):
