@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     BACKUP_KEY: str = ""
     # Bazaar administration PIN for registering new stalls; empty = registration closed
     ADMIN_PIN: str = ""
+    # The bot's founder signs into the same Bozorkom panel with their own PIN; empty = no founder sign-in
+    FOUNDER_PIN: str = ""
     # "polling" (local Mac), "webhook" (cloud) or "auto" (webhook when running on Render)
     BOT_MODE: str = "auto"
     # Cloudflare R2 for seller photos/videos; empty = keep them in the database
@@ -33,6 +35,7 @@ settings = Settings()
 settings.TELEGRAM_BOT_TOKEN = "".join(settings.TELEGRAM_BOT_TOKEN.replace("HTTP API:", "").split())
 settings.DATABASE_URL = settings.DATABASE_URL.strip()
 settings.ADMIN_PIN = settings.ADMIN_PIN.strip()
+settings.FOUNDER_PIN = settings.FOUNDER_PIN.strip()
 
 # Render gives every service a permanent public https address
 RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "").strip()

@@ -21,12 +21,14 @@ RUN_DIR.mkdir(exist_ok=True)
 DB_FILE = RUN_DIR / "test.db"
 SENT_LOG = RUN_DIR / "sent.log"
 ADMIN_PIN = "909090"
+FOUNDER_PIN = "717171"
 BOT_TOKEN = "123456:TESTtokenTESTtokenTESTtokenTESTtok"
 
 # The same settings for code the tests call directly (bot handlers, background checks)
 os.environ.update({
     "DATABASE_URL": f"sqlite+aiosqlite:///{DB_FILE}",
     "ADMIN_PIN": ADMIN_PIN,
+    "FOUNDER_PIN": FOUNDER_PIN,
     "TELEGRAM_BOT_TOKEN": BOT_TOKEN,
     "BOT_MODE": "webhook",
     "SENT_LOG": str(SENT_LOG),

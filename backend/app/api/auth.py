@@ -166,22 +166,28 @@ def staff_with_role(*roles: str):
     return dependency
 
 
-def make_admin_token() -> str:
+ADMIN_KINDS = ("admin", "founder")
+
+
+def _panel_pin(kind: str) -> str:
+    return settings.FOUNDER_PIN if kind == "founder" else settings.ADMIN_PIN
+
+
+def make_admin_token(kind: str = "admin") -> str:
     expires = int(time.time()) + TOKEN_TTL_SECONDS
-    return f"admin.{expires}.{_sign_kind('admin', 0, expires, settings.ADMIN_PIN)}"
+    return f"{kind}.{expires}.{_sign_kind(kind, 0, expires, _panel_pin(kind))}"
 
 
 async def current_admin(x_admin_token: Optional[str] = Header(None)):
-    """Bozorkom session; changing ADMIN_PIN signs everyone out."""
+    """Bozorkom panel session (the bozorkom or the founder); changing a PIN signs that person out."""
     unauthorized = HTTPException(status_code=401, detail="Iltimos, qaytadan kiring / Пожалуйста, войдите снова")
-    if not settings.ADMIN_PIN:
-        raise unauthorized
     try:
         kind, expires_s, signature = (x_admin_token or "").split(".")
         expires = int(expires_s)
     except ValueError:
         raise unauthorized
-    if kind != "admin" or expires < time.time() or not hmac.compare_digest(signature, _sign_kind("admin", 0, expires, settings.ADMIN_PIN)):
+    pin = _panel_pin(kind) if kind in ADMIN_KINDS else ""
+    if not pin or expires < time.time() or not hmac.compare_digest(signature, _sign_kind(kind, 0, expires, pin)):
         raise unauthorized
-    act_as("admin")
-    return True
+    act_as(kind)
+    return kind

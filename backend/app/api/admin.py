@@ -45,16 +45,21 @@ async def admin_login(
 ):
     # The admin PIN has no phone, so limit wrong tries per address
     check_not_locked(request, f"admin:{client_ip(request)}")
-    if not settings.ADMIN_PIN:
+    entered = pin.strip()
+    if not settings.ADMIN_PIN and not settings.FOUNDER_PIN:
         raise HTTPException(status_code=403, detail="Ma'muriyat PIN-kodi sozlanmagan / PIN администрации не настроен")
-    if not hmac.compare_digest(pin.strip(), settings.ADMIN_PIN):
+    if settings.ADMIN_PIN and hmac.compare_digest(entered, settings.ADMIN_PIN):
+        kind = "admin"
+    elif settings.FOUNDER_PIN and hmac.compare_digest(entered, settings.FOUNDER_PIN):
+        kind = "founder"
+    else:
         record_failure(request, f"admin:{client_ip(request)}")
         raise HTTPException(status_code=401, detail="PIN-kod noto'g'ri / Неверный PIN-код")
-    # Signing in inside Telegram makes the bot send new applications to the bozorkom
+    # Signing in inside Telegram makes the bot send new applications to the bozorkom (not to the founder)
     tg_user = telegram_user(x_telegram_init_data)
-    if tg_user:
+    if tg_user and kind == "admin":
         await set_setting(db, "admin_tg_id", str(tg_user["id"]))
-    return {"success": True, "token": make_admin_token()}
+    return {"success": True, "token": make_admin_token(kind), "role": kind}
 
 
 @router.get("/overview", dependencies=admin_only)

@@ -14,6 +14,7 @@ const T = {
   enter: { uz: 'Kirish', ru: 'Войти', en: 'Sign in' },
   back: { uz: 'Orqaga', ru: 'Назад', en: 'Back' },
   logout: { uz: 'Chiqish', ru: 'Выйти', en: 'Sign out' },
+  founder: { uz: '👑 Asoschi', ru: '👑 Основатель', en: '👑 Founder' },
   tabs: {
     uz: ['Umumiy', 'Arizalar', 'Rastalar', 'Xodimlar', 'Buyurtmalar', 'Patta', 'Sozlamalar', 'Xaridorlar', '📊 Tahlil'],
     ru: ['Обзор', 'Заявки', 'Расты', 'Работники', 'Заказы', 'Патта', 'Настройки', 'Покупатели', '📊 Аналитика'],
@@ -114,7 +115,7 @@ function AdminLogin({ t, onBack, onSignedIn }) {
     setError('');
     try {
       const res = await api.adminLogin(pin);
-      adminSession.set({ token: res.token });
+      adminSession.set({ token: res.token, role: res.role || 'admin' });
       triggerHaptic('success');
       onSignedIn();
     } catch (err) {
@@ -291,7 +292,10 @@ export default function AdminPanel({ onBackToMarket }) {
     <div className="animate-fade" style={{ paddingTop: 12, paddingBottom: 110 }}>
       <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg, #0f172a, #334155)', color: '#ffffff', border: 'none', padding: 14 }}>
         <div style={{ fontSize: 30 }}>🏛</div>
-        <div style={{ flex: 1, fontSize: 17, fontWeight: 800 }}>{t('title')}</div>
+        <div style={{ flex: 1, fontSize: 17, fontWeight: 800 }}>
+          {t('title')}
+          {adminSession.get()?.role === 'founder' && <div data-testid="founder-badge" style={{ fontSize: 12, fontWeight: 700, color: '#fde68a' }}>{t('founder')}</div>}
+        </div>
         <button type="button" onClick={load} aria-label="refresh" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#ffffff', borderRadius: 10, padding: 8, cursor: 'pointer', display: 'flex' }}><RefreshCw size={16} /></button>
         <button type="button" onClick={() => { adminSession.set(null); setSignedIn(false); }} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#ffffff', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
           <LogOut size={14} /> {t('logout')}
