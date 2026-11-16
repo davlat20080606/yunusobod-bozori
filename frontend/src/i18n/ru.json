@@ -94,8 +94,6 @@
     "time_morning": "☀️ Завтра утром (09:00 - 11:00)",
     "payment": "Способ оплаты",
     "pay_cash": "Наличными курьеру при получении",
-    "pay_click": "Оплата через Click",
-    "pay_payme": "Оплата через Payme",
     "submit": "Подтвердить заказ",
     "processing": "Отправка заказа..."
   },
@@ -135,7 +133,6 @@
     "step": "Шаг",
     "total_payment": "Итого к оплате:",
     "order_number_label": "Номер заказа:",
-    "simulation_label": "Смена статуса (Демо-режим):",
     "status_pending": "Заказ принят",
     "status_accepted": "Продавец подтвердил",
     "status_picking": "Собирается на базаре",

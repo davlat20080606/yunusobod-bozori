@@ -289,6 +289,7 @@ class StaffModel(Base):
     status = Column(String(20), default="pending")  # pending | approved | blocked
     tg_id = Column(String(50), nullable=True)
     car = Column(String(100), nullable=True)  # taxi drivers: car and plate number
+    payment_card = Column(String(30), nullable=True)  # porters and taxi drivers: customers may pay to this card
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -521,8 +522,8 @@ class OrderCreateSchema(BaseModel):
     delivery_lat: Optional[float] = Field(None, ge=-90, le=90)
     delivery_lng: Optional[float] = Field(None, ge=-180, le=180)
     delivery_time_slot: str = Field("Express (45-60 min)", max_length=100)
-    # Click/Payme are not connected to a merchant account yet, so only cash on delivery is accepted
-    payment_method: str = Field("cash", pattern=r"^cash$")
+    # The customer's choice: cash or a transfer to the card of the seller, porter or taxi driver (the bot does not handle money)
+    payment_method: str = Field("cash", pattern=r"^(cash|card)$")
     notes: Optional[str] = Field(None, max_length=1000)
     fulfillment: str = Field("courier", pattern=r"^(self|point|courier)$")
     handoff_point: Optional[str] = Field(None, max_length=30)
@@ -621,8 +622,8 @@ class OrderSchema(BaseModel):
     items: List[OrderItemSchema] = []
     bonuses: List[OrderBonusSchema] = []
     review_rating: Optional[int] = None
-    # Card numbers of this order's stalls (only those that gave one); see orders.get_order
-    seller_cards: List[dict] = []
+    # Everyone the customer deals with in this order: stalls, porter, taxi; phone and card if given; see orders.get_order
+    contacts: List[dict] = []
 
     class Config:
         from_attributes = True

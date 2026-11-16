@@ -94,8 +94,6 @@
     "time_morning": "☀️ Tomorrow Morning (09:00 - 11:00)",
     "payment": "Payment Method",
     "pay_cash": "Cash to the courier on delivery",
-    "pay_click": "Pay via Click",
-    "pay_payme": "Pay via Payme",
     "submit": "Confirm Order",
     "processing": "Placing Order..."
   },
@@ -135,7 +133,6 @@
     "step": "Step",
     "total_payment": "Total Payment:",
     "order_number_label": "Order Number:",
-    "simulation_label": "Status Simulation (Demo Mode):",
     "status_pending": "Order Placed",
     "status_accepted": "Confirmed by Seller",
     "status_picking": "Being Picked at Bazaar",

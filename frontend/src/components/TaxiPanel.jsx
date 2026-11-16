@@ -4,6 +4,8 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { api, staffSession } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 import StaffLogin from './StaffLogin';
+import StaffCard from './StaffCard';
+import { payLabel } from '../services/payment';
 import { pointName } from '../services/offers';
 import { newIdsWatcher } from '../services/sound';
 import { stallLabel, itemName } from '../services/stall';
@@ -125,6 +127,8 @@ export default function TaxiPanel({ onBackToMarket }) {
         </button>
       </div>
 
+      <StaffCard session={session} setSession={setSession} lang={lang} />
+
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         {[['new', t('tab_new'), orders.available.length], ['mine', t('tab_mine'), orders.mine.length]].map(([key, label, count]) => (
           <button key={key} type="button" onClick={() => setTab(key)} style={{ flex: 1, padding: '11px 6px', borderRadius: 12, fontWeight: 800, fontSize: 13, cursor: 'pointer', border: tab === key ? '2px solid #2563eb' : '1.5px solid #e2e8f0', background: tab === key ? '#eff6ff' : '#ffffff', color: tab === key ? '#1d4ed8' : '#334155' }}>
@@ -184,6 +188,7 @@ export default function TaxiPanel({ onBackToMarket }) {
               <>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
                   <a href={`tel:${o.customer_phone.replace(/[^\d+]/g, '')}`} style={smallLink}><Phone size={14} /> {t('customer')}: {o.customer_name}</a>
+                  <span data-testid="taxi-pay" style={{ ...smallLink, background: '#f8fafc', color: '#334155' }}>{payLabel(o.payment_method, lang)}</span>
                   {o.porter_phone && <a href={`tel:${o.porter_phone.replace(/[^\d+]/g, '')}`} style={smallLink}><Phone size={14} /> {t('porter')}</a>}
                   <a href={routeUrl} target="_blank" rel="noreferrer" style={smallLink}><Navigation size={14} /> {t('route')}</a>
                   {hasPoint && <a href={`yandexnavi://build_route_on_map?lat_to=${o.delivery_lat}&lon_to=${o.delivery_lng}`} style={smallLink}>🧭 {t('navigator')}</a>}

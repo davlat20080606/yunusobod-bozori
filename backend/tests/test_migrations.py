@@ -93,7 +93,9 @@ def test_database_made_before_migrations(url):
                               # ... and migration 0007
                               ("orders", "search_until"),
                               # ... and migration 0009
-                              ("stores", "payment_card")):
+                              ("stores", "payment_card"),
+                              # ... and migration 0011
+                              ("staff", "payment_card")):
             conn.execute(text(f"ALTER TABLE {table} DROP COLUMN {column}"))
         conn.execute(text(
             "INSERT INTO orders (order_number, customer_name, customer_phone, delivery_address, delivery_time_slot, total_amount, delivery_fee,"

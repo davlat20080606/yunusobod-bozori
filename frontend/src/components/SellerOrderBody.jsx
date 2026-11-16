@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { payLabel } from '../services/payment';
 import { api } from '../services/api';
 import { triggerHaptic } from '../services/telegram';
 import { formatUnit } from './ProductCard';
@@ -56,7 +57,8 @@ export default function SellerOrderBody({ order, language, onChanged }) {
       <div style={{ fontSize: 13, color: '#334155', fontWeight: 700, marginBottom: 4 }}>
         {fulfillmentLabel(mode, lang)}{order.porter_name ? ` · 🛒 ${order.porter_name}` : ''}
       </div>
-      <div style={{ fontSize: 13, color: '#64748b', marginBottom: 10 }}>👤 {order.customer_name} · {order.customer_phone}</div>
+      <div style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>👤 {order.customer_name} · {order.customer_phone}</div>
+      <div data-testid="seller-order-pay" style={{ fontSize: 13, color: '#334155', fontWeight: 700, marginBottom: 10 }}>{payLabel(order.payment_method, lang)}</div>
 
       <div style={{ background: 'var(--bg-subtle)', padding: 10, borderRadius: 8, fontSize: 14, marginBottom: 10 }}>
         {items.map((item) => {
@@ -144,9 +146,18 @@ export default function SellerOrderBody({ order, language, onChanged }) {
       )}
       {error && <div style={{ marginTop: 8, color: '#b91c1c', fontSize: 13, fontWeight: 600 }}>⚠️ {error}</div>}
 
-      <a href={`tel:${order.customer_phone}`} style={{ display: 'inline-block', marginTop: 10, fontSize: 13, color: '#059669', fontWeight: 700, textDecoration: 'none' }}>
-        📞 {tr("Xaridorga qo'ng'iroq", 'Позвонить покупателю', 'Call the customer')}
-      </a>
+      {/* Everyone in the order can reach each other (Shuhrat) */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: 10 }}>
+        {[
+          ['customer', order.customer_phone, tr("Xaridorga qo'ng'iroq", 'Позвонить покупателю', 'Call the customer')],
+          ['porter', order.porter_phone, tr("Aravachiga qo'ng'iroq", 'Позвонить аравачи', 'Call the porter')],
+          ['taxi', order.taxi_phone, tr("Taksichiga qo'ng'iroq", 'Позвонить таксисту', 'Call the taxi driver')],
+        ].filter(([, phone]) => phone).map(([who, phone, label]) => (
+          <a key={who} data-testid={`seller-call-${who}`} href={`tel:${phone.replace(/[^\d+]/g, '')}`} style={{ fontSize: 13, color: '#059669', fontWeight: 700, textDecoration: 'none' }}>
+            📞 {label}
+          </a>
+        ))}
+      </div>
     </>
   );
 }

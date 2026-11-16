@@ -6,7 +6,6 @@ import { triggerHaptic, getTelegramUser, requestPhone } from '../services/telegr
 import { api } from '../services/api';
 import MapPicker, { distanceKm } from './MapPicker';
 import { getCurrentPosition, lastLocationError, isDesktopTelegram, reverseGeocode, loadAddresses, rememberAddress } from '../services/location';
-import { ClickLogo, PaymeLogo } from './PaymentLogos';
 import { FULFILLMENTS, pointName, bonusLabel, hintLabel } from '../services/offers';
 import { stallLabel, itemName } from '../services/stall';
 
@@ -441,32 +440,29 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
           {/* Payment */}
           <div style={section}>
             <h3 style={h}>{tr("To'lov", 'Оплата', 'Payment')}</h3>
-            <button type="button" onClick={() => { triggerHaptic('selection'); setPaymentMethod('cash'); }} style={{ width: '100%', height: 64, marginBottom: 10, borderRadius: 18, border: paymentMethod === 'cash' ? '2px solid #0f172a' : '1.5px solid transparent', background: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', cursor: 'pointer', textAlign: 'left' }}>
-              <span style={{ fontSize: 26 }}>💵</span>
-              <span style={{ flex: 1 }}>
-                <span style={{ display: 'block', fontSize: 16, fontWeight: 800, color: '#0f172a' }}>{tr('Naqd pul', 'Наличными', 'Cash')}</span>
-                <span style={{ display: 'block', fontSize: 13, color: '#64748b' }}>
-                  {fulfillment === 'self'
-                    ? tr("Sotuvchilarga, olganingizda to'laysiz", 'Продавцам при получении', 'Pay the sellers at pickup')
-                    : fulfillment === 'point'
-                      ? tr("Aravachiga, olganingizda to'laysiz", 'Аравачи при получении', 'Pay the porter at pickup')
-                      : tr("Kuryerga, qabul qilganda to'laysiz", 'Курьеру при получении', 'Pay the courier on delivery')}
+            {/* The customer's choice: cash or a transfer to the card of the seller, porter or taxi driver (Shuhrat) */}
+            {[
+              ['cash', '💵', tr('Naqd pul', 'Наличными', 'Cash'),
+                fulfillment === 'self'
+                  ? tr("Sotuvchilarga, olganingizda to'laysiz", 'Продавцам при получении', 'Pay the sellers at pickup')
+                  : fulfillment === 'point'
+                    ? tr("Aravachiga, olganingizda to'laysiz", 'Аравачи при получении', 'Pay the porter at pickup')
+                    : tr("Kuryerga, qabul qilganda to'laysiz", 'Курьеру при получении', 'Pay the courier on delivery')],
+              ['card', '💳', tr('Kartaga o\'tkazma', 'Перевод на карту', 'Card transfer'),
+                tr("Karta raqamlari buyurtmada ko'rinadi", 'Номера карт будут в заказе', 'Card numbers are shown in the order')],
+            ].map(([id, icon, title, sub]) => (
+              <button key={id} type="button" data-testid={`pay-${id}`} onClick={() => { triggerHaptic('selection'); setPaymentMethod(id); }} style={{ width: '100%', height: 64, marginBottom: 10, borderRadius: 18, border: paymentMethod === id ? '2px solid #0f172a' : '1.5px solid transparent', background: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', cursor: 'pointer', textAlign: 'left' }}>
+                <span style={{ fontSize: 26 }}>{icon}</span>
+                <span style={{ flex: 1 }}>
+                  <span style={{ display: 'block', fontSize: 16, fontWeight: 800, color: '#0f172a' }}>{title}</span>
+                  <span style={{ display: 'block', fontSize: 13, color: '#64748b' }}>{sub}</span>
                 </span>
-              </span>
-            </button>
-            <div data-testid="pay-agree-note" style={{ fontSize: 12, color: '#64748b', margin: '-2px 4px 10px', lineHeight: 1.4 }}>
-              {tr("To'lov usulini (naqd, karta yoki nasiya) sotuvchi bilan o'zingiz kelishasiz. Sotuvchining kartasi bo'lsa, buyurtmada ko'rinadi. Bot to'lovda qatnashmaydi.",
-                'Как платить (наличные, карта или насия), договариваетесь с продавцом сами. Если у продавца есть карта, она будет в заказе. Бот в оплате не участвует.',
-                'How to pay (cash, card or credit) is up to you and the seller. If the seller has a card, it is shown in the order. The bot takes no part in payment.')}
-            </div>
-            {/* Click/Payme are not connected to a merchant account yet, so they cannot be chosen */}
-            <div style={{ display: 'flex', gap: 10 }}>
-              {[['click', <ClickLogo key="c" height={20} color="blue" />], ['payme', <PaymeLogo key="p" height={20} variant="color" />]].map(([id, logo]) => (
-                <div key={id} aria-disabled="true" style={{ flex: 1, height: 72, borderRadius: 18, background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: 0.55 }}>
-                  {logo}
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>{tr('Tez orada', 'Скоро', 'Coming soon')}</span>
-                </div>
-              ))}
+              </button>
+            ))}
+            <div data-testid="pay-agree-note" style={{ fontSize: 12, color: '#64748b', margin: '-2px 4px 0', lineHeight: 1.4 }}>
+              {tr("Naqd, karta yoki nasiya — sotuvchi, aravachi va taksichi bilan o'zingiz kelishasiz. Ularning telefoni va kartasi buyurtmada ko'rinadi. Bot to'lovda qatnashmaydi.",
+                'Наличные, карта или насия — договариваетесь сами с продавцом, аравачи и таксистом. Их телефоны и карты будут в заказе. Бот в оплате не участвует.',
+                'Cash, card or credit: agree with the seller, porter and taxi driver yourself. Their phones and cards are shown in the order. The bot takes no part in payment.')}
             </div>
           </div>
 

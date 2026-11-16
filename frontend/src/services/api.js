@@ -123,6 +123,7 @@ export const api = {
     if (!res.ok) throw await readError(res, 'Login failed');
     return res.json();
   },
+  staffSetCard: (card) => staffFetch('/staff/me/card', json('PATCH', { payment_card: card })),
   porterOrders: () => staffFetch('/porter/orders'),
   porterTake: (orderId) => staffFetch(`/porter/orders/${orderId}/take`, json('POST', {})),
   porterPicked: (itemId, isPicked) => staffFetch(`/porter/items/${itemId}/picked`, json('PATCH', { is_picked: isPicked })),

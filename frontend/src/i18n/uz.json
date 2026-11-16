@@ -94,8 +94,6 @@
     "time_morning": "☀️ Ertaga ertalab (09:00 - 11:00)",
     "payment": "To'lov usuli",
     "pay_cash": "Naqd pul bilan kuryerga qabul qilganda",
-    "pay_click": "Click orqali to'lov",
-    "pay_payme": "Payme orqali to'lov",
     "submit": "Buyurtmani tasdiqlash",
     "processing": "Buyurtma yuborilmoqda..."
   },
@@ -135,7 +133,6 @@
     "step": "Qadam",
     "total_payment": "Jami to'lov:",
     "order_number_label": "Buyurtma raqami:",
-    "simulation_label": "Holatni o'zgartirish (Test / Demo):",
     "status_pending": "Buyurtma qabul qilindi",
     "status_accepted": "Sotuvchi tasdiqladi",
     "status_picking": "Bozorda saralanmoqda",

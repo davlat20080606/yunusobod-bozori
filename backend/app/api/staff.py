@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.api.auth import make_staff_token, normalize_phone, check_not_locked, record_failure, staff_with_role
 from app.api.tg_auth import telegram_user
+from pydantic import BaseModel, Field
 from app.models.schemas import StaffModel, StaffRegisterSchema, StaffLoginSchema
+from app.services.cards import clean_card
 from app.bot.notify import notify_admin_application
 
 router = APIRouter(prefix="/api/staff", tags=["staff"])
@@ -83,9 +85,27 @@ async def login_staff(
         await db.commit()
         await db.refresh(staff)
 
-    return {"success": True, "token": make_staff_token(staff), "staff": staff_public(staff)}
+    return {"success": True, "token": make_staff_token(staff), "staff": staff_own(staff)}
+
+
+def staff_own(s: StaffModel) -> dict:
+    """What a worker sees about themselves: also their card (never in public lists)."""
+    return {**staff_public(s), "payment_card": s.payment_card}
 
 
 @router.get("/me")
 async def staff_me(staff: StaffModel = Depends(staff_with_role())):
-    return staff_public(staff)
+    return staff_own(staff)
+
+
+class StaffCardSchema(BaseModel):
+    payment_card: str = Field("", max_length=40)
+
+
+@router.patch("/me/card")
+async def staff_set_card(data: StaffCardSchema, staff: StaffModel = Depends(staff_with_role("porter", "taxi")),
+                         db: AsyncSession = Depends(get_db)):
+    """Porters and taxi drivers may give a card; their customers see it in the order (Shuhrat)."""
+    staff.payment_card = clean_card(data.payment_card)
+    await db.commit()
+    return staff_own(staff)

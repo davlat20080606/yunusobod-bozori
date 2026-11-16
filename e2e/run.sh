@@ -77,7 +77,7 @@ stop; server stallqr; chrome; "$PY" "$E/stall_qr_ui.py" "$S" > "$S/stallqr.txt" 
 report "Stall QR: printable poster in the seller cabinet" "$S/stallqr.txt"
 
 stop; server sellercard; chrome; "$PY" "$E/seller_card_ui.py" "$S" > "$S/sellercard.txt" 2>&1
-report "Payment between customer and seller: the seller's card in the order" "$S/sellercard.txt"
+report "Payment: cash or card; phones and cards of seller, porter, taxi in the order" "$S/sellercard.txt"
 
 stop; server terms; RULES_FRESH=1 chrome; "$PY" "$E/terms_ui.py" "$S" > "$S/terms.txt" 2>&1
 report "Platform rules: «DIQQAT!» once, full rules page, footer link" "$S/terms.txt"

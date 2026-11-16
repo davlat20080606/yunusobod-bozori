@@ -18,6 +18,7 @@ from app.bot.notify import notify_admin_application, notify_status
 from app.services.storage import save_media
 from app.services.adjust import set_weight, set_missing
 from app.services.order_log import log_event
+from app.services.cards import clean_card
 from app.services import stock, no_show
 from app.bot.notify import notify_adjustment
 from app.models.schemas import (
@@ -153,16 +154,6 @@ async def register_store(
         "message": "Arizangiz bozorkomga yuborildi / Заявка отправлена в администрацию базара",
         "store": StoreSchema.from_orm(new_store)
     }
-
-
-def clean_card(text: str) -> Optional[str]:
-    """Keeps the digits in groups of four; empty removes the card."""
-    digits = re.sub(r"\D", "", text or "")
-    if not digits:
-        return None
-    if not 16 <= len(digits) <= 19:
-        raise HTTPException(status_code=400, detail="Karta raqami 16 ta raqamdan iborat bo'lishi kerak / Номер карты должен содержать 16 цифр")
-    return " ".join(digits[i:i + 4] for i in range(0, len(digits), 4))
 
 
 @router.patch("/stores/me")

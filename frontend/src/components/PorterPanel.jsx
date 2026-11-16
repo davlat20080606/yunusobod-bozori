@@ -4,6 +4,8 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { slotLabel } from '../services/slots';
 import { api, staffSession } from '../services/api';
 import StaffLogin from './StaffLogin';
+import StaffCard from './StaffCard';
+import { payLabel } from '../services/payment';
 import { formatUnit } from './ProductCard';
 import { triggerHaptic } from '../services/telegram';
 import { fulfillmentLabel, pointName, weightRange, weightOk } from '../services/offers';
@@ -59,8 +61,6 @@ const T = {
   status_no_show: { uz: '↩️ Rastalarga qaytarish', ru: '↩️ Вернуть на расты', en: '↩️ Back to the stalls' },
   logout: { uz: 'Chiqish', ru: 'Выйти', en: 'Sign out' },
   min_ago: { uz: 'daq. oldin', ru: 'мин. назад', en: 'min ago' },
-  cash: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' },
-  check_payment: { uz: "to'lovni tekshiring", ru: 'проверьте оплату', en: 'check payment' },
   weight: { uz: '⚖️ Vazn', ru: '⚖️ Вес', en: '⚖️ Weight' },
   missing: { uz: "❌ Yo'q", ru: '❌ Нет', en: '❌ Out' },
   missing_undo: { uz: '↩️ Bor ekan', ru: '↩️ Есть', en: '↩️ Found it' },
@@ -346,6 +346,8 @@ export default function PorterPanel({ onBackToMarket }) {
           <LogOut size={14} /> {t('logout')}
         </button>
       </div>
+
+      <StaffCard session={session} setSession={setSession} lang={language} />
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -687,7 +689,7 @@ function OrderRoute({ t, language, points, order, bag, busy, error, offline, onB
         {order.landmark && <div style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>📍 {order.landmark}</div>}
         <div style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>⏱ {slotLabel(order.delivery_time_slot, language)}</div>
         <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
-          {Math.round(order.total_amount).toLocaleString()} UZS · {order.payment_method === 'cash' ? t('cash') : `${order.payment_method === 'payme' ? 'Payme' : 'Click'} (${t('check_payment')})`}
+          {Math.round(order.total_amount).toLocaleString()} UZS · {payLabel(order.payment_method, language)}
         </div>
         {order.notes && <div style={{ fontSize: 13, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 10px', marginBottom: 8 }}>💬 {t('note')}: {order.notes}</div>}
         {!isPoint && (
@@ -722,6 +724,7 @@ function OrderRoute({ t, language, points, order, bag, busy, error, offline, onB
               {order.taxi_name ? (
                 <>
                   🚕 {order.taxi_name}
+                  {order.taxi_phone && <a data-testid="porter-call-taxi" href={`tel:${order.taxi_phone.replace(/[^\d+]/g, '')}`} style={{ marginLeft: 8, color: 'inherit' }}>📞 {order.taxi_phone}</a>}
                   <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4 }}>{eta !== null && eta > 2 ? fill(t('go_in'), eta - 2) : t('go_now')}</div>
                   {eta !== null && eta > 0 && <div style={{ fontSize: 13 }}>{fill(t('taxi_eta'), eta)}</div>}
                 </>

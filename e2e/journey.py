@@ -98,9 +98,15 @@ async def main():
             price = await js("[...document.querySelectorAll('h3')].find(h=>h.innerText.includes('Narx tafsiloti'))?.parentElement.innerText.replace(/\\n/g,' | ')")
             total = await js("[...document.querySelectorAll('span')].find(s=>s.innerText==='Jami')?.parentElement.innerText.replace(/\\n/g,' ')")
             print(f"   price: {price}\n   {total}")
+            if mode_label == "Uyga yetkazish":
+                picked = await js("(()=>{const c=document.querySelector('[data-testid=pay-card]'),n=document.querySelector('[data-testid=pay-cash]');if(!c||!n)return false;c.click();return true})()")
+                await asyncio.sleep(0.4)
+                ok(picked, "checkout offers cash or card; the customer picks card")
             await click("Buyurtma berish", wait=4)
             num = await js("(document.body.innerText.match(/YB-\\d{4}-\\d{6}/)||[])[0]")
             ok(num, f"[{mode_label}] order placed {num}")
+            if mode_label == "Uyga yetkazish":
+                ok(api("GET", f"/api/orders/{num}")["payment_method"] == "card", "the order remembers «card»")
             return num, price
 
         async def seller_press(store_id, num, label):

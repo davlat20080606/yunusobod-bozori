@@ -10,7 +10,6 @@ import { api, getSellerSession, setSellerSession } from '../services/api';
 import { Store, DollarSign, CheckCircle2, ToggleLeft, ToggleRight, RefreshCw, Package, Check, Save, PlusCircle, X, Image, Video, Sparkles, Upload, Lock, ShieldCheck, Camera, LogOut, Settings, Edit3 } from 'lucide-react';
 import { triggerHaptic } from '../services/telegram';
 import { formatUnit } from './ProductCard';
-import { ClickLogo, PaymeLogo } from './PaymentLogos';
 import { stallLabel, itemName } from '../services/stall';
 import { useLive } from '../services/live';
 

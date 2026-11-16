@@ -218,6 +218,12 @@ async def _cold_chain(order_id: int, minutes: int):
         await _send(admin_tg, text, _webapp_button("🏛 Bozorkom", "tab=admin"))
 
 
+def _pay_line(order) -> str:
+    """How the customer said they will pay (the money goes between people, not through the bot)."""
+    return ("💳 Kartaga o'tkazma / Перевод на карту" if order.payment_method == "card"
+            else "💵 Naqd pul / Наличными")
+
+
 async def _new_order(order_id: int):
     async with async_session_factory() as db:
         order = (await db.execute(
@@ -251,6 +257,7 @@ async def _new_order(order_id: int):
         f"🔔 <b>Yangi buyurtma · Новый заказ</b> #{order.order_number}\n"
         f"🏪 {stalls}\n"
         f"📦 {len(order.items)} · 💰 {order.total_amount:,.0f} UZS\n"
+        f"{_pay_line(order)}\n"
         f"📍 {escape(where)}"
     )
     keyboard = _webapp_button("🛒 Olish / Взять заказ", "tab=porter")
@@ -269,7 +276,7 @@ async def _new_order(order_id: int):
                else "📦 Aravachi keladi — tayyorlab qo'ying / Аравачи скоро придёт — подготовьте товар")
         seller_text = (
             f"🔔 <b>Yangi buyurtma · Новый заказ</b> #{order.order_number}\n"
-            f"🏪 {escape(store.stall_number)}\n\n{lines}\n\n{who}"
+            f"🏪 {escape(store.stall_number)}\n\n{lines}\n\n{_pay_line(order)}\n{who}"
         )
         await asyncio.gather(*[_send(chat, seller_text, _webapp_button("🏪 Kabinet / Кабинет", "tab=seller_cabinet")) for chat in chats])
 
@@ -285,7 +292,8 @@ async def _taxis(order_id: int):
     text = (
         f"🚕 <b>Buyurtma tayyor · Заказ готов</b> #{order.order_number}\n"
         f"🛒 {escape(order.porter_name or '')} — {escape(point_name(order.handoff_point) or 'bozor darvozasi / ворота базара')}\n"
-        f"📍 {escape(order.delivery_district or '')}, {escape(order.delivery_address)}"
+        f"📍 {escape(order.delivery_district or '')}, {escape(order.delivery_address)}\n"
+        f"{_pay_line(order)}"
     )
     keyboard = _webapp_button("🚕 Olish / Взять заказ", "tab=taxi")
     await asyncio.gather(*[_send(t.tg_id, text, keyboard) for t in taxis])

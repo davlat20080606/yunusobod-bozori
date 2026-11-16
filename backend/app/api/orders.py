@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.database import get_db
 from app.api.auth import current_admin, client_ip
+from app.api.staff import find_by_phone
 from app.services.customer_guard import phone_key, valid_uz_phone, check_not_blocked, check_order_limits, rate_limit
 from app.services.config_store import get_setting, distance_km, HANDOFF_POINT_IDS
 from app.services.promos import compute_quote
@@ -208,14 +209,22 @@ async def get_order(order_number_or_id: str, db: AsyncSession = Depends(get_db))
         result.taxi_lat = result.taxi_lng = result.taxi_loc_at = None
     review = (await db.execute(select(ReviewModel).where(ReviewModel.order_id == order.id))).scalars().first()
     result.review_rating = review.rating if review else None
-    # The customer pays each seller directly (cash or the seller's card), the bot does not handle money
-    store_ids = sorted({i.store_id for i in order.items})
-    if store_ids and order.status != "cancelled":
-        stores = (await db.execute(select(StoreModel).where(StoreModel.id.in_(store_ids)))).scalars().all()
-        result.seller_cards = [
-            {"store_id": s.id, "name": s.name_uz, "stall_number": s.stall_number, "owner_name": s.owner_name, "card": s.payment_card}
-            for s in stores if s.payment_card
+    # Everyone the customer deals with: phone to call, card if they gave one. Payment (cash or card) is
+    # settled between the people themselves; the bot does not handle money
+    if order.status != "cancelled":
+        store_ids = sorted({i.store_id for i in order.items})
+        stores = (await db.execute(select(StoreModel).where(StoreModel.id.in_(store_ids)))).scalars().all() if store_ids else []
+        contacts = [
+            {"kind": "seller", "store_id": s.id, "name": s.owner_name, "stall_number": s.stall_number,
+             "phone": s.owner_phone, "card": s.payment_card}
+            for s in stores
         ]
+        for kind, phone, name in (("porter", order.porter_phone, order.porter_name), ("taxi", order.taxi_phone, order.taxi_name)):
+            if phone:
+                worker = await find_by_phone(db, phone)
+                contacts.append({"kind": kind, "name": name or (worker.name if worker else ""), "phone": phone,
+                                 "card": worker.payment_card if worker and worker.role == kind else None})
+        result.contacts = contacts
     return result
 
 @router.patch("/{order_id}/status", dependencies=[Depends(current_admin)])

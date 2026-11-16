@@ -43,7 +43,8 @@ const T = {
   rate_send: { uz: 'Yuborish', ru: 'Отправить', en: 'Send' },
   rate_thanks: { uz: 'Bahoyingiz uchun rahmat!', ru: 'Спасибо за оценку!', en: 'Thanks for your rating!' },
   cancel_confirm: { uz: 'Buyurtmani bekor qilasizmi?', ru: 'Отменить заказ?', en: 'Cancel this order?' },
-  cash: { uz: 'Sotuvchi bilan kelishiladi', ru: 'По договорённости с продавцом', en: 'Agreed with the seller' },
+  cash: { uz: '💵 Naqd pul', ru: '💵 Наличными', en: '💵 Cash' },
+  pay_card: { uz: "💳 Kartaga o'tkazma", ru: '💳 Перевод на карту', en: '💳 Card transfer' },
   help: { uz: 'Savol yoki muammo bormi?', ru: 'Есть вопрос или проблема?', en: 'Question or problem?' },
   help_call: { uz: "Bozorga qo'ng'iroq qiling", ru: 'Позвоните на базар', en: 'Call the bazaar' },
   code_title: { uz: 'Qabul qilish kodi', ru: 'Код получения', en: 'Pickup code' },
@@ -185,35 +186,64 @@ function formatTime(date) {
 }
 
 // Express: until search_until the customer just waits; after it, three choices (Shuhrat's request)
-// The customer and the seller settle payment themselves (cash or the seller's card); the bot does not handle money
-function SellerPay({ order, lang }) {
-  const [copiedId, setCopiedId] = useState(null);
-  const cards = order.seller_cards || [];
-  if (order.status === 'cancelled') return null;
+// Everyone the customer deals with in this order (stalls, porter, taxi): phone to call and card if given.
+// Cash or card is settled between the people themselves; the bot does not handle money (Shuhrat, platform rules)
+const CONTACT_ROLE = {
+  seller: { uz: 'Sotuvchi', ru: 'Продавец', en: 'Seller' },
+  porter: { uz: 'Aravachi', ru: 'Аравачи', en: 'Porter' },
+  taxi: { uz: 'Taksichi', ru: 'Таксист', en: 'Taxi driver' },
+};
+
+function PayContacts({ order, lang }) {
+  const [copiedKey, setCopiedKey] = useState(null);
+  const contacts = order.contacts || [];
+  if (order.status === 'cancelled' || contacts.length === 0) return null;
   const tr = (uz, ru, en) => (lang === 'ru' ? ru : (lang === 'en' ? en : uz));
+  const active = !['delivered', 'cancelled', 'returned', 'no_show'].includes(order.status);
+  const keyOf = (c) => `${c.kind}-${c.store_id || c.phone}`;
   const copy = (c) => {
     try { navigator.clipboard.writeText(c.card.replace(/\s/g, '')); } catch {}
-    setCopiedId(c.store_id);
-    setTimeout(() => setCopiedId(null), 1800);
+    setCopiedKey(keyOf(c));
+    setTimeout(() => setCopiedKey(null), 1800);
   };
   return (
     <div data-testid="seller-pay" style={card}>
-      <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>💳 {tr("To'lov", 'Оплата', 'Payment')}</div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>💳 {tr("To'lov va aloqa", 'Оплата и связь', 'Payment and contacts')}</div>
       <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.45 }}>
-        {tr("Naqd, karta yoki nasiya — sotuvchi bilan o'zingiz kelishasiz. Bot to'lovda qatnashmaydi.",
-          'Наличные, карта или насия — договариваетесь с продавцом сами. Бот в оплате не участвует.',
-          'Cash, card or credit: agree with the seller yourself. The bot takes no part in payment.')}
+        {order.payment_method === 'card'
+          ? tr("Siz kartadan to'lashni tanladingiz. Quyidagi kartaga o'tkazing va sotuvchi bilan kelishib oling. Bot to'lovda qatnashmaydi.",
+            'Вы выбрали оплату картой. Переведите на карту ниже и договоритесь сами. Бот в оплате не участвует.',
+            'You chose to pay by card. Transfer to a card below and agree with them yourself. The bot takes no part in payment.')
+          : tr("Naqd, karta yoki nasiya — o'zingiz kelishasiz. Bot to'lovda qatnashmaydi.",
+            'Наличные, карта или насия — договариваетесь сами. Бот в оплате не участвует.',
+            'Cash, card or credit: agree with them yourself. The bot takes no part in payment.')}
       </div>
-      {cards.map((c) => (
-        <div key={c.store_id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, padding: '10px 12px', borderRadius: 14, background: '#f8fafc' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', overflowWrap: 'anywhere' }}>{c.owner_name} · {stallLabel(c.stall_number, lang)}</div>
-            <div data-testid="seller-card-number" style={{ fontSize: 15, fontWeight: 800, color: '#047857', letterSpacing: 0.5 }}>{c.card}</div>
+      {contacts.map((c) => (
+        <div key={keyOf(c)} data-testid={`contact-${c.kind}`} style={{ marginTop: 10, padding: '10px 12px', borderRadius: 14, background: '#f8fafc' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700 }}>
+                {CONTACT_ROLE[c.kind]?.[lang] || CONTACT_ROLE[c.kind]?.uz}{c.kind === 'seller' && c.stall_number ? ` · ${stallLabel(c.stall_number, lang)}` : ''}
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', overflowWrap: 'anywhere' }}>{c.name}</div>
+              <div style={{ fontSize: 13, color: '#334155' }}>{c.phone}</div>
+            </div>
+            {active && c.phone && (
+              <a data-testid="contact-call" href={`tel:${c.phone.replace(/[^\d+]/g, '')}`} aria-label={tr("Qo'ng'iroq", 'Позвонить', 'Call')}
+                style={{ width: 40, height: 40, borderRadius: '50%', background: '#059669', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Phone size={18} />
+              </a>
+            )}
           </div>
-          <button type="button" onClick={() => copy(c)} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none', borderRadius: 10, padding: '8px 10px', background: '#ecfdf5', color: '#047857', fontWeight: 800, fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
-            {copiedId === c.store_id ? <Check size={14} /> : <Copy size={14} />}
-            {copiedId === c.store_id ? tr('Nusxalandi', 'Скопировано', 'Copied') : tr('Nusxalash', 'Копировать', 'Copy')}
-          </button>
+          {c.card && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+              <div data-testid={`${c.kind}-card-number`} style={{ flex: 1, minWidth: 0, fontSize: 15, fontWeight: 800, color: '#047857', letterSpacing: 0.5, overflowWrap: 'anywhere' }}>{c.card}</div>
+              <button type="button" onClick={() => copy(c)} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none', borderRadius: 10, padding: '8px 10px', background: '#ecfdf5', color: '#047857', fontWeight: 800, fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+                {copiedKey === keyOf(c) ? <Check size={14} /> : <Copy size={14} />}
+                {copiedKey === keyOf(c) ? tr('Nusxalandi', 'Скопировано', 'Copied') : tr('Nusxalash', 'Копировать', 'Copy')}
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -576,7 +606,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
           : mode === 'point' && openOrder.status === 'pending'
             ? (lang === 'ru' ? 'Ищем свободного аравачи' : (lang === 'en' ? 'Looking for a free porter' : "Bo'sh aravachini qidiryapmiz"))
             : status.sub[lang];
-    const paymentLabel = openOrder.payment_method === 'payme' ? 'Payme' : (openOrder.payment_method === 'click' ? 'Click' : t('cash'));
+    const paymentLabel = openOrder.payment_method === 'card' ? t('pay_card') : t('cash');
 
     return (
       <div className="animate-fade" style={{ maxWidth: 640, margin: '0 auto', paddingBottom: 110 }}>
@@ -778,7 +808,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
           </button>
         </div>
 
-        <SellerPay order={openOrder} lang={lang} />
+        <PayContacts order={openOrder} lang={lang} />
 
         {supportPhone && (
           <a href={`tel:${supportPhone.replace(/[^\d+]/g, '')}`} style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: '#0f172a' }}>

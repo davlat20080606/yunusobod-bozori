@@ -148,7 +148,7 @@ async def main():
                       "asyncio.run(m())")
         ok(out == str(OID), f"his live location is written to the order: {out}")
         await go("&tab=taxi", wait=4); await click("Mening yo'llarim", wait=1.5)
-        ok("Joylashuv ulashilmoqda" in await body(), "his screen says the location is on")
+        ok("Joylashuv ulashilmoqda" in await body(), "the driver's screen says the location is on")
 
         # «Yetib keldim» tells the customer and starts the clock, so a stray tap asks first
         await js("window.confirm = () => false")
