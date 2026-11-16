@@ -7,10 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.database import async_session_factory
-from app.services import stock, no_show, taxi_control
-from app.models.schemas import OrderModel, StaffModel
+from app.services import stock, no_show, taxi_control, seller_control
+from app.models.schemas import OrderModel, StaffModel, OrderEventModel
+from app.services.order_log import log_event
 from app.bot.notify import (notify_status, notify_cold_chain, send_morning_stock, notify_wait_reminder, notify_no_show,
-                            notify_return_late, notify_taxi_released, notify_trip_late)
+                            notify_return_late, notify_taxi_released, notify_trip_late, notify_seller_remind, notify_seller_late)
 from app.services.config_store import get_setting, set_setting
 import app.services.order_log  # noqa: F401  (status changes made here are logged as "system")
 
@@ -204,6 +205,41 @@ async def taxi_timers(now: datetime = None) -> dict:
     return {"released": len(released), "late": len(late)}
 
 
+async def seller_timers(now: datetime = None) -> dict:
+    """Express orders a stall has not packed: reminder to the stall, then the bozorkom and the customer (once each)."""
+    now = now or datetime.utcnow()
+    reminded, late = [], []
+    async with async_session_factory() as db:
+        remind_min = int(await get_setting(db, "seller_remind_min"))
+        alert_min = int(await get_setting(db, "seller_alert_min"))
+        res = await db.execute(
+            select(OrderModel).where(OrderModel.status.in_(seller_control.ACTIVE),
+                                     OrderModel.created_at <= now - timedelta(minutes=remind_min))
+            .options(selectinload(OrderModel.items))
+        )
+        orders = [o for o in res.scalars().all() if seller_control.is_express(o) and seller_control.unpacked_stalls(o)]
+        if orders:
+            events = (await db.execute(select(OrderEventModel.order_id, OrderEventModel.kind, OrderEventModel.data).where(
+                OrderEventModel.order_id.in_([o.id for o in orders]),
+                OrderEventModel.kind.in_(["seller_reminded", "seller_late"])))).all()
+            done = {(o, k, (d or {}).get("store_id")) for o, k, d in events}
+        for order in orders:
+            minutes = int((now - order.created_at).total_seconds() // 60)
+            for store_id in sorted(seller_control.unpacked_stalls(order)):
+                if minutes >= alert_min and (order.id, "seller_late", store_id) not in done:
+                    log_event(order, "seller_late", store_id=store_id, minutes=minutes)
+                    late.append((order.id, store_id, minutes))
+                elif minutes < alert_min and (order.id, "seller_reminded", store_id) not in done:
+                    log_event(order, "seller_reminded", store_id=store_id, minutes=minutes)
+                    reminded.append((order.id, store_id, minutes))
+        await db.commit()
+    for order_id, store_id, minutes in reminded:
+        notify_seller_remind(order_id, store_id, minutes)
+    for order_id, store_id, minutes in late:
+        notify_seller_late(order_id, store_id, minutes)
+    return {"reminded": len(reminded), "late": len(late)}
+
+
 async def run_forever():
     while True:
         try:
@@ -212,6 +248,7 @@ async def run_forever():
             await settle_stock()
             await no_show_timers()
             await taxi_timers()
+            await seller_timers()
             await morning_stock()
             await daily_report()
             await nightly_backup()

@@ -24,6 +24,9 @@ DEFAULTS = {
     "orders_per_10_min": "10",
     # Hour (Tashkent) when stalls are asked "what do you have today?"; the day it was last sent
     "morning_stock_hour": "7",
+    # Seller control (Express): remind the stall, then tell the bozorkom and the customer, minutes after the order
+    "seller_remind_min": "15",
+    "seller_alert_min": "25",
     "morning_stock_sent": "",
     # «Xaridor kelmadi», minutes from when the customer is being waited for:
     # a reminder to the customer, then the worker may mark a no-show; self pickup waits longer

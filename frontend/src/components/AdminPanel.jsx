@@ -62,6 +62,9 @@ const T = {
   return_alert_min: { uz: 'Qaytmagan mahsulot signali, daq', ru: 'Сигнал о невозвращённом товаре, мин', en: 'Goods not back alert, min' },
   no_show_strikes: { uz: 'Necha marta kelmasa — yopiladi', ru: 'Сколько неявок — закрыть заказы', en: 'No-shows before ordering is closed' },
   taxi_gate_grace_min: { uz: 'Taksi darvozaga kechiksa, daq', ru: 'Опоздание такси к воротам, мин', en: 'Taxi late to the gate, min' },
+  seller_remind_min: { uz: 'Sotuvchiga eslatma (tezkor), daq', ru: 'Напомнить продавцу (срочный), мин', en: 'Remind the seller (express), min' },
+  seller_alert_min: { uz: 'Sotuvchi kechiksa bozorkomga, daq', ru: 'Продавец задерживает: бозоркому, мин', en: 'Seller late: tell the bozorkom, min' },
+  reliability: { uz: '30 kun: {orders} buyurtma · {late} kechikish', ru: '30 дней: {orders} заказов · {late} задержек', en: '30 days: {orders} orders · {late} late' },
   taxi_trip_max_min: { uz: "Yo'lda ko'pi bilan, daq", ru: 'В пути не дольше, мин', en: 'Trip at most, min' },
   taxi_reassign_alert: { uz: 'Necha marta taksi almashsa — signal', ru: 'Сколько смен такси — сигнал', en: 'Taxi changes before an alert' },
   incidents: { uz: '30 kunda', ru: 'За 30 дней', en: 'Last 30 days' },
@@ -99,7 +102,7 @@ const T = {
 const ANALYTICS_TAB = 8;
 const LIMIT_KEYS = ['new_customer_max_total', 'new_customer_max_open', 'max_open_orders', 'orders_per_10_min', 'morning_stock_hour',
   'no_show_remind_min', 'no_show_after_min', 'self_no_show_min', 'return_alert_min', 'no_show_strikes',
-  'taxi_gate_grace_min', 'taxi_trip_max_min', 'taxi_reassign_alert'];
+  'taxi_gate_grace_min', 'taxi_trip_max_min', 'taxi_reassign_alert', 'seller_remind_min', 'seller_alert_min'];
 const STATUS_COLOR = { pending: '#d97706', approved: '#16a34a', rejected: '#64748b', blocked: '#dc2626' };
 const card = { background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 12, marginBottom: 8 };
 const pill = (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 800, color, background: `${color}1a` });
@@ -252,6 +255,11 @@ export default function AdminPanel({ onBackToMarket }) {
       </div>
       <div style={{ fontSize: 14 }}>{s[`name_${language}`] || s.name_uz}</div>
       <div style={{ fontSize: 13, color: '#64748b' }}>{s.owner_name} · <a href={`tel:${s.owner_phone.replace(/[^\d+]/g, '')}`} style={{ color: 'inherit' }}>{s.owner_phone}</a> · {categoryName(s.category_slug)}</div>
+      {s.status === 'approved' && (
+        <div data-testid="store-reliability" style={{ fontSize: 13, marginTop: 4, fontWeight: 700, color: s.late_30d > 0 ? '#b45309' : '#047857' }}>
+          ⏱ {t('reliability').replace('{orders}', s.orders_30d || 0).replace('{late}', s.late_30d || 0)}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         {statusButtons(s, api.adminStoreStatus)}
         {s.status === 'approved' && <button type="button" style={{ ...smallBtn('#f1f5f9', '#334155'), marginTop: 8 }} onClick={() => resetPin((pin) => api.adminStorePin(s.id, pin))}>{t('new_pin')}</button>}

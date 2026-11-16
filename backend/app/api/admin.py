@@ -17,14 +17,14 @@ from app.api.staff import staff_public, find_by_phone
 from app.api.auth import normalize_phone
 from app.services.config_store import get_setting, set_setting
 from app.services.customer_guard import phone_key
-from app.services import stock, no_show, taxi_control, analytics, backup
+from app.services import stock, no_show, taxi_control, analytics, backup, seller_control
 from app.bot.notify import notify_status, notify_store_decision, notify_staff_decision
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_only = [Depends(current_admin)]
 TUNABLE_SETTINGS = ("max_open_orders", "new_customer_max_open", "new_customer_max_total", "orders_per_10_min", "morning_stock_hour",
                     "no_show_remind_min", "no_show_after_min", "self_no_show_min", "return_alert_min", "no_show_strikes",
-                    "taxi_gate_grace_min", "taxi_trip_max_min", "taxi_reassign_alert")
+                    "taxi_gate_grace_min", "taxi_trip_max_min", "taxi_reassign_alert", "seller_remind_min", "seller_alert_min")
 
 
 def store_public(s: StoreModel) -> dict:
@@ -97,7 +97,10 @@ async def overview(db: AsyncSession = Depends(get_db)):
 async def list_stores(db: AsyncSession = Depends(get_db)):
     # Demo stalls hidden by migration 0008 («archived») are not shown to the bozorkom
     stores = (await db.execute(select(StoreModel).where(StoreModel.status != "archived").order_by(StoreModel.id.desc()))).scalars().all()
-    return [store_public(s) for s in stores]
+    # Reliability over 30 days: how many orders the stall had and how often it was late packing (seller control)
+    score = await seller_control.reliability(db)
+    return [{**store_public(s), "orders_30d": score.get(s.id, {}).get("orders", 0), "late_30d": score.get(s.id, {}).get("late", 0)}
+            for s in stores]
 
 
 @router.post("/stores/{store_id}/status", dependencies=admin_only)
@@ -339,6 +342,8 @@ async def update_settings(
     taxi_gate_grace_min: Optional[int] = Body(None, ge=1, le=60),
     taxi_trip_max_min: Optional[int] = Body(None, ge=15, le=240),
     taxi_reassign_alert: Optional[int] = Body(None, ge=1, le=10),
+    seller_remind_min: Optional[int] = Body(None, ge=5, le=120),
+    seller_alert_min: Optional[int] = Body(None, ge=10, le=240),
     self_pickup_only: Optional[bool] = Body(None),
     patta_enabled: Optional[bool] = Body(None),
     db: AsyncSession = Depends(get_db)
@@ -359,7 +364,8 @@ async def update_settings(
                        ("no_show_remind_min", no_show_remind_min), ("no_show_after_min", no_show_after_min),
                        ("self_no_show_min", self_no_show_min), ("return_alert_min", return_alert_min),
                        ("no_show_strikes", no_show_strikes), ("taxi_gate_grace_min", taxi_gate_grace_min),
-                       ("taxi_trip_max_min", taxi_trip_max_min), ("taxi_reassign_alert", taxi_reassign_alert)):
+                       ("taxi_trip_max_min", taxi_trip_max_min), ("taxi_reassign_alert", taxi_reassign_alert),
+                       ("seller_remind_min", seller_remind_min), ("seller_alert_min", seller_alert_min)):
         if value is not None:
             await set_setting(db, key, f"{value:g}")
     return {

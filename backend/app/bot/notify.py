@@ -603,6 +603,54 @@ def notify_trip_late(order_id: int, minutes: int):
     _background(_trip_late(order_id, minutes))
 
 
+async def _seller_remind(order_id: int, store_id: int, minutes: int):
+    async with async_session_factory() as db:
+        order = await db.get(OrderModel, order_id)
+        chats = await _stall_chats(db, store_id)
+    if not order:
+        return
+    text = (f"⏰ <b>Buyurtma {minutes} daqiqadan beri kutyapti · Заказ ждёт {minutes} мин</b> #{order.order_number}\n"
+            f"Iltimos, yig'ib «Tayyor» tugmasini bosing · Пожалуйста, соберите и нажмите «Готово»")
+    keyboard = _webapp_button("🏪 Kabinet · Кабинет", "tab=seller_cabinet")
+    await asyncio.gather(*[_send(chat, text, keyboard) for chat in chats])
+
+
+def notify_seller_remind(order_id: int, store_id: int, minutes: int):
+    _background(_seller_remind(order_id, store_id, minutes))
+
+
+async def _seller_late(order_id: int, store_id: int, minutes: int):
+    """The stall still has not packed: the stall, the bozorkom and the customer are told."""
+    from app.services.config_store import get_setting
+    async with async_session_factory() as db:
+        order = await db.get(OrderModel, order_id)
+        store = await db.get(StoreModel, store_id)
+        chats = await _stall_chats(db, store_id)
+        admin_tg = await get_setting(db, "admin_tg_id")
+        customer = (await db.execute(select(CustomerModel).where(CustomerModel.tg_id == order.customer_tg_id))).scalars().first() \
+            if order and order.customer_tg_id else None
+    if not order or not store:
+        return
+    stall = f"{escape(store.stall_number)} · {escape(store.owner_name)}"
+    sends = [_send(chat, f"⚠️ <b>{minutes} daqiqa: buyurtma hali tayyor emas · {minutes} мин: заказ ещё не готов</b> #{order.order_number}\n"
+                         f"Bozorkom xabardor qilindi · Бозорком уведомлён", _webapp_button("🏪 Kabinet · Кабинет", "tab=seller_cabinet"))
+             for chat in chats]
+    if admin_tg:
+        sends.append(_send(admin_tg, f"⚠️ <b>Sotuvchi kechikmoqda · Продавец задерживает</b> #{order.order_number}\n"
+                                     f"🏪 {stall}\n⏱ {minutes} daqiqa · мин", _webapp_button("🏛 Bozorkom", "tab=admin")))
+    if order.customer_tg_id:
+        lang = (customer.lang if customer and customer.lang else "uz")
+        msg = {"uz": f"⏳ #{order.order_number}: {stall} rastasi biroz kechikmoqda. Bozor ma'muriyati xabardor.",
+               "ru": f"⏳ #{order.order_number}: раста {stall} немного задерживается. Администрация базара в курсе.",
+               "en": f"⏳ #{order.order_number}: stall {stall} is running a little late. The bazaar administration knows."}[lang]
+        sends.append(_send(order.customer_tg_id, msg))
+    await asyncio.gather(*sends)
+
+
+def notify_seller_late(order_id: int, store_id: int, minutes: int):
+    _background(_seller_late(order_id, store_id, minutes))
+
+
 async def send_error_alert(where: str, summary: str):
     from app.services.config_store import get_setting
     async with async_session_factory() as db:
