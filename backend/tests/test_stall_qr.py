@@ -24,6 +24,17 @@ class Msg:
     async def answer_photo(s, photo=None, caption="", **kw): s.replies.append((caption, kw.get("reply_markup")))
 
 
+def accept_rules(tg_id):
+    """The platform rules are accepted once (test_terms.py checks that step itself)."""
+    from app.database import async_session_factory
+    from app.services import terms
+
+    async def go():
+        async with async_session_factory() as db:
+            await terms.accept(db, tg_id, "ru", "bot")
+    asyncio.run(go())
+
+
 def buttons(m):
     return [(b.text, b.web_app.url if b.web_app else b.callback_data) for row in m.replies[-1][1].inline_keyboard for b in row]
 
@@ -51,6 +62,7 @@ def test_stall_qr(api, ok, admin, monkeypatch):
     ok(m.replies and m.replies[0][0] == botmod.REG_TEXTS["choose_lang"] and "jreq_" not in str(m.replies),
        "a new customer scans: the bot's normal start (choose a language), nothing about the stall")
     asyncio.run(botmod.save_customer(CUSTOMER, lang="ru", phone="+998901112299", name="Xaridor"))
+    accept_rules(CUSTOMER)
     m = Msg(CUSTOMER, "Xaridor"); asyncio.run(botmod.stall_qr(m, sid))
     welcome = botmod.TEXTS["ru"]["welcome"]
     ok(any(text == welcome for text, _ in m.replies), "a registered customer scans: the bot's start page (welcome + shop)")

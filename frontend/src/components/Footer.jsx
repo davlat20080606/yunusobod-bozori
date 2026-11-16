@@ -46,7 +46,7 @@ const PHOTO_CREDITS = [
   }
 ];
 
-export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateSeller, onNavigateOrders, onNavigatePorter }) {
+export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateSeller, onNavigateOrders, onNavigatePorter, onNavigateTerms }) {
   const { t, language } = useLanguage();
 
   return (
@@ -160,14 +160,20 @@ export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateS
           {/* Column 4: Payment Methods */}
           <div className="med-footer-col">
             <h4 className="med-footer-heading">{t('footer.payments')}</h4>
-            {/* Only cash works today; card payments appear here once Click/Payme are connected */}
+            {/* The bot takes no part in payment: customer and seller agree on it themselves (platform rules) */}
             <div className="med-footer-pay-list" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
               <span className="med-pay-pill" style={{ margin: 0 }}>
                 💵 {language === 'ru' ? 'Наличные' : (language === 'en' ? 'Cash' : 'Naqd pul')}
               </span>
+              <span className="med-pay-pill" style={{ margin: 0 }}>
+                💳 {language === 'ru' ? 'Карта' : (language === 'en' ? 'Card' : 'Karta')}
+              </span>
+              <span className="med-pay-pill" style={{ margin: 0 }}>
+                🤝 {language === 'ru' ? 'Насия' : (language === 'en' ? 'Credit' : 'Nasiya')}
+              </span>
             </div>
             <p className="med-footer-pay-hint">
-              {language === 'ru' ? 'Оплата курьеру при получении. Click и Payme — скоро.' : (language === 'en' ? 'Pay the courier on delivery. Click and Payme coming soon.' : "Kuryerga qabul qilganda to'laysiz. Click va Payme — tez orada.")}
+              {language === 'ru' ? 'Способ оплаты выбираете вы с продавцом. Бот в расчёты не вмешивается.' : (language === 'en' ? 'You and the seller choose how to pay. The bot takes no part in payment.' : "To'lov usulini sotuvchi bilan o'zingiz tanlaysiz. Bot hisob-kitobga aralashmaydi.")}
             </p>
           </div>
 
@@ -194,6 +200,10 @@ export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateS
             <span>{language === 'ru' ? 'Ташкент, Узбекистан' : (language === 'en' ? 'Tashkent, Uzbekistan' : 'Toshkent, O\'zbekiston')}</span>
             <span className="med-dot-sep">•</span>
             <span className="med-online-badge">Online 24/7</span>
+            <span className="med-dot-sep">•</span>
+            <button type="button" data-testid="footer-terms" onClick={onNavigateTerms} style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
+              {language === 'ru' ? 'Правила и конфиденциальность' : (language === 'en' ? 'Terms and privacy' : 'Qoidalar va maxfiylik')}
+            </button>
           </div>
         </div>
 

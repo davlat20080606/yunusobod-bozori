@@ -43,7 +43,7 @@ const T = {
   rate_send: { uz: 'Yuborish', ru: 'Отправить', en: 'Send' },
   rate_thanks: { uz: 'Bahoyingiz uchun rahmat!', ru: 'Спасибо за оценку!', en: 'Thanks for your rating!' },
   cancel_confirm: { uz: 'Buyurtmani bekor qilasizmi?', ru: 'Отменить заказ?', en: 'Cancel this order?' },
-  cash: { uz: 'Naqd yoki karta', ru: 'Наличные или карта', en: 'Cash or card' },
+  cash: { uz: 'Sotuvchi bilan kelishiladi', ru: 'По договорённости с продавцом', en: 'Agreed with the seller' },
   help: { uz: 'Savol yoki muammo bormi?', ru: 'Есть вопрос или проблема?', en: 'Question or problem?' },
   help_call: { uz: "Bozorga qo'ng'iroq qiling", ru: 'Позвоните на базар', en: 'Call the bazaar' },
   code_title: { uz: 'Qabul qilish kodi', ru: 'Код получения', en: 'Pickup code' },
@@ -200,9 +200,9 @@ function SellerPay({ order, lang }) {
     <div data-testid="seller-pay" style={card}>
       <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>💳 {tr("To'lov", 'Оплата', 'Payment')}</div>
       <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.45 }}>
-        {tr("Naqd yoki kartaga o'tkazma — sotuvchi bilan o'zingiz kelishasiz. Bot to'lovda qatnashmaydi.",
-          'Наличными или переводом на карту — договариваетесь с продавцом сами. Бот в оплате не участвует.',
-          'Cash or a card transfer: agree with the seller yourself. The bot takes no part in payment.')}
+        {tr("Naqd, karta yoki nasiya — sotuvchi bilan o'zingiz kelishasiz. Bot to'lovda qatnashmaydi.",
+          'Наличные, карта или насия — договариваетесь с продавцом сами. Бот в оплате не участвует.',
+          'Cash, card or credit: agree with the seller yourself. The bot takes no part in payment.')}
       </div>
       {cards.map((c) => (
         <div key={c.store_id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, padding: '10px 12px', borderRadius: 14, background: '#f8fafc' }}>

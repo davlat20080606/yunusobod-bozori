@@ -22,7 +22,8 @@ relax_limits() { # the journeys place many orders from one test phone; the limit
   curl -s -o /dev/null -X PUT http://127.0.0.1:8099/api/admin/settings -H 'Content-Type: application/json' -H "x-admin-token: $token" \
     -d '{"max_open_orders":20,"new_customer_max_open":20,"new_customer_max_total":100000000,"orders_per_10_min":1000,"self_pickup_only":false}'
 }
-chrome() { rm -rf "$S/chrome"; "$CHROME" --headless=new --remote-debugging-port=9333 --user-data-dir="$S/chrome" --no-first-run about:blank > /dev/null 2>&1 & sleep 3; }
+chrome() { rm -rf "$S/chrome"; "$CHROME" --headless=new --remote-debugging-port=9333 --user-data-dir="$S/chrome" --no-first-run about:blank > /dev/null 2>&1 & sleep 3
+  [ "${RULES_FRESH:-0}" = 1 ] || "$PY" "$E/rules_accepted.py"; }
 report() { # $1 name, $2 output with PASS/FAIL lines
   p=$(grep -c "^PASS" "$2"); f=$(grep -c "^FAIL" "$2")
   printf "%-42s %3d / %-3d %s\n" "$1" "$p" "$((p+f))" "$( [ "$f" -eq 0 ] && [ "$p" -gt 0 ] && echo OK || echo "<-- FAIL" )"
@@ -77,6 +78,9 @@ report "Stall QR: printable poster in the seller cabinet" "$S/stallqr.txt"
 
 stop; server sellercard; chrome; "$PY" "$E/seller_card_ui.py" "$S" > "$S/sellercard.txt" 2>&1
 report "Payment between customer and seller: the seller's card in the order" "$S/sellercard.txt"
+
+stop; server terms; RULES_FRESH=1 chrome; "$PY" "$E/terms_ui.py" "$S" > "$S/terms.txt" 2>&1
+report "Platform rules: «DIQQAT!» once, full rules page, footer link" "$S/terms.txt"
 
 stop; server analytics; chrome; "$PY" "$E/analytics_ui.py" "$S" > "$S/analytics.txt" 2>&1
 report "Analytics + CSV + backup state (Bozorkom)" "$S/analytics.txt"

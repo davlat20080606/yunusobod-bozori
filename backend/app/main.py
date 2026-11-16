@@ -20,7 +20,7 @@ from app.models.schemas import MediaModel
 from app.services.seed_data import init_db_and_seed
 from app.services.migrate import migrate
 from app.services import maintenance
-from app.api import stores, products, seller, orders, stats, porter, reviews, staff, taxi, patta, admin
+from app.api import stores, products, seller, orders, stats, porter, reviews, staff, taxi, patta, admin, terms
 from app.bot.bot import setup_dispatcher, get_bot
 
 logging.basicConfig(level=logging.INFO)
@@ -106,6 +106,7 @@ async def lifespan(app: FastAPI):
                     BotCommand(command="start", description="Bozorni ochish / Открыть базар"),
                     BotCommand(command="help", description="Yordam / Помощь"),
                     BotCommand(command="profile", description="Profil / Профиль"),
+                    BotCommand(command="qoidalar", description="Qoidalar / Правила"),
                 ])
             except Exception as e:
                 logger.warning(f"Bot commands note: {e}")
@@ -184,6 +185,7 @@ app.include_router(staff.router)
 app.include_router(taxi.router)
 app.include_router(patta.router)
 app.include_router(admin.router)
+app.include_router(terms.router)
 
 
 @app.get("/api/me")

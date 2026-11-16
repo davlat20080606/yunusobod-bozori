@@ -83,6 +83,19 @@ const adminFetch = (path, options) => tokenFetch(path, adminSession, 'x-admin-to
 const json = (method, body) => ({ method, body: body === undefined ? undefined : JSON.stringify(body) });
 
 export const api = {
+  // Platform rules: has this Telegram user accepted the current version? Accept it.
+  async termsStatus() {
+    const res = await fetch(`${API_BASE}/terms/status`, { headers: tgHeaders() });
+    if (!res.ok) throw await readError(res, 'Rules check failed');
+    return res.json();
+  },
+  async termsAccept(lang) {
+    const res = await fetch(`${API_BASE}/terms/accept`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...tgHeaders() }, body: JSON.stringify({ lang })
+    });
+    if (!res.ok) throw await readError(res, 'Could not save');
+    return res.json();
+  },
   async getMe() {
     const res = await fetch(`${API_BASE}/me`, { headers: tgHeaders() });
     if (!res.ok) throw await readError(res, 'Failed to load profile');

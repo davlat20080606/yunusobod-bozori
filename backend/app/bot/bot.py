@@ -123,9 +123,9 @@ REG_TEXTS = {
         "en": "✅ Thank you, {name}! You are registered.\n📱 {phone}",
     },
     "help": {
-        "uz": "ℹ️ <b>Yordam</b>\n\n🕕 Bozor har kuni 06:00 – 20:00 ishlaydi\n🚚 Yetkazish: bozordan {radius} km gacha, 45–60 daqiqa\n💵 To'lov: naqd, kuryerga qabul qilganda{phone_line}\n\n/profile — ism va telefonni o'zgartirish",
-        "ru": "ℹ️ <b>Помощь</b>\n\n🕕 Базар работает каждый день 06:00 – 20:00\n🚚 Доставка: до {radius} км от базара, 45–60 минут\n💵 Оплата: наличными курьеру при получении{phone_line}\n\n/profile — изменить имя и телефон",
-        "en": "ℹ️ <b>Help</b>\n\n🕕 The bazaar is open daily 06:00 – 20:00\n🚚 Delivery: up to {radius} km from the bazaar, 45–60 minutes\n💵 Payment: cash to the courier on delivery{phone_line}\n\n/profile — change name and phone",
+        "uz": "ℹ️ <b>Yordam</b>\n\n🕕 Bozor har kuni 06:00 – 20:00 ishlaydi\n🚚 Yetkazish: bozordan {radius} km gacha, 45–60 daqiqa\n💵 To'lov: naqd, karta yoki nasiya — sotuvchi bilan o'zingiz kelishasiz{phone_line}\n\n/profile — ism va telefonni o'zgartirish\n/qoidalar — foydalanish qoidalari",
+        "ru": "ℹ️ <b>Помощь</b>\n\n🕕 Базар работает каждый день 06:00 – 20:00\n🚚 Доставка: до {radius} км от базара, 45–60 минут\n💵 Оплата: наличные, карта или насия — договариваетесь с продавцом сами{phone_line}\n\n/profile — изменить имя и телефон\n/qoidalar — правила использования",
+        "en": "ℹ️ <b>Help</b>\n\n🕕 The bazaar is open daily 06:00 – 20:00\n🚚 Delivery: up to {radius} km from the bazaar, 45–60 minutes\n💵 Payment: cash, card or credit — agree with the seller yourself{phone_line}\n\n/profile — change name and phone\n/qoidalar — terms of use",
     },
     "help_phone": {
         "uz": "📞 Savol yoki muammo bo'lsa: {phone}",
@@ -208,9 +208,50 @@ async def ask_name(message: types.Message, lang: str, suggestion: str = None):
     await message.answer(REG_TEXTS["ask_name"][lang], reply_markup=keyboard)
 
 
-async def continue_registration(message: types.Message, customer, tg_first_name: str = None):
-    """Language → phone → name; whatever is missing is asked next."""
+def terms_keyboard(lang: str, with_agree: bool = True):
+    from app.services import terms
+    rows = []
+    if with_agree:
+        rows.append([InlineKeyboardButton(text=terms.AGREE[lang], callback_data="terms_ok")])
+    if settings.WEBAPP_URL.startswith("https://"):
+        rows.append([InlineKeyboardButton(text=terms.READ_ALL[lang], web_app=WebAppInfo(url=f"{settings.WEBAPP_URL}?tab=terms&lang={lang}"))])
+    return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
+
+
+async def terms_accepted(tg_id) -> bool:
+    from app.database import async_session_factory
+    from app.services import terms
+    async with async_session_factory() as db:
+        return await terms.has_accepted(db, tg_id)
+
+
+async def ask_terms(message: types.Message, lang: str):
+    from app.services import terms
+    await message.answer(terms.WARNING[lang], reply_markup=terms_keyboard(lang), parse_mode="HTML")
+
+
+async def accept_terms(query: types.CallbackQuery):
+    """«Roziman»: remember it, then go on with the registration (or straight to the shop)."""
+    from app.database import async_session_factory
+    from app.services import terms
+    customer = await get_customer(query.from_user.id) or await save_customer(query.from_user.id, lang="uz")
     lang = customer.lang or "uz"
+    async with async_session_factory() as db:
+        await terms.accept(db, query.from_user.id, lang, "bot")
+    await query.answer(terms.ACCEPTED[lang])
+    try:
+        await query.message.edit_reply_markup(reply_markup=terms_keyboard(lang, with_agree=False))
+    except Exception:
+        pass
+    await continue_registration(query.message, customer, query.from_user.first_name)
+
+
+async def continue_registration(message: types.Message, customer, tg_first_name: str = None):
+    """Language → rules (once) → phone → name; whatever is missing is asked next."""
+    lang = customer.lang or "uz"
+    if not await terms_accepted(customer.tg_id):
+        await ask_terms(message, lang)
+        return
     if not customer.phone:
         await ask_phone(message, lang)
     elif not customer.name:
@@ -273,7 +314,7 @@ async def start_customer(message: types.Message) -> bool:
         # First visit: language first, like Evos / Bellissimo
         await message.answer(REG_TEXTS["choose_lang"], reply_markup=language_keyboard("reglang"))
         return False
-    if not customer.phone or not customer.name:
+    if not customer.phone or not customer.name or not await terms_accepted(customer.tg_id):
         await continue_registration(message, customer, message.from_user.first_name)
         return False
     # Clear any old reply keyboard left by earlier versions
@@ -487,6 +528,18 @@ def setup_dispatcher() -> Dispatcher:
             radius = await get_setting(db, "delivery_radius_km")
         phone_line = "\n\n" + REG_TEXTS["help_phone"][lang].format(phone=escape(phone)) if phone else ""
         await message.answer(REG_TEXTS["help"][lang].format(radius=radius, phone_line=phone_line), parse_mode="HTML")
+
+    @dp.message(Command("qoidalar", "rules", "terms"))
+    async def cmd_rules(message: types.Message):
+        from app.services import terms
+        customer = await get_customer(message.from_user.id)
+        lang = (customer.lang if customer else None) or "uz"
+        accepted = await terms_accepted(message.from_user.id)
+        await message.answer(terms.WARNING[lang], reply_markup=terms_keyboard(lang, with_agree=not accepted), parse_mode="HTML")
+
+    @dp.callback_query(F.data == "terms_ok")
+    async def handle_terms_ok(query: types.CallbackQuery):
+        await accept_terms(query)
 
     @dp.message(Command("profile", "settings"))
     async def cmd_profile(message: types.Message):

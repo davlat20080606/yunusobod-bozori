@@ -253,6 +253,18 @@ class CustomerModel(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class TermsAcceptanceModel(Base):
+    """Who accepted which version of the platform rules, when, and where (bot or app)."""
+    __tablename__ = "terms_acceptances"
+
+    id = Column(Integer, primary_key=True)
+    tg_id = Column(String(50), nullable=False, index=True)
+    version = Column(String(20), nullable=False)
+    lang = Column(String(5), nullable=True)
+    source = Column(String(10), nullable=True)
+    accepted_at = Column(DateTime, default=datetime.utcnow)
+
+
 class CustomerBlockModel(Base):
     """A customer the bazaar administration stopped from ordering (fake orders, never collects).
     Matched by phone and, when known, by Telegram account, so a new number alone does not get round it."""

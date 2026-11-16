@@ -30,6 +30,7 @@ import PorterPanel from './components/PorterPanel';
 import OrderTracker, { statusTitle, ACTIVE_STATUSES, rememberMyOrder } from './components/OrderTracker';
 import MobileBottomNav from './components/MobileBottomNav';
 import Footer from './components/Footer';
+import { TermsPage, TermsGate } from './components/Terms';
 
 import { Search, Sparkles, ChevronRight, Store, ShoppingBag, X } from 'lucide-react';
 
@@ -41,7 +42,7 @@ export default function App() {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tab = urlParams.get('tab');
-      if (tab && ['market', 'catalog', 'saved', 'orders', 'seller', 'seller_cabinet', 'porter', 'taxi', 'pattachi', 'admin'].includes(tab)) return tab;
+      if (tab && ['market', 'catalog', 'saved', 'orders', 'seller', 'seller_cabinet', 'porter', 'taxi', 'pattachi', 'admin', 'terms'].includes(tab)) return tab;
     } catch {}
     return 'market';
   });
@@ -467,6 +468,7 @@ export default function App() {
               {activeTab === 'taxi' && <TaxiPanel onBackToMarket={() => setActiveTab('seller')} />}
               {activeTab === 'pattachi' && <PattachiPanel onBackToMarket={() => setActiveTab('seller')} />}
               {activeTab === 'admin' && <AdminPanel onBackToMarket={() => setActiveTab('seller')} />}
+              {activeTab === 'terms' && <TermsPage onBack={() => { setActiveTab('market'); window.scrollTo(0, 0); }} />}
 
               {/* VIEW B: ORDER TRACKER */}
               {activeTab === 'orders' && (
@@ -584,7 +586,10 @@ export default function App() {
         onNavigateSeller={() => setActiveTab('seller')}
         onNavigatePorter={() => setActiveTab('porter')}
         onNavigateOrders={() => setActiveTab('orders')}
+        onNavigateTerms={() => { setActiveTab('terms'); window.scrollTo(0, 0); }}
       />
+
+      <TermsGate hidden={activeTab === 'terms'} onReadAll={() => { setActiveTab('terms'); window.scrollTo(0, 0); }} />
 
       {/* Floating cart pill (Yandex Go style) */}
       {cartItemsCount > 0 && !cartDrawerOpen && !checkoutModalOpen && !selectedProduct && (
