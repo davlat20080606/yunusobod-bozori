@@ -185,3 +185,48 @@ def test_health_shows_backup_state(api):
     assert c == 200 and health["backup"] == "off (missing: BACKUP_KEY)"
     c, r = api("POST", "/admin/backup", None, {"x-admin-token": "nope"})
     assert c in (401, 403)
+
+
+def test_new_empty_database_fills_itself_from_the_newest_copy(api, admin, sellers):
+    """Moving to another database host: only DATABASE_URL changes, the server restores the newest copy by itself,
+    and never touches a database that already has stalls or orders."""
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from app.config import settings
+    from app.services import backup
+    from app.services.migrate import upgrade
+
+    source = create_async_engine(f"sqlite+aiosqlite:///{DB_FILE}")
+    target_file = RUN_DIR / "moved.db"
+    target_file.unlink(missing_ok=True)
+    target = create_async_engine(f"sqlite+aiosqlite:///{target_file}")
+    old_key = settings.BACKUP_KEY
+    settings.BACKUP_KEY = "move-key"
+
+    async def run():
+        async with source.connect() as conn:
+            data = await conn.run_sync(backup.dump_tables)
+        blob = backup.pack(data)
+        fetched = []
+
+        def fetch():
+            fetched.append(1)
+            return "backups/2026-11-19.json.gz.enc", blob
+
+        async with target.begin() as conn:
+            await conn.run_sync(upgrade)
+        first = await backup.restore_into_empty(target, fetch)
+        second = await backup.restore_into_empty(target, fetch)
+        await source.dispose()
+        await target.dispose()
+        return data, first, second, len(fetched)
+
+    try:
+        data, first, second, fetches = asyncio.run(run())
+    finally:
+        settings.BACKUP_KEY = old_key
+    rows = sum(len(r) for r in data["tables"].values())
+    assert first == f"backups/2026-11-19.json.gz.enc: {rows} rows", first
+    assert second is None and fetches == 1, "a database with stalls and orders is never overwritten"
+    with sqlite3.connect(DB_FILE) as a, sqlite3.connect(target_file) as b:
+        for table in ("stores", "orders", "staff", "products"):
+            assert a.execute(f"SELECT COUNT(*) FROM {table}").fetchone() == b.execute(f"SELECT COUNT(*) FROM {table}").fetchone(), table

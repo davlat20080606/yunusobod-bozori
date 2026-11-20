@@ -3,7 +3,7 @@ import asyncio
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from app.config import settings, IS_POSTGRES
+from app.config import settings, IS_POSTGRES, DB_SSL
 from app.database import Base
 import app.models.schemas  # noqa: F401  (registers every table on Base.metadata)
 
@@ -23,7 +23,7 @@ def run(connection):
 
 
 async def run_from_url():
-    engine = create_async_engine(settings.DATABASE_URL, connect_args={"ssl": True} if IS_POSTGRES else {})
+    engine = create_async_engine(settings.DATABASE_URL, connect_args={"ssl": DB_SSL} if IS_POSTGRES else {})
     async with engine.connect() as conn:
         await conn.run_sync(run)
     await engine.dispose()

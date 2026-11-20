@@ -63,6 +63,12 @@ async def lifespan(app: FastAPI):
 
     # 1. Schema migrations. A failure stops the start, so the old version keeps serving instead
     await migrate()
+    # 2. A brand-new database (moved to another host) is filled from the newest nightly copy, before the demo seed
+    from app.services.backup import restore_into_empty
+    from app.database import engine as db_engine
+    restored = await restore_into_empty(db_engine)
+    if restored:
+        logger.info(f"✅ Restored from backup {restored}")
     try:
         await init_db_and_seed()
         logger.info("✅ Database seeded with authentic Yunusobod stores & fresh products.")

@@ -49,6 +49,11 @@ settings.R2_PUBLIC_URL = settings.R2_PUBLIC_URL.strip().rstrip("/")
 
 # Neon / Render give "postgres://...?sslmode=require"; SQLAlchemy async needs the asyncpg driver
 IS_POSTGRES = settings.DATABASE_URL.startswith(("postgres://", "postgresql://", "postgresql+asyncpg://"))
+# Neon's certificate is publicly signed, so it is checked in full. Other hosts (Supabase's pooler) sign with their
+# own CA: the connection is still encrypted, without checking whose certificate it is
+DB_SSL = True
+if IS_POSTGRES and "neon.tech" not in settings.DATABASE_URL:
+    DB_SSL = "require"
 if IS_POSTGRES:
     url = settings.DATABASE_URL.split("?", 1)[0]
     url = url.replace("postgres://", "postgresql://", 1).replace("postgresql://", "postgresql+asyncpg://", 1)

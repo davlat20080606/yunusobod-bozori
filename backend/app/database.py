@@ -1,13 +1,13 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
-from app.config import settings, IS_POSTGRES
+from app.config import settings, IS_POSTGRES, DB_SSL
 
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,
     future=True,
-    # Free cloud Postgres (Neon) needs SSL and drops idle connections
-    connect_args={"ssl": True} if IS_POSTGRES else {},
+    # Cloud Postgres needs SSL and drops idle connections
+    connect_args={"ssl": DB_SSL} if IS_POSTGRES else {},
     pool_pre_ping=IS_POSTGRES
 )
 

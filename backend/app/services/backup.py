@@ -173,3 +173,44 @@ async def make_backup(engine, today: Optional[date] = None) -> dict:
     rows = sum(len(r) for r in data["tables"].values())
     logger.info(f"Backup {name}: {rows} rows, {len(blob)} bytes, {removed} old copies removed")
     return {"name": name, "rows": rows, "bytes": len(blob), "removed": removed}
+
+
+def _r2_newest() -> Optional[tuple]:
+    """Name and bytes of the newest copy in R2, or None."""
+    from app.services.storage import r2_client
+    names = sorted(n for n in _r2_list() if n.endswith(".json.gz.enc"))
+    if not names:
+        return None
+    body = r2_client().get_object(Bucket=settings.R2_BUCKET, Key=names[-1])["Body"].read()
+    return names[-1], body
+
+
+async def restore_into_empty(engine, fetch=None) -> Optional[str]:
+    """A brand-new, empty database gets the newest copy from R2 by itself.
+
+    Moving to another database host then only needs the new DATABASE_URL in Render: the server finds no stalls
+    and no orders, takes the newest nightly copy and fills the database before anything else runs. A database
+    that has any stall or order is never touched. Without R2 or BACKUP_KEY (tests, a local Mac) nothing happens.
+    """
+    if fetch is None:
+        if not (R2_ENABLED and settings.BACKUP_KEY.strip()):
+            return None
+        fetch = _r2_newest
+    from app.models.schemas import StoreModel, OrderModel
+    from sqlalchemy import select, func
+    async with engine.connect() as conn:
+        stores = (await conn.execute(select(func.count()).select_from(StoreModel))).scalar()
+        orders = (await conn.execute(select(func.count()).select_from(OrderModel))).scalar()
+    if stores or orders:
+        return None
+    found = await run_in_threadpool(fetch)
+    if not found:
+        logger.warning("Empty database and no copy in R2 to restore")
+        return None
+    name, blob = found
+    data = unpack(blob)
+    async with engine.begin() as conn:
+        counts = await conn.run_sync(load_tables, data)
+    rows = sum(counts.values())
+    logger.info(f"Empty database filled from {name} (made {data['made_at']} UTC): {rows} rows")
+    return f"{name}: {rows} rows"
