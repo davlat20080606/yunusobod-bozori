@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     ADMIN_PIN: str = ""
     # The bot's founder signs into the same Bozorkom panel with their own PIN; empty = no founder sign-in
     FOUNDER_PIN: str = ""
+    # The site's own address: the Render address (…onrender.com) sends visitors and Google here
+    SITE_HOST: str = "bozorbot.uz"
     # "polling" (local Mac), "webhook" (cloud) or "auto" (webhook when running on Render)
     BOT_MODE: str = "auto"
     # Cloudflare R2 for seller photos/videos; empty = keep them in the database

@@ -30,6 +30,9 @@ const T = {
   reject: { uz: 'Rad etish', ru: 'Отклонить', en: 'Reject' },
   block: { uz: 'Bloklash', ru: 'Заблокировать', en: 'Block' },
   unblock: { uz: 'Faollashtirish', ru: 'Разблокировать', en: 'Activate' },
+  remove: { uz: "Ro'yxatdan olib tashlash", ru: 'Убрать из списка', en: 'Remove from list' },
+  remove_confirm: { uz: "Rastani ro'yxatdan olib tashlaysizmi? U hech kimga ko'rinmaydi.", ru: 'Убрать расту из списка? Её больше никто не увидит.', en: 'Remove this stall from the list? Nobody will see it.' },
+  removed: { uz: 'Olib tashlandi', ru: 'Убрано', en: 'Removed' },
   add_pattachi: { uz: "🧾 Pattachi qo'shish", ru: '🧾 Добавить паттачи', en: '🧾 Add a fee collector' },
   add_pattachi_hint: { uz: "Pattachini faqat bozorkom qo'shadi. Telefon va PIN-kodni pattachiga o'zingiz ayting.", ru: 'Паттачи добавляет только бозорком. Телефон и PIN сообщите паттачи сами.', en: 'Only the bozorkom adds fee collectors. Tell them the phone and PIN yourself.' },
   p_name: { uz: 'Ism', ru: 'Имя', en: 'Name' },
@@ -262,6 +265,12 @@ export default function AdminPanel({ onBackToMarket }) {
       )}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         {statusButtons(s, api.adminStoreStatus)}
+        {['blocked', 'rejected'].includes(s.status) && (
+          <button type="button" data-testid="store-remove" style={{ ...smallBtn('#f1f5f9', '#64748b'), marginTop: 8 }}
+            onClick={() => window.confirm(t('remove_confirm')) && act(() => api.adminStoreStatus(s.id, 'archived'), t('removed'))}>
+            🗑 {t('remove')}
+          </button>
+        )}
         {s.status === 'approved' && <button type="button" style={{ ...smallBtn('#f1f5f9', '#334155'), marginTop: 8 }} onClick={() => resetPin((pin) => api.adminStorePin(s.id, pin))}>{t('new_pin')}</button>}
       </div>
     </div>

@@ -43,7 +43,8 @@ async def own_product(product_id: int, store: StoreModel, db: AsyncSession) -> P
 
 async def phone_taken(db: AsyncSession, phone: str, except_store_id: int = None) -> bool:
     wanted = normalize_phone(phone)
-    res = await db.execute(select(StoreModel.id, StoreModel.owner_phone))
+    # A stall removed from the list (archived) does not hold its phone: that person may register again
+    res = await db.execute(select(StoreModel.id, StoreModel.owner_phone).where(StoreModel.status != "archived"))
     return any(normalize_phone(p) == wanted and sid != except_store_id for sid, p in res.all())
 
 
@@ -59,7 +60,8 @@ async def seller_login(
     if len(phone) < 9:
         raise HTTPException(status_code=400, detail="Telefon raqamini to'liq kiriting / Введите номер телефона полностью")
 
-    res = await db.execute(select(StoreModel))
+    # A stall removed from the list never signs in, and does not hide a newer stall with the same phone
+    res = await db.execute(select(StoreModel).where(StoreModel.status != "archived"))
     store = next((s for s in res.scalars().all() if normalize_phone(s.owner_phone) == phone), None)
 
     if not store or store.seller_pin != data.pin.strip():

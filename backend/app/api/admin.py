@@ -105,11 +105,18 @@ async def list_stores(db: AsyncSession = Depends(get_db)):
 
 @router.post("/stores/{store_id}/status", dependencies=admin_only)
 async def set_store_status(store_id: int, status: str = Body(..., embed=True), db: AsyncSession = Depends(get_db)):
-    if status not in ("approved", "rejected", "blocked"):
+    if status not in ("approved", "rejected", "blocked", "archived"):
         raise HTTPException(status_code=400, detail="Noto'g'ri status")
     store = await db.get(StoreModel, store_id)
     if not store:
         raise HTTPException(status_code=404, detail="Rasta topilmadi")
+    # «Remove from the list» (a test or demo stall): only a blocked or rejected stall, kept in the database, never told
+    if status == "archived":
+        if store.status not in ("blocked", "rejected"):
+            raise HTTPException(status_code=409, detail="Avval bloklang / Сначала заблокируйте расту")
+        store.status = "archived"
+        await db.commit()
+        return store_public(store)
     store.status = status
     await db.commit()
     notify_store_decision(store.id)

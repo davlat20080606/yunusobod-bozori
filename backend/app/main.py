@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from aiogram.types import MenuButtonWebApp, WebAppInfo, BotCommand
 from app.config import settings, USE_WEBHOOK, API_URL
 from app.database import get_db
@@ -169,6 +169,19 @@ app = FastAPI(
 
 # Enable ultra-fast GZip compression for mobile networks (3G/4G/5G)
 app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# Google found the site at its Render address too and shows that one: pages opened there move to bozorbot.uz
+# for good (301), so search results switch to the real address. API calls and the bot webhook are not moved
+@app.middleware("http")
+async def to_main_address(request: Request, call_next):
+    host = (request.headers.get("host") or "").split(":")[0].lower()
+    if (settings.SITE_HOST and host.endswith(".onrender.com") and request.method in ("GET", "HEAD")
+            and not request.url.path.startswith(("/api/", "/ws/"))):
+        target = f"https://{settings.SITE_HOST}{request.url.path}"
+        if request.url.query:
+            target += f"?{request.url.query}"
+        return RedirectResponse(target, status_code=301)
+    return await call_next(request)
 
 # CORS configuration
 app.add_middleware(
