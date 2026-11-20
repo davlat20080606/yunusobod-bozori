@@ -46,20 +46,20 @@ export default function CategoryGrid({ categories = [], products = [], onSelectC
             onClick={() => { triggerHaptic('light'); onSelectCategory(cat.slug); }}
             style={{
               position: 'relative', aspectRatio: '1 / 1.05', borderRadius: 22, overflow: 'hidden',
-              border: 'none', padding: 0, cursor: 'pointer', background: '#e2e8f0', textAlign: 'left'
+              border: '3px solid #e9c46a', padding: 0, cursor: 'pointer', background: '#f5efe2', textAlign: 'left'
             }}
           >
             {photo && <img src={photo} alt="" loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.65) 100%)' }} />
             {/* Solid pill so the count stays readable on any photo */}
-            <span style={{ position: 'absolute', top: 12, left: 12, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.92)', color: '#065f46', fontSize: 12, fontWeight: 800 }}>
+            <span style={{ position: 'absolute', top: 12, left: 12, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.92)', color: '#12355b', fontSize: 12, fontWeight: 800 }}>
               {cat.icon} {count} {COUNT_WORD[lang]}
             </span>
             <span style={{ position: 'absolute', left: 12, right: 46, bottom: 12, color: '#ffffff', fontSize: 'clamp(14px, 4.3vw, 17px)', fontWeight: 800, lineHeight: 1.2, textShadow: '0 1px 6px rgba(0,0,0,0.35)' }}>
               {NAMES[cat.slug]?.[lang] || getLocalized(cat, 'name')}
             </span>
-            <span style={{ position: 'absolute', right: 8, bottom: 8, width: 34, height: 34, borderRadius: '50%', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ArrowRight size={18} color="#0f172a" />
+            <span style={{ position: 'absolute', right: 8, bottom: 8, width: 34, height: 34, borderRadius: '50%', background: '#12355b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ArrowRight size={18} color="#e9c46a" />
             </span>
           </button>
         ))}

@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     ADMIN_PIN: str = ""
     # The bot's founder signs into the same Bozorkom panel with their own PIN; empty = no founder sign-in
     FOUNDER_PIN: str = ""
+    # The partner (Shuhrat) signs into the same panel with their own PIN; like the founder, they only watch
+    PARTNER_PIN: str = ""
+    # Platform rules (the «DIQQAT!» screen, the terms page, /qoidalar): off until the official payment gateway
+    # is connected and the rules are rewritten for it (Davlatbek, 2026-11-20). TERMS_ENABLED=1 in Render turns them on
+    TERMS_ENABLED: bool = False
     # The site's own address: the Render address (…onrender.com) sends visitors and Google here
     SITE_HOST: str = "bozorbot.uz"
     # "polling" (local Mac), "webhook" (cloud) or "auto" (webhook when running on Render)
@@ -38,6 +43,7 @@ settings.TELEGRAM_BOT_TOKEN = "".join(settings.TELEGRAM_BOT_TOKEN.replace("HTTP 
 settings.DATABASE_URL = settings.DATABASE_URL.strip()
 settings.ADMIN_PIN = settings.ADMIN_PIN.strip()
 settings.FOUNDER_PIN = settings.FOUNDER_PIN.strip()
+settings.PARTNER_PIN = settings.PARTNER_PIN.strip()
 
 # Render gives every service a permanent public https address
 RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "").strip()

@@ -13,7 +13,7 @@ stop() { pkill -f "uvicorn .*--port 8099"; pkill -f "remote-debugging-port=9333"
 server() { # $1 suite name: fresh database, real app with a fake bot
   rm -f "$S/$1.db" "$S/sent.log"; touch "$S/sent.log"
   (cd "$BE" && PYTHONPATH=".:tests" SENT_LOG="$S/sent.log" BOT_MODE=webhook TELEGRAM_BOT_TOKEN=$FAKE_TOKEN \
-    DATABASE_URL="sqlite+aiosqlite:///$S/$1.db" ADMIN_PIN=909090 nohup "$PY" -m uvicorn fake_bot_app:app --port 8099 > "$S/$1.log" 2>&1 &)
+    DATABASE_URL="sqlite+aiosqlite:///$S/$1.db" ADMIN_PIN=909090 FOUNDER_PIN=717171 PARTNER_PIN=727272 TERMS_ENABLED="${TERMS_ENABLED:-0}" nohup "$PY" -m uvicorn fake_bot_app:app --port 8099 > "$S/$1.log" 2>&1 &)
   for _ in $(seq 60); do curl -sf http://127.0.0.1:8099/api/health > /dev/null && { relax_limits; return; }; sleep 0.5; done
   echo "server did not start, see $S/$1.log"; exit 1
 }
@@ -79,8 +79,14 @@ report "Stall QR: printable poster in the seller cabinet" "$S/stallqr.txt"
 stop; server sellercard; chrome; "$PY" "$E/seller_card_ui.py" "$S" > "$S/sellercard.txt" 2>&1
 report "Payment: cash or card; phones and cards of seller, porter, taxi in the order" "$S/sellercard.txt"
 
-stop; server terms; RULES_FRESH=1 chrome; "$PY" "$E/terms_ui.py" "$S" > "$S/terms.txt" 2>&1
-report "Platform rules: «DIQQAT!» once, full rules page, footer link" "$S/terms.txt"
+stop; server monitor; chrome; "$PY" "$E/monitor_ui.py" "$S" > "$S/monitor.txt" 2>&1
+report "Founders' monitoring: partner PIN, view only, day/week/month, feed, system" "$S/monitor.txt"
+
+stop; TERMS_ENABLED=1 server terms; RULES_FRESH=1 chrome; "$PY" "$E/terms_ui.py" "$S" > "$S/terms.txt" 2>&1
+report "Platform rules (when switched on): «DIQQAT!» once, full rules page, footer link" "$S/terms.txt"
+
+stop; server termsoff; RULES_FRESH=1 chrome; "$PY" "$E/terms_off_ui.py" "$S" > "$S/termsoff.txt" 2>&1
+report "Rules off until the payment gateway: no «DIQQAT!», no footer link, no rules page" "$S/termsoff.txt"
 
 stop; server analytics; chrome; "$PY" "$E/analytics_ui.py" "$S" > "$S/analytics.txt" 2>&1
 report "Analytics + CSV + backup state (Bozorkom)" "$S/analytics.txt"

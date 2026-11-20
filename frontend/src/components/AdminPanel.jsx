@@ -7,6 +7,7 @@ import { ROLE_INFO } from './StaffLogin';
 import { stallLabel, itemName } from '../services/stall';
 import { useLive } from '../services/live';
 import AnalyticsPanel from './AnalyticsPanel';
+import MonitorPanel from './MonitorPanel';
 
 const T = {
   title: { uz: 'Bozorkom kabineti', ru: 'Кабинет базаркома', en: 'Bazaar administration' },
@@ -15,10 +16,12 @@ const T = {
   back: { uz: 'Orqaga', ru: 'Назад', en: 'Back' },
   logout: { uz: 'Chiqish', ru: 'Выйти', en: 'Sign out' },
   founder: { uz: '👑 Asoschi', ru: '👑 Основатель', en: '👑 Founder' },
+  partner: { uz: '🤝 Hamkor', ru: '🤝 Партнёр', en: '🤝 Partner' },
+  view_only: { uz: "Faqat ko'rish: qarorlarni bozorkom qabul qiladi", ru: 'Только просмотр: решения принимает бозорком', en: 'View only: the bozorkom makes the decisions' },
   tabs: {
-    uz: ['Umumiy', 'Arizalar', 'Rastalar', 'Xodimlar', 'Buyurtmalar', 'Patta', 'Sozlamalar', 'Xaridorlar', '📊 Tahlil'],
-    ru: ['Обзор', 'Заявки', 'Расты', 'Работники', 'Заказы', 'Патта', 'Настройки', 'Покупатели', '📊 Аналитика'],
-    en: ['Overview', 'Requests', 'Stalls', 'Workers', 'Orders', 'Stall fees', 'Settings', 'Customers', '📊 Analytics'],
+    uz: ['Umumiy', 'Arizalar', 'Rastalar', 'Xodimlar', 'Buyurtmalar', 'Patta', 'Sozlamalar', 'Xaridorlar', '📊 Tahlil', '📡 Monitoring'],
+    ru: ['Обзор', 'Заявки', 'Расты', 'Работники', 'Заказы', 'Патта', 'Настройки', 'Покупатели', '📊 Аналитика', '📡 Мониторинг'],
+    en: ['Overview', 'Requests', 'Stalls', 'Workers', 'Orders', 'Stall fees', 'Settings', 'Customers', '📊 Analytics', '📡 Monitoring'],
   },
   pending: { uz: 'Yangi arizalar', ru: 'Новые заявки', en: 'New requests' },
   stalls: { uz: 'Faol rastalar', ru: 'Активные расты', en: 'Active stalls' },
@@ -103,6 +106,10 @@ const T = {
 };
 
 const ANALYTICS_TAB = 8;
+const MONITOR_TAB = 9;
+// The founder and the partner only watch: monitoring first, no settings, no action buttons
+const VIEWER_TABS = [MONITOR_TAB, 0, 1, 2, 3, 4, 7, ANALYTICS_TAB];
+const isViewer = () => ['founder', 'partner'].includes(adminSession.get()?.role);
 const LIMIT_KEYS = ['new_customer_max_total', 'new_customer_max_open', 'max_open_orders', 'orders_per_10_min', 'morning_stock_hour',
   'no_show_remind_min', 'no_show_after_min', 'self_no_show_min', 'return_alert_min', 'no_show_strikes',
   'taxi_gate_grace_min', 'taxi_trip_max_min', 'taxi_reassign_alert', 'seller_remind_min', 'seller_alert_min'];
@@ -155,7 +162,7 @@ export default function AdminPanel({ onBackToMarket }) {
 
   const [signedIn, setSignedIn] = useState(() => Boolean(adminSession.get()?.token));
   // The bot's evening report opens «Tahlil» straight away
-  const [tab, setTab] = useState(() => (new URLSearchParams(window.location.search).get('admin_tab') === 'analytics' ? ANALYTICS_TAB : 0));
+  const [tab, setTab] = useState(() => (new URLSearchParams(window.location.search).get('admin_tab') === 'analytics' ? ANALYTICS_TAB : (isViewer() ? MONITOR_TAB : 0)));
   const [data, setData] = useState({ overview: null, stores: [], staff: [], orders: [], patta: null });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -239,7 +246,8 @@ export default function AdminPanel({ onBackToMarket }) {
   const pendingStores = stores.filter((s) => s.status === 'pending');
   const pendingStaff = staff.filter((s) => s.status === 'pending');
 
-  const statusButtons = (item, setStatus) => (
+  const viewer = isViewer();
+  const statusButtons = (item, setStatus) => viewer ? null : (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
       {item.status === 'pending' && <>
         <button type="button" style={smallBtn('#16a34a')} onClick={() => act(() => setStatus(item.id, 'approved'))}>{t('approve')}</button>
@@ -265,13 +273,13 @@ export default function AdminPanel({ onBackToMarket }) {
       )}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         {statusButtons(s, api.adminStoreStatus)}
-        {['blocked', 'rejected'].includes(s.status) && (
+        {!viewer && ['blocked', 'rejected'].includes(s.status) && (
           <button type="button" data-testid="store-remove" style={{ ...smallBtn('#f1f5f9', '#64748b'), marginTop: 8 }}
             onClick={() => window.confirm(t('remove_confirm')) && act(() => api.adminStoreStatus(s.id, 'archived'), t('removed'))}>
             🗑 {t('remove')}
           </button>
         )}
-        {s.status === 'approved' && <button type="button" style={{ ...smallBtn('#f1f5f9', '#334155'), marginTop: 8 }} onClick={() => resetPin((pin) => api.adminStorePin(s.id, pin))}>{t('new_pin')}</button>}
+        {!viewer && s.status === 'approved' && <button type="button" style={{ ...smallBtn('#f1f5f9', '#334155'), marginTop: 8 }} onClick={() => resetPin((pin) => api.adminStorePin(s.id, pin))}>{t('new_pin')}</button>}
       </div>
     </div>
   );
@@ -292,7 +300,7 @@ export default function AdminPanel({ onBackToMarket }) {
       )}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         {statusButtons(s, api.adminStaffStatus)}
-        {s.status === 'approved' && <button type="button" style={{ ...smallBtn('#f1f5f9', '#334155'), marginTop: 8 }} onClick={() => resetPin((pin) => api.adminStaffPin(s.id, pin))}>{t('new_pin')}</button>}
+        {!viewer && s.status === 'approved' && <button type="button" style={{ ...smallBtn('#f1f5f9', '#334155'), marginTop: 8 }} onClick={() => resetPin((pin) => api.adminStaffPin(s.id, pin))}>{t('new_pin')}</button>}
       </div>
     </div>
   );
@@ -307,11 +315,13 @@ export default function AdminPanel({ onBackToMarket }) {
 
   return (
     <div className="animate-fade" style={{ paddingTop: 12, paddingBottom: 110 }}>
-      <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg, #0f172a, #334155)', color: '#ffffff', border: 'none', padding: 14 }}>
+      <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, background: 'var(--naqsh-blue) var(--naqsh-pattern)', color: '#ffffff', border: '2px solid var(--naqsh-gold)', padding: 14 }}>
         <div style={{ fontSize: 30 }}>🏛</div>
         <div style={{ flex: 1, fontSize: 17, fontWeight: 800 }}>
           {t('title')}
           {adminSession.get()?.role === 'founder' && <div data-testid="founder-badge" style={{ fontSize: 12, fontWeight: 700, color: '#fde68a' }}>{t('founder')}</div>}
+          {adminSession.get()?.role === 'partner' && <div data-testid="partner-badge" style={{ fontSize: 12, fontWeight: 700, color: '#fde68a' }}>{t('partner')}</div>}
+          {viewer && <div data-testid="view-only" style={{ fontSize: 11, fontWeight: 600, color: '#cbd5e1' }}>{t('view_only')}</div>}
         </div>
         <button type="button" onClick={load} aria-label="refresh" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#ffffff', borderRadius: 10, padding: 8, cursor: 'pointer', display: 'flex' }}><RefreshCw size={16} /></button>
         <button type="button" onClick={() => { adminSession.set(null); setSignedIn(false); }} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#ffffff', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
@@ -320,12 +330,13 @@ export default function AdminPanel({ onBackToMarket }) {
       </div>
 
       <div style={{ display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -12px 12px', padding: '0 12px 4px' }}>
-        {t('tabs').map((name, i) => {
+        {(viewer ? VIEWER_TABS : t('tabs').map((_, i) => i)).map((i) => {
+          const name = t('tabs')[i];
           // The bozorkom keeps the bazaar's income (patta) out of the bot: no Patta tab unless it is turned on
           if (i === 5 && !overview?.patta_enabled) return null;
           const badge = i === 1 ? pendingStores.length + pendingStaff.length : 0;
           return (
-            <button key={name} type="button" onClick={() => { triggerHaptic('selection'); setTab(i); }} style={{ flexShrink: 0, padding: '9px 14px', borderRadius: 999, fontWeight: 800, fontSize: 13, cursor: 'pointer', border: 'none', background: tab === i ? '#0f172a' : '#ffffff', color: tab === i ? '#ffffff' : '#334155' }}>
+            <button key={name} type="button" onClick={() => { triggerHaptic('selection'); setTab(i); }} style={{ flexShrink: 0, padding: '9px 14px', borderRadius: 999, fontWeight: 800, fontSize: 13, cursor: 'pointer', border: 'none', background: tab === i ? 'var(--naqsh-blue)' : '#ffffff', color: tab === i ? 'var(--naqsh-gold)' : '#334155' }}>
               {name}{badge > 0 && <span style={{ marginLeft: 6, background: '#dc2626', color: '#fff', borderRadius: 999, padding: '0 6px' }}>{badge}</span>}
             </button>
           );
@@ -387,10 +398,10 @@ export default function AdminPanel({ onBackToMarket }) {
           <div style={{ fontSize: 12, color: '#64748b' }}>
             {o.porter_name && `🛒 ${o.porter_name}`} {o.taxi_name && ` · 🚕 ${o.taxi_name}`} · {o.created_at ? new Date(`${o.created_at}Z`).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : ''}
           </div>
-          {o.status === 'no_show' && (
+          {!viewer && o.status === 'no_show' && (
             <button type="button" style={{ ...smallBtn('#dcfce7', '#15803d'), marginTop: 8, marginRight: 6 }} onClick={() => act(() => api.adminUndoNoShow(o.id))}>{t('undo_no_show')}</button>
           )}
-          {!['delivered', 'cancelled', 'no_show', 'returned'].includes(o.status) && (
+          {!viewer && !['delivered', 'cancelled', 'no_show', 'returned'].includes(o.status) && (
             <button type="button" style={{ ...smallBtn('#fee2e2', '#b91c1c'), marginTop: 8 }} onClick={() => window.confirm(t('cancel_confirm')) && act(() => api.adminCancelOrder(o.id))}>{t('cancel')}</button>
           )}
         </div>
@@ -455,7 +466,8 @@ export default function AdminPanel({ onBackToMarket }) {
         </>
       )}
 
-      {tab === ANALYTICS_TAB && <AnalyticsPanel lang={lang} />}
+      {tab === ANALYTICS_TAB && <AnalyticsPanel lang={lang} readOnly={viewer} />}
+      {tab === MONITOR_TAB && <MonitorPanel lang={lang} />}
       {tab === 7 && (
         <>
           <form onSubmit={(e) => { e.preventDefault(); loadCustomers(customerQuery); }} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
@@ -476,12 +488,12 @@ export default function AdminPanel({ onBackToMarket }) {
                 {c.orders} {t('orders_count')} · ✅ {c.delivered} {t('received')} · ✖️ {c.cancelled} {t('cancelled')}{c.no_shows > 0 && <b style={{ color: '#b91c1c' }}> · 😔 {c.no_shows} {t('no_shows')}</b>} · #{c.last_order}
               </div>
               {c.blocked && c.block_reason && <div style={{ fontSize: 13, color: '#b91c1c' }}>{c.block_reason}</div>}
-              <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {!viewer && <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {c.no_shows > 0 && <button type="button" style={smallBtn('#eff6ff', '#1d4ed8')} onClick={() => act(async () => { await api.adminForgive(c.phone_key); await loadCustomers(customerQuery); }, t('forgiven'))}>{t('forgive')}</button>}
                 {c.blocked
                   ? <button type="button" style={smallBtn('#dcfce7', '#15803d')} onClick={() => unblockCustomer(c)}>{t('unblock')}</button>
                   : <button type="button" style={smallBtn('#fee2e2', '#b91c1c')} onClick={() => blockCustomer(c)}>{t('block')}</button>}
-              </div>
+              </div>}
             </div>
           ))}
         </>

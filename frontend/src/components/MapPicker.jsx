@@ -129,11 +129,11 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
         mapElRef.current?.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
         // Delivery zone around the bazaar
         map.addSource('zone', { type: 'geojson', data: circlePolygon(bazaar, radiusKm) });
-        map.addLayer({ id: 'zone-fill', type: 'fill', source: 'zone', paint: { 'fill-color': '#10b981', 'fill-opacity': 0.08 } });
-        map.addLayer({ id: 'zone-line', type: 'line', source: 'zone', paint: { 'line-color': '#059669', 'line-width': 2, 'line-dasharray': [3, 2] } });
+        map.addLayer({ id: 'zone-fill', type: 'fill', source: 'zone', paint: { 'fill-color': '#1f8a8a', 'fill-opacity': 0.08 } });
+        map.addLayer({ id: 'zone-line', type: 'line', source: 'zone', paint: { 'line-color': '#12355b', 'line-width': 2, 'line-dasharray': [3, 2] } });
       });
       const bazaarPin = document.createElement('div');
-      bazaarPin.style.cssText = 'width:30px;height:30px;border-radius:50%;background:#059669;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:14px';
+      bazaarPin.style.cssText = 'width:30px;height:30px;border-radius:50%;background:#12355b;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:14px';
       bazaarPin.textContent = '🏪';
       new maplibregl.Marker({ element: bazaarPin }).setLngLat([bazaar.lng, bazaar.lat]).addTo(map);
 
@@ -269,13 +269,13 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
         }}>
           <div style={{
             width: 40, height: 40, borderRadius: '50%',
-            background: '#059669', border: '3px solid #ffffff',
-            boxShadow: '0 4px 12px rgba(5,150,105,0.45)',
+            background: '#12355b', border: '3px solid #ffffff',
+            boxShadow: '0 4px 12px rgba(18,53,91,0.45)',
             display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
             <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ffffff' }} />
           </div>
-          <div style={{ width: 3, height: 12, background: '#059669', borderRadius: 2 }} />
+          <div style={{ width: 3, height: 12, background: '#12355b', borderRadius: 2 }} />
         </div>
       </div>
 
@@ -315,9 +315,9 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
                     key={item.place_id}
                     type="button"
                     onClick={() => pickResult(item)}
-                    style={{ width: '100%', display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 14px', border: 'none', borderBottom: '1px solid #f1f5f9', background: '#ffffff', textAlign: 'left', cursor: 'pointer' }}
+                    style={{ width: '100%', display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 14px', border: 'none', borderBottom: '1px solid #f5efe2', background: '#ffffff', textAlign: 'left', cursor: 'pointer' }}
                   >
-                    <MapPin size={18} color="#059669" style={{ flexShrink: 0, marginTop: 2 }} />
+                    <MapPin size={18} color="#12355b" style={{ flexShrink: 0, marginTop: 2 }} />
                     <span style={{ minWidth: 0 }}>
                       <span style={{ display: 'block', fontSize: 15, fontWeight: 600, color: '#0f172a' }}>{f.main}</span>
                       {f.details && <span style={{ display: 'block', fontSize: 13, color: '#64748b' }}>{f.details}</span>}
@@ -352,7 +352,7 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
           boxShadow: '0 -6px 24px rgba(15,23,42,0.15)',
           padding: '10px 16px calc(16px + env(safe-area-inset-bottom))'
         }}>
-          <div style={{ width: 40, height: 4, borderRadius: 2, background: '#e2e8f0', margin: '0 auto 12px' }} />
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: '#eadfca', margin: '0 auto 12px' }} />
 
           {gpsError && (
             <div style={{ fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 10px', marginBottom: 10 }}>
@@ -377,18 +377,18 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
 
           <h2 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 4px' }}>{t('title')}</h2>
           <div style={{ fontSize: 14, color: '#64748b', marginBottom: 10 }}>
-            {!dragging && <span style={{ color: outside ? '#b91c1c' : '#047857', fontWeight: 700 }}>🏪 {distance.toFixed(1)} km · </span>}
+            {!dragging && <span style={{ color: outside ? '#b91c1c' : '#0b2440', fontWeight: 700 }}>🏪 {distance.toFixed(1)} km · </span>}
             {t('hint')}
           </div>
 
-          <button type="button" onClick={() => searchRef.current?.focus()} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', border: 'none', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9', background: 'none', textAlign: 'left', cursor: 'pointer', minHeight: 64, marginBottom: 14 }}>
+          <button type="button" onClick={() => searchRef.current?.focus()} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', border: 'none', borderTop: '1px solid #f5efe2', borderBottom: '1px solid #f5efe2', background: 'none', textAlign: 'left', cursor: 'pointer', minHeight: 64, marginBottom: 14 }}>
             <span style={{ flex: 1, minWidth: 0 }}>
               {dragging ? (
                 <span style={{ fontSize: 17, fontWeight: 700, color: '#94a3b8' }}>{t('moving')}</span>
               ) : addressLoading ? (
                 <>
-                  <span style={{ display: 'block', height: 18, width: '70%', borderRadius: 6, background: '#e2e8f0', marginBottom: 8, animation: 'mp-pulse 1.2s ease-in-out infinite' }} />
-                  <span style={{ display: 'block', height: 12, width: '45%', borderRadius: 6, background: '#f1f5f9', animation: 'mp-pulse 1.2s ease-in-out infinite' }} />
+                  <span style={{ display: 'block', height: 18, width: '70%', borderRadius: 6, background: '#eadfca', marginBottom: 8, animation: 'mp-pulse 1.2s ease-in-out infinite' }} />
+                  <span style={{ display: 'block', height: 12, width: '45%', borderRadius: 6, background: '#f5efe2', animation: 'mp-pulse 1.2s ease-in-out infinite' }} />
                 </>
               ) : address ? (
                 <>
@@ -403,10 +403,10 @@ export default function MapPicker({ onAddressSelect, language, onClose, bazaar =
           </button>
 
           <div style={{ display: 'flex', gap: 10 }}>
-            <button type="button" onClick={handleConfirm} disabled={!canConfirm} style={{ flex: 1, height: 56, borderRadius: 18, border: 'none', background: canConfirm ? '#f1f5f9' : '#f8fafc', color: canConfirm ? '#0f172a' : '#cbd5e1', fontWeight: 800, fontSize: 16, cursor: canConfirm ? 'pointer' : 'not-allowed' }}>
+            <button type="button" onClick={handleConfirm} disabled={!canConfirm} style={{ flex: 1, height: 56, borderRadius: 18, border: 'none', background: canConfirm ? '#f5efe2' : '#fbf7ef', color: canConfirm ? '#0f172a' : '#cbd5e1', fontWeight: 800, fontSize: 16, cursor: canConfirm ? 'pointer' : 'not-allowed' }}>
               {t('confirm')}
             </button>
-            <button type="button" onClick={() => searchRef.current?.focus()} style={{ flex: 1, height: 56, borderRadius: 18, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 16, cursor: 'pointer' }}>
+            <button type="button" onClick={() => searchRef.current?.focus()} style={{ flex: 1, height: 56, borderRadius: 18, border: 'none', background: '#12355b', color: '#ffffff', fontWeight: 800, fontSize: 16, cursor: 'pointer' }}>
               {t('change')}
             </button>
           </div>

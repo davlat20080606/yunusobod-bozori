@@ -46,12 +46,14 @@ async def admin_login(
     # The admin PIN has no phone, so limit wrong tries per address
     check_not_locked(request, f"admin:{client_ip(request)}")
     entered = pin.strip()
-    if not settings.ADMIN_PIN and not settings.FOUNDER_PIN:
+    if not settings.ADMIN_PIN and not settings.FOUNDER_PIN and not settings.PARTNER_PIN:
         raise HTTPException(status_code=403, detail="Ma'muriyat PIN-kodi sozlanmagan / PIN администрации не настроен")
     if settings.ADMIN_PIN and hmac.compare_digest(entered, settings.ADMIN_PIN):
         kind = "admin"
     elif settings.FOUNDER_PIN and hmac.compare_digest(entered, settings.FOUNDER_PIN):
         kind = "founder"
+    elif settings.PARTNER_PIN and hmac.compare_digest(entered, settings.PARTNER_PIN):
+        kind = "partner"
     else:
         record_failure(request, f"admin:{client_ip(request)}")
         raise HTTPException(status_code=401, detail="PIN-kod noto'g'ri / Неверный PIN-код")
@@ -419,3 +421,33 @@ async def backup_now(db: AsyncSession = Depends(get_db)):
     result = await backup.make_backup(engine)
     await set_setting(db, "backup_last", f"ok {(datetime.utcnow() + timedelta(hours=5)).date().isoformat()}: {result['rows']} rows, {result['bytes'] // 1024} KB")
     return result
+
+
+# ---- Monitoring for the founders (Davlatbek and Shuhrat): read only, also open to the bozorkom ----
+
+@router.get("/monitor", dependencies=admin_only)
+async def get_monitor(period: str = Query("day", pattern="^(day|week|month)$"), date: Optional[str] = Query(None),
+                      db: AsyncSession = Depends(get_db)):
+    from app.services import monitor
+    try:
+        day = datetime.strptime(date, "%Y-%m-%d").date() if date else (datetime.utcnow() + timedelta(hours=5)).date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Sana noto'g'ri / Неверная дата")
+    return await monitor.period_report(db, period, day)
+
+
+@router.get("/feed", dependencies=admin_only)
+async def get_feed(limit: int = Query(60, ge=1, le=200), before_id: Optional[int] = Query(None),
+                   db: AsyncSession = Depends(get_db)):
+    from app.services import monitor
+    return await monitor.feed(db, limit, before_id)
+
+
+@router.get("/system", dependencies=admin_only)
+async def get_system(db: AsyncSession = Depends(get_db)):
+    from app.services import monitor
+    from app.main import bot_status
+    state = backup.status()
+    if state == "on":
+        state = await get_setting(db, "backup_last") or "on (no copy yet)"
+    return await monitor.system(db, bot_status, state)

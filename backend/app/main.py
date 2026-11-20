@@ -112,8 +112,7 @@ async def lifespan(app: FastAPI):
                     BotCommand(command="start", description="Bozorni ochish / Открыть базар"),
                     BotCommand(command="help", description="Yordam / Помощь"),
                     BotCommand(command="profile", description="Profil / Профиль"),
-                    BotCommand(command="qoidalar", description="Qoidalar / Правила"),
-                ])
+                ] + ([BotCommand(command="qoidalar", description="Qoidalar / Правила")] if settings.TERMS_ENABLED else []))
             except Exception as e:
                 logger.warning(f"Bot commands note: {e}")
 

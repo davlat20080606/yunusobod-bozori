@@ -15,13 +15,19 @@ function saveLocal() {
   try { localStorage.setItem(KEY, TERMS_VERSION); } catch {}
 }
 
+let statusOnce = null;
+export function termsStatusOnce() {
+  if (!statusOnce) statusOnce = api.termsStatus().catch(() => ({ enabled: false, accepted: true }));
+  return statusOnce;
+}
+
 // The full rules (?tab=terms), also opened from the bot's «To'liq qoidalar» button
 export function TermsPage({ onBack }) {
   const { language } = useLanguage();
   const doc = TERMS[language] || TERMS.uz;
   return (
     <div className="animate-fade" data-testid="terms-page" style={{ maxWidth: 720, margin: '0 auto', padding: '12px 0 110px' }}>
-      <button type="button" onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#047857', fontWeight: 700, fontSize: 15, cursor: 'pointer', padding: '0 0 12px' }}>
+      <button type="button" onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#0b2440', fontWeight: 700, fontSize: 15, cursor: 'pointer', padding: '0 0 12px' }}>
         <ArrowLeft size={18} /> {language === 'ru' ? 'Назад' : (language === 'en' ? 'Back' : 'Orqaga')}
       </button>
       <div style={{ background: '#ffffff', borderRadius: 20, padding: '20px 18px', boxShadow: '0 1px 4px rgba(15,23,42,0.06)' }}>
@@ -43,13 +49,17 @@ export function TermsPage({ onBack }) {
 // «DIQQAT!» once per person and rules version; nothing else can be used until it is accepted
 export function TermsGate({ hidden, onReadAll }) {
   const { language } = useLanguage();
-  const [open, setOpen] = useState(() => !readLocal());
+  // Closed until the server says the rules are on (they are off until the payment gateway is ready)
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!open || !getTelegramInitData()) return;
-    // Accepted in the bot or on another phone: do not ask again
-    api.termsStatus().then((r) => { if (r.accepted) { saveLocal(); setOpen(false); } }).catch(() => {});
+    termsStatusOnce().then((r) => {
+      if (!r.enabled) return;
+      // Accepted in the bot or on another phone: do not ask again
+      if (getTelegramInitData() && r.accepted) { saveLocal(); return; }
+      if (!readLocal()) setOpen(true);
+    });
   }, []);
 
   if (!open || hidden) return null;
@@ -71,10 +81,10 @@ export function TermsGate({ hidden, onReadAll }) {
           {w.points.map((p) => <li key={p} style={{ fontSize: 14, color: '#334155', lineHeight: 1.5, marginBottom: 6 }}>{p}</li>)}
         </ul>
         <p style={{ fontSize: 12, color: '#64748b', lineHeight: 1.45, margin: '0 0 14px' }}>{w.note}</p>
-        <button type="button" data-testid="terms-read" onClick={onReadAll} style={{ width: '100%', height: 46, marginBottom: 10, borderRadius: 14, border: '1.5px solid #e2e8f0', background: '#ffffff', color: '#0f172a', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+        <button type="button" data-testid="terms-read" onClick={onReadAll} style={{ width: '100%', height: 46, marginBottom: 10, borderRadius: 14, border: '1.5px solid #eadfca', background: '#ffffff', color: '#0f172a', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
           {w.read}
         </button>
-        <button type="button" data-testid="terms-agree" disabled={busy} onClick={agree} style={{ width: '100%', height: 54, borderRadius: 16, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 17, cursor: 'pointer' }}>
+        <button type="button" data-testid="terms-agree" disabled={busy} onClick={agree} style={{ width: '100%', height: 54, borderRadius: 16, border: 'none', background: '#12355b', color: '#ffffff', fontWeight: 800, fontSize: 17, cursor: 'pointer' }}>
           {w.agree}
         </button>
       </div>

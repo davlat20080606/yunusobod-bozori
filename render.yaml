@@ -14,6 +14,8 @@ services:
         sync: false
       - key: FOUNDER_PIN
         sync: false
+      - key: PARTNER_PIN
+        sync: false
       - key: AUTH_SECRET
         sync: false
       - key: BACKUP_KEY

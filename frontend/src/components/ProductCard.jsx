@@ -86,15 +86,15 @@ export default function ProductCard({
 
   const discountSum = product.old_price && product.old_price > product.price ? Math.round(product.old_price - product.price) : null;
   const size = compact ? 34 : 40;
-  const circle = { width: size, height: size, borderRadius: '50%', border: 'none', background: '#ffffff', boxShadow: '0 2px 8px rgba(15,23,42,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#0f172a' };
+  const circle = { width: size, height: size, borderRadius: '50%', border: 'none', background: '#12355b', boxShadow: '0 2px 8px rgba(18,53,91,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#e9c46a' };
 
   return (
     <article className="med-product-card" onClick={open} style={{ display: 'flex', flexDirection: 'column', background: 'transparent', border: 'none', boxShadow: 'none', cursor: 'pointer', height: '100%' }}>
       {/* Photo with the add control on it (Yandex Go style) */}
-      <div style={{ position: 'relative', aspectRatio: '1 / 1', background: '#f1f5f9', borderRadius: 22, overflow: 'hidden', flexShrink: 0 }}>
+      <div style={{ position: 'relative', aspectRatio: '1 / 1', background: '#f5efe2', borderRadius: 22, border: '1.5px solid #eadfca', overflow: 'hidden', flexShrink: 0 }}>
         <img src={product.image_url} alt={getLocalized(product, 'name')} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: unavailable ? 0.45 : 1 }} />
         {discountSum && (
-          <span style={{ position: 'absolute', top: 6, left: 6, padding: compact ? '2px 6px' : '3px 8px', borderRadius: 8, background: '#059669', color: '#ffffff', fontSize: compact ? 10 : 12, fontWeight: 800 }}>−{discountSum.toLocaleString()} {currencyLabel}</span>
+          <span style={{ position: 'absolute', top: 6, left: 6, padding: compact ? '2px 6px' : '3px 8px', borderRadius: 8, background: '#17777a', color: '#ffffff', fontSize: compact ? 10 : 12, fontWeight: 800 }}>−{discountSum.toLocaleString()} {currencyLabel}</span>
         )}
         {!compact && <button type="button" onClick={toggleSave} aria-label="save" style={{ position: 'absolute', top: 6, right: 6, width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
           <Heart size={16} color={isSaved ? '#f43f5e' : '#64748b'} fill={isSaved ? '#f43f5e' : 'none'} />
@@ -122,7 +122,7 @@ export default function ProductCard({
       {/* Price, name, weight */}
       <div style={{ padding: '8px 4px 4px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: compact ? 15 : 17, fontWeight: 800, color: discountSum ? '#047857' : '#0f172a' }}>{Math.round(product.price).toLocaleString()} {currencyLabel}</span>
+          <span style={{ fontSize: compact ? 15 : 17, fontWeight: 800, color: discountSum ? '#17777a' : '#12355b' }}>{Math.round(product.price).toLocaleString()} {currencyLabel}</span>
           {discountSum && <span style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through' }}>{Math.round(product.old_price).toLocaleString()}</span>}
         </div>
         <div style={{ fontSize: compact ? 13 : 15, color: '#0f172a', lineHeight: 1.3, marginTop: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>

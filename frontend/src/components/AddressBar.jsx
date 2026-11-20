@@ -36,7 +36,7 @@ export default function AddressBar() {
           <span style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600 }}>
             {lang === 'ru' ? 'Доставка' : (lang === 'en' ? 'Deliver to' : 'Yetkazish')}
           </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 16, fontWeight: 800, color: address ? '#0f172a' : '#059669' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 16, fontWeight: 800, color: address ? '#0f172a' : '#12355b' }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
             <ChevronDown size={18} style={{ flexShrink: 0 }} />
           </span>
@@ -46,7 +46,7 @@ export default function AddressBar() {
             </span>
           )}
         </span>
-        <span className="med-eta-pill" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 999, background: '#ecfdf5', color: '#047857', fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
+        <span className="med-eta-pill" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 999, background: '#eef5f5', color: '#0b2440', fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
           <Zap size={14} /> 45–60 {lang === 'ru' ? 'мин' : (lang === 'en' ? 'min' : 'daq')}
         </span>
       </button>

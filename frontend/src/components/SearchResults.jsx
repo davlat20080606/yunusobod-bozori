@@ -59,7 +59,7 @@ export default function SearchResults({ query, products, stores, onClear, onSele
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {found.stores.map((s) => (
               <button key={s.id} type="button" data-testid="search-store" onClick={() => onSelectStore(s)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', padding: 10, borderRadius: 14, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', padding: 10, borderRadius: 14, border: '1px solid #eadfca', background: '#fff', cursor: 'pointer' }}>
                 <img src={s.avatar_url || '/img/p/da60021c8357.jpg'} alt="" width="40" height="40" style={{ borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: 'block', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getLocalized(s, 'name')}</span>

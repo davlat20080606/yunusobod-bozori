@@ -78,14 +78,14 @@ export function NoShowReturn({ order, language, busy, onUndo }) {
             <div style={{ fontWeight: 800, fontSize: 14 }}>
               {st.stall_number} · {st[`store_name_${lang}`] || st.store_name_uz}
               {!back && lines.some((i) => i.cold) && <span style={{ color: '#b91c1c', marginLeft: 6 }}>{t('cold')}</span>}
-              {back && <span style={{ color: '#047857', marginLeft: 6 }}>{t('back_at_stall')}</span>}
+              {back && <span style={{ color: '#0b2440', marginLeft: 6 }}>{t('back_at_stall')}</span>}
             </div>
             <div style={{ fontSize: 13, color: '#475569' }}>{lines.map((i) => `${name(i)} ${i.actual_quantity ?? i.quantity} ${i.unit}`).join(', ')}</div>
           </div>
         );
       })}
       {!anyBack && onUndo && (
-        <button type="button" disabled={busy} onClick={onUndo} style={{ ...btn, marginTop: 10, background: '#ffffff', color: '#047857', border: '1.5px solid #86efac', opacity: busy ? 0.6 : 1 }}>{t('undo')}</button>
+        <button type="button" disabled={busy} onClick={onUndo} style={{ ...btn, marginTop: 10, background: '#ffffff', color: '#0b2440', border: '1.5px solid #86efac', opacity: busy ? 0.6 : 1 }}>{t('undo')}</button>
       )}
     </div>
   );

@@ -166,11 +166,13 @@ def staff_with_role(*roles: str):
     return dependency
 
 
-ADMIN_KINDS = ("admin", "founder")
+ADMIN_KINDS = ("admin", "founder", "partner")
+# The founder and the partner watch everything; decisions (approve, block, settings) stay with the bozorkom
+VIEW_ONLY_KINDS = ("founder", "partner")
 
 
 def _panel_pin(kind: str) -> str:
-    return settings.FOUNDER_PIN if kind == "founder" else settings.ADMIN_PIN
+    return {"founder": settings.FOUNDER_PIN, "partner": settings.PARTNER_PIN}.get(kind, settings.ADMIN_PIN)
 
 
 def make_admin_token(kind: str = "admin") -> str:
@@ -178,7 +180,7 @@ def make_admin_token(kind: str = "admin") -> str:
     return f"{kind}.{expires}.{_sign_kind(kind, 0, expires, _panel_pin(kind))}"
 
 
-async def current_admin(x_admin_token: Optional[str] = Header(None)):
+async def current_admin(request: Request, x_admin_token: Optional[str] = Header(None)):
     """Bozorkom panel session (the bozorkom or the founder); changing a PIN signs that person out."""
     unauthorized = HTTPException(status_code=401, detail="Iltimos, qaytadan kiring / Пожалуйста, войдите снова")
     try:
@@ -189,5 +191,7 @@ async def current_admin(x_admin_token: Optional[str] = Header(None)):
     pin = _panel_pin(kind) if kind in ADMIN_KINDS else ""
     if not pin or expires < time.time() or not hmac.compare_digest(signature, _sign_kind(kind, 0, expires, pin)):
         raise unauthorized
+    if kind in VIEW_ONLY_KINDS and request.method not in ("GET", "HEAD"):
+        raise HTTPException(status_code=403, detail="Faqat ko'rish rejimi / Только просмотр: решения принимает бозорком")
     act_as(kind)
     return kind

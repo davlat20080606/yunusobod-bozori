@@ -46,7 +46,7 @@ const PHOTO_CREDITS = [
   }
 ];
 
-export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateSeller, onNavigateOrders, onNavigatePorter, onNavigateTerms }) {
+export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateSeller, onNavigateOrders, onNavigatePorter, onNavigateTerms, showTerms = false }) {
   const { t, language } = useLanguage();
 
   return (
@@ -200,10 +200,12 @@ export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateS
             <span>{language === 'ru' ? 'Ташкент, Узбекистан' : (language === 'en' ? 'Tashkent, Uzbekistan' : 'Toshkent, O\'zbekiston')}</span>
             <span className="med-dot-sep">•</span>
             <span className="med-online-badge">Online 24/7</span>
+            {showTerms && (<>
             <span className="med-dot-sep">•</span>
             <button type="button" data-testid="footer-terms" onClick={onNavigateTerms} style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
               {language === 'ru' ? 'Правила и конфиденциальность' : (language === 'en' ? 'Terms and privacy' : 'Qoidalar va maxfiylik')}
             </button>
+            </>)}
           </div>
         </div>
 

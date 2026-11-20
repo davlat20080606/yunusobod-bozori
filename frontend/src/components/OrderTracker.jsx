@@ -219,7 +219,7 @@ function PayContacts({ order, lang }) {
             'Cash, card or credit: agree with them yourself. The bot takes no part in payment.')}
       </div>
       {contacts.map((c) => (
-        <div key={keyOf(c)} data-testid={`contact-${c.kind}`} style={{ marginTop: 10, padding: '10px 12px', borderRadius: 14, background: '#f8fafc' }}>
+        <div key={keyOf(c)} data-testid={`contact-${c.kind}`} style={{ marginTop: 10, padding: '10px 12px', borderRadius: 14, background: '#fbf7ef' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700 }}>
@@ -230,15 +230,15 @@ function PayContacts({ order, lang }) {
             </div>
             {active && c.phone && (
               <a data-testid="contact-call" href={`tel:${c.phone.replace(/[^\d+]/g, '')}`} aria-label={tr("Qo'ng'iroq", 'Позвонить', 'Call')}
-                style={{ width: 40, height: 40, borderRadius: '50%', background: '#059669', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                style={{ width: 40, height: 40, borderRadius: '50%', background: '#12355b', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Phone size={18} />
               </a>
             )}
           </div>
           {c.card && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-              <div data-testid={`${c.kind}-card-number`} style={{ flex: 1, minWidth: 0, fontSize: 15, fontWeight: 800, color: '#047857', letterSpacing: 0.5, overflowWrap: 'anywhere' }}>{c.card}</div>
-              <button type="button" onClick={() => copy(c)} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none', borderRadius: 10, padding: '8px 10px', background: '#ecfdf5', color: '#047857', fontWeight: 800, fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+              <div data-testid={`${c.kind}-card-number`} style={{ flex: 1, minWidth: 0, fontSize: 15, fontWeight: 800, color: '#0b2440', letterSpacing: 0.5, overflowWrap: 'anywhere' }}>{c.card}</div>
+              <button type="button" onClick={() => copy(c)} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none', borderRadius: 10, padding: '8px 10px', background: '#eef5f5', color: '#0b2440', fontWeight: 800, fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
                 {copiedKey === keyOf(c) ? <Check size={14} /> : <Copy size={14} />}
                 {copiedKey === keyOf(c) ? tr('Nusxalandi', 'Скопировано', 'Copied') : tr('Nusxalash', 'Копировать', 'Copy')}
               </button>
@@ -265,7 +265,7 @@ function PorterSearch({ order, t, busy, onWait, onSelf, onCancel }) {
     const ss = String(left % 60).padStart(2, '0');
     return (
       <div data-testid="porter-search" style={{ ...card, display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div data-testid="porter-search-timer" style={{ fontSize: 28, fontWeight: 900, color: '#047857', fontVariantNumeric: 'tabular-nums', minWidth: 72 }}>{mm}:{ss}</div>
+        <div data-testid="porter-search-timer" style={{ fontSize: 28, fontWeight: 900, color: '#0b2440', fontVariantNumeric: 'tabular-nums', minWidth: 72 }}>{mm}:{ss}</div>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 800 }}>🔎 {t('search_title')}</div>
           <div style={{ fontSize: 13, color: '#475569' }}>{t('search_hint')}</div>
@@ -278,8 +278,8 @@ function PorterSearch({ order, t, busy, onWait, onSelf, onCancel }) {
       <div style={{ fontSize: 16, fontWeight: 800 }}>😕 {t('search_over')}</div>
       <div style={{ fontSize: 13, color: '#475569', marginTop: 4, marginBottom: 12 }}>{t('search_choose')}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <button type="button" data-testid="search-wait" disabled={busy} onClick={onWait} style={{ ...button, border: 'none', background: '#059669', color: '#fff' }}>{t('search_wait')}</button>
-        <button type="button" data-testid="search-self" disabled={busy} onClick={onSelf} style={{ ...button, border: '1.5px solid #059669', background: '#fff', color: '#047857' }}>
+        <button type="button" data-testid="search-wait" disabled={busy} onClick={onWait} style={{ ...button, border: 'none', background: '#12355b', color: '#fff' }}>{t('search_wait')}</button>
+        <button type="button" data-testid="search-self" disabled={busy} onClick={onSelf} style={{ ...button, border: '1.5px solid #12355b', background: '#fff', color: '#0b2440' }}>
           {t('search_self')}<div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>{t('search_self_hint')}</div>
         </button>
         <button type="button" data-testid="search-cancel" disabled={busy} onClick={onCancel} style={{ ...button, border: '1.5px solid #fecaca', background: '#fff', color: '#b91c1c' }}>{t('search_cancel')}</button>
@@ -347,7 +347,7 @@ function RouteMap({ order }) {
       mapRef.current = map;
       libRef.current = maplibregl;
       const pin = mapPin;
-      new maplibregl.Marker({ element: pin('🏪', '#059669') }).setLngLat([BAZAAR.lng, BAZAAR.lat]).addTo(map);
+      new maplibregl.Marker({ element: pin('🏪', '#12355b') }).setLngLat([BAZAAR.lng, BAZAAR.lat]).addTo(map);
 
       map.once('load', () => {
         map.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
@@ -356,7 +356,7 @@ function RouteMap({ order }) {
           type: 'geojson',
           data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [[BAZAAR.lng, BAZAAR.lat], [order.delivery_lng, order.delivery_lat]] } }
         });
-        map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#059669', 'line-width': 4, 'line-dasharray': [2, 1.5] } });
+        map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#12355b', 'line-width': 4, 'line-dasharray': [2, 1.5] } });
       });
 
       if (hasHome) {
@@ -632,12 +632,12 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
               {(STEPS[mode] || STEPS.courier)[lang].map((label, i) => (
                 <div key={label} style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ height: 6, borderRadius: 3, background: i < status.step || status.step === 3 ? '#059669' : '#e2e8f0', overflow: 'hidden', position: 'relative' }}>
+                  <div style={{ height: 6, borderRadius: 3, background: i < status.step || status.step === 3 ? '#12355b' : '#eadfca', overflow: 'hidden', position: 'relative' }}>
                     {i === status.step && status.step < 3 && (
-                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, #a7f3d0, #059669, #a7f3d0)', backgroundSize: '200% 100%', animation: 'ot-flow 1.6s linear infinite' }} />
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, #e9c46a, #12355b, #e9c46a)', backgroundSize: '200% 100%', animation: 'ot-flow 1.6s linear infinite' }} />
                     )}
                   </div>
-                  <div style={{ fontSize: 11, marginTop: 5, color: i <= status.step ? '#065f46' : '#94a3b8', fontWeight: i === status.step ? 800 : 600, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+                  <div style={{ fontSize: 11, marginTop: 5, color: i <= status.step ? '#0b2440' : '#94a3b8', fontWeight: i === status.step ? 800 : 600, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
                 </div>
               ))}
             </div>
@@ -648,8 +648,8 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
               <div style={{ fontSize: 14, color: '#0f172a', minWidth: 0 }}>
                 {eta && <><span style={{ color: '#64748b' }}>{t('arrive_by')}: </span><b>{eta}</b></>}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#059669', fontWeight: 800, whiteSpace: 'nowrap' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', animation: 'ot-pulse 1.4s ease-in-out infinite' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#12355b', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#1f8a8a', animation: 'ot-pulse 1.4s ease-in-out infinite' }} />
                 LIVE
               </div>
             </div>
@@ -671,8 +671,8 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
         {/* Urgent first: the code for the courier and «the scale shows more — OK?» */}
         {/* The customer tells this code to whoever hands the order over */}
         {openOrder.handoff_code && isActive && mode !== 'self' && (
-          <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 14, background: '#f0fdf4', border: '1.5px solid #86efac' }}>
-            <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: 6, color: '#065f46' }}>{openOrder.handoff_code}</div>
+          <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 14, background: '#eef5f5', border: '1.5px solid #86efac' }}>
+            <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: 6, color: '#0b2440' }}>{openOrder.handoff_code}</div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 15, fontWeight: 800 }}>🔑 {t('code_title')}</div>
               <div style={{ fontSize: 13, color: '#475569' }}>{t('code_hint')}</div>
@@ -691,8 +691,8 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
                 {item.weight_photo_url && <> · <a href={item.weight_photo_url} target="_blank" rel="noreferrer">📷 {t('photo')}</a></>}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" disabled={deciding} onClick={() => decideWeight(item, false)} style={{ flex: 1, height: 48, borderRadius: 14, border: '1.5px solid #e2e8f0', background: '#ffffff', fontWeight: 700, cursor: 'pointer' }}>{t('weight_no')}</button>
-                <button type="button" disabled={deciding} onClick={() => decideWeight(item, true)} style={{ flex: 1, height: 48, borderRadius: 14, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}>{t('weight_yes')}</button>
+                <button type="button" disabled={deciding} onClick={() => decideWeight(item, false)} style={{ flex: 1, height: 48, borderRadius: 14, border: '1.5px solid #eadfca', background: '#ffffff', fontWeight: 700, cursor: 'pointer' }}>{t('weight_no')}</button>
+                <button type="button" disabled={deciding} onClick={() => decideWeight(item, true)} style={{ flex: 1, height: 48, borderRadius: 14, border: 'none', background: '#12355b', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}>{t('weight_yes')}</button>
               </div>
             </div>
           );
@@ -701,7 +701,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
         {/* Porter */}
         {openOrder.porter_name && (
           <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#ecfdf5', color: '#047857', fontWeight: 800, fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#eef5f5', color: '#0b2440', fontWeight: 800, fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               {openOrder.porter_name.trim().charAt(0).toUpperCase()}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -709,7 +709,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
               <div style={{ fontSize: 13, color: '#64748b' }}>{t('porter')} · {brandName}</div>
             </div>
             {openOrder.porter_phone && isActive && (
-              <a href={`tel:${openOrder.porter_phone.replace(/[^\d+]/g, '')}`} style={{ width: 44, height: 44, borderRadius: '50%', background: '#059669', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} aria-label={t('call')}>
+              <a href={`tel:${openOrder.porter_phone.replace(/[^\d+]/g, '')}`} style={{ width: 44, height: 44, borderRadius: '50%', background: '#12355b', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} aria-label={t('call')}>
                 <Phone size={20} />
               </a>
             )}
@@ -741,7 +741,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
         {/* Contents */}
         <div style={card}>
           <button type="button" onClick={() => setShowItems((v) => !v)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
-            <Package size={20} color="#059669" style={{ flexShrink: 0 }} />
+            <Package size={20} color="#12355b" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 800, fontSize: 15, color: '#0f172a' }}>{t('contents')}</div>
               <div style={{ fontSize: 13, color: '#64748b' }}>
@@ -753,15 +753,15 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
           {showItems && (
             <div style={{ marginTop: 12 }}>
               {items.map((item) => (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderTop: '1px solid #f1f5f9' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: isDone(item) ? '#059669' : (item.seller_ready ? '#a7f3d0' : '#e2e8f0'), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderTop: '1px solid #f5efe2' }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: isDone(item) ? '#12355b' : (item.seller_ready ? '#e9c46a' : '#eadfca'), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {isDone(item) && <Check size={14} color="#ffffff" />}
                   </div>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: item.item_status === 'missing' ? '#b91c1c' : '#0f172a', textDecoration: item.item_status === 'missing' ? 'line-through' : 'none' }}>
                     {itemName(item, lang)}
                     {item.item_status === 'missing' && <span style={{ display: 'block', fontSize: 12, fontWeight: 700 }}>❌ {t('ran_out')}</span>}
                     {item.item_status !== 'missing' && item.actual_quantity != null && (
-                      <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#047857' }}>
+                      <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#0b2440' }}>
                         ⚖️ {item.actual_quantity} {formatUnit(item.unit, language)}
                         {item.weight_photo_url && <> · <a href={item.weight_photo_url} target="_blank" rel="noreferrer" style={{ color: '#0284c7' }}>📷 {t('photo')}</a></>}
                       </span>
@@ -772,14 +772,14 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
                 </div>
               ))}
               {openOrder.discount_amount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderTop: '1px solid #f1f5f9', fontSize: 14, color: '#047857' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderTop: '1px solid #f5efe2', fontSize: 14, color: '#0b2440' }}>
                   <span>{t('stall_discount')}</span><span>−{Math.round(openOrder.discount_amount).toLocaleString()}</span>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderTop: '1px solid #f1f5f9', fontSize: 14, color: '#64748b' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderTop: '1px solid #f5efe2', fontSize: 14, color: '#64748b' }}>
                 <span>{t('delivery')}</span><span>{Math.round(openOrder.delivery_fee).toLocaleString()}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 9, borderTop: '1px solid #e2e8f0', fontSize: 16, fontWeight: 800 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 9, borderTop: '1px solid #eadfca', fontSize: 16, fontWeight: 800 }}>
                 <span>{t('total')}</span><span>{Math.round(openOrder.total_amount).toLocaleString()} UZS</span>
               </div>
             </div>
@@ -794,7 +794,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             [Clock, t('delivery'), slotLabel(openOrder.delivery_time_slot, lang)],
             [CreditCard, t('payment'), paymentLabel],
           ].filter(Boolean).map(([Icon, label, value], i) => (
-            <div key={label} style={{ display: 'flex', gap: 12, padding: '10px 0', borderTop: i ? '1px solid #f1f5f9' : 'none' }}>
+            <div key={label} style={{ display: 'flex', gap: 12, padding: '10px 0', borderTop: i ? '1px solid #f5efe2' : 'none' }}>
               <Icon size={18} color="#64748b" style={{ flexShrink: 0, marginTop: 2 }} />
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 12, color: '#64748b' }}>{label}</div>
@@ -802,8 +802,8 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
               </div>
             </div>
           ))}
-          <button type="button" onClick={copyNumber} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 0 0', marginTop: 4, border: 'none', borderTop: '1px solid #f1f5f9', background: 'none', cursor: 'pointer', color: '#64748b', fontSize: 13 }}>
-            {copied ? <Check size={16} color="#059669" /> : <Copy size={16} />}
+          <button type="button" onClick={copyNumber} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 0 0', marginTop: 4, border: 'none', borderTop: '1px solid #f5efe2', background: 'none', cursor: 'pointer', color: '#64748b', fontSize: 13 }}>
+            {copied ? <Check size={16} color="#12355b" /> : <Copy size={16} />}
             {t('order')} #{openOrder.order_number}{copied ? ` · ${t('copied')}` : ''}
           </button>
         </div>
@@ -812,7 +812,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
 
         {supportPhone && (
           <a href={`tel:${supportPhone.replace(/[^\d+]/g, '')}`} style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: '#0f172a' }}>
-            <span style={{ width: 44, height: 44, borderRadius: '50%', background: '#ecfdf5', color: '#047857', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Phone size={20} /></span>
+            <span style={{ width: 44, height: 44, borderRadius: '50%', background: '#eef5f5', color: '#0b2440', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Phone size={20} /></span>
             <span style={{ flex: 1, minWidth: 0 }}>
               <span style={{ display: 'block', fontSize: 15, fontWeight: 800 }}>{t('help')}</span>
               <span style={{ display: 'block', fontSize: 13, color: '#64748b' }}>{t('help_call')} · {supportPhone}</span>
@@ -825,7 +825,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
           <div style={card}>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>{t('bonuses')}</div>
             {bonuses.map((b) => (
-              <div key={`${b.store_id}-${b.kind}`} style={{ fontSize: 14, fontWeight: 700, color: '#047857', padding: '3px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+              <div key={`${b.store_id}-${b.kind}`} style={{ fontSize: 14, fontWeight: 700, color: '#0b2440', padding: '3px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                 <span>{bonusLabel(b, lang)}</span>
                 {b.amount > 0 && <span style={{ whiteSpace: 'nowrap' }}>−{Math.round(b.amount).toLocaleString()}</span>}
               </div>
@@ -839,7 +839,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
             {openOrder.status !== 'no_show' && <div style={{ fontSize: 17, fontWeight: 800, color: '#1d4ed8' }}>{t('waited_title')}</div>}
             <div style={{ fontSize: 13, color: '#475569', margin: '4px 0 10px' }}>{openOrder.status === 'no_show' ? t('no_show_hint') : t('waited_hint')}</div>
             {hereSent ? (
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#047857' }}>{t('here_sent')}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#0b2440' }}>{t('here_sent')}</div>
             ) : (
               <button type="button" onClick={sayHere} style={{ width: '100%', height: 50, borderRadius: 14, border: 'none', background: '#1d4ed8', color: '#ffffff', fontWeight: 800, fontSize: 16, cursor: 'pointer' }}>{t('here')}</button>
             )}
@@ -849,7 +849,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
         {/* Last step of every route: the customer confirms they have the order */}
         {canConfirm && (
           <div style={{ ...card, textAlign: 'center' }}>
-            <button type="button" onClick={confirmReceived} disabled={confirming} style={{ width: '100%', height: 54, borderRadius: 16, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 17, cursor: 'pointer', opacity: confirming ? 0.6 : 1 }}>
+            <button type="button" onClick={confirmReceived} disabled={confirming} style={{ width: '100%', height: 54, borderRadius: 16, border: 'none', background: '#12355b', color: '#ffffff', fontWeight: 800, fontSize: 17, cursor: 'pointer', opacity: confirming ? 0.6 : 1 }}>
               {t('received')}
             </button>
             <div style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>{t('received_hint')}</div>
@@ -864,7 +864,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginBottom: 6 }}>
                   {[1, 2, 3, 4, 5].map((i) => <Star key={i} size={26} color="#f59e0b" fill={i <= openOrder.review_rating ? '#f59e0b' : 'none'} />)}
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#047857' }}>{t('rate_thanks')}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#0b2440' }}>{t('rate_thanks')}</div>
               </>
             ) : (
               <>
@@ -879,8 +879,8 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
                 </div>
                 {stars > 0 && (
                   <>
-                    <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={500} rows={3} placeholder={t('rate_comment')} style={{ width: '100%', boxSizing: 'border-box', borderRadius: 12, border: '1.5px solid #e2e8f0', padding: 12, fontSize: 15, fontFamily: 'inherit', resize: 'none', marginBottom: 10 }} />
-                    <button type="button" onClick={sendReview} disabled={sendingReview} style={{ width: '100%', height: 48, borderRadius: 14, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer', opacity: sendingReview ? 0.6 : 1 }}>
+                    <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={500} rows={3} placeholder={t('rate_comment')} style={{ width: '100%', boxSizing: 'border-box', borderRadius: 12, border: '1.5px solid #eadfca', padding: 12, fontSize: 15, fontFamily: 'inherit', resize: 'none', marginBottom: 10 }} />
+                    <button type="button" onClick={sendReview} disabled={sendingReview} style={{ width: '100%', height: 48, borderRadius: 14, border: 'none', background: '#12355b', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer', opacity: sendingReview ? 0.6 : 1 }}>
                       {t('rate_send')}
                     </button>
                   </>
@@ -902,7 +902,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
         )}
 
         {!isActive && (
-          <button type="button" onClick={onBackToMarket} style={{ width: '100%', height: 52, borderRadius: 16, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 16, cursor: 'pointer' }}>
+          <button type="button" onClick={onBackToMarket} style={{ width: '100%', height: 52, borderRadius: 16, border: 'none', background: '#12355b', color: '#ffffff', fontWeight: 800, fontSize: 16, cursor: 'pointer' }}>
             {t('order_again')}
           </button>
         )}
@@ -931,7 +931,7 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
           <div style={{ fontSize: 44, marginBottom: 10 }}>🛍️</div>
           <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 6 }}>{t('empty')}</div>
           <div style={{ fontSize: 14, color: '#64748b', marginBottom: 18 }}>{t('empty_hint')}</div>
-          <button type="button" onClick={onBackToMarket} style={{ padding: '13px 22px', borderRadius: 14, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
+          <button type="button" onClick={onBackToMarket} style={{ padding: '13px 22px', borderRadius: 14, border: 'none', background: '#12355b', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
             {t('to_market')}
           </button>
         </div>
@@ -942,11 +942,11 @@ export default function OrderTracker({ initialOrderNumber, onBackToMarket, onOrd
         const created = parseDate(o.created_at);
         return (
           <button key={o.order_number} type="button" onClick={() => { triggerHaptic('light'); setOpenNumber(o.order_number); }} style={{ ...card, width: '100%', display: 'flex', alignItems: 'center', gap: 12, border: active ? '1.5px solid #6ee7b7' : '1.5px solid transparent', cursor: 'pointer', textAlign: 'left' }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: active ? '#ecfdf5' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: active ? '#eef5f5' : '#f5efe2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>
               {st(o.status).emoji}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 15, color: active ? '#047857' : '#0f172a' }}>{st(o.status).title[lang]}</div>
+              <div style={{ fontWeight: 800, fontSize: 15, color: active ? '#0b2440' : '#0f172a' }}>{st(o.status).title[lang]}</div>
               <div style={{ fontSize: 13, color: '#64748b' }}>
                 #{o.order_number} · {created ? created.toLocaleDateString([], { day: 'numeric', month: 'short' }) : ''} {formatTime(created)}
               </div>

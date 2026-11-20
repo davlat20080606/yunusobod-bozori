@@ -46,7 +46,7 @@ export default function StoreDetailView({ store, products: propProducts, onBack,
         onClick={() => { triggerHaptic('light'); onBack(); }}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: '6px',
-          background: '#ffffff', border: '1px solid #e2e8f0',
+          background: '#ffffff', border: '1px solid #eadfca',
           borderRadius: '12px', padding: '8px 14px',
           fontSize: '0.85rem', fontWeight: 700, color: '#1e293b',
           cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
@@ -60,7 +60,7 @@ export default function StoreDetailView({ store, products: propProducts, onBack,
       {/* Store Header Banner */}
       <div 
         style={{
-          background: 'linear-gradient(135deg, #064e3b, #0f766e)',
+          background: 'linear-gradient(135deg, #0b2440, #0f766e)',
           borderRadius: 'var(--radius-lg)',
           overflow: 'hidden',
           color: '#ffffff',
@@ -78,7 +78,7 @@ export default function StoreDetailView({ store, products: propProducts, onBack,
             <span style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700 }}>
               📍 {stallLabel(store.stall_number, language)}
             </span>
-            <span style={{ background: store.is_open ? '#10b981' : '#ef4444', padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700 }}>
+            <span style={{ background: store.is_open ? '#1f8a8a' : '#ef4444', padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700 }}>
               {store.is_open ? openText : closedText}
             </span>
           </div>
@@ -106,14 +106,14 @@ export default function StoreDetailView({ store, products: propProducts, onBack,
       {promos.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
           {promos.map((p, i) => (
-            <div key={i} style={{ padding: '10px 12px', borderRadius: 14, background: '#ecfdf5', color: '#047857', fontSize: 14, fontWeight: 700 }}>🎉 {promoLabel(p, language)}</div>
+            <div key={i} style={{ padding: '10px 12px', borderRadius: 14, background: '#eef5f5', color: '#0b2440', fontSize: 14, fontWeight: 700 }}>🎉 {promoLabel(p, language)}</div>
           ))}
         </div>
       )}
 
       {/* Products count + search */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 14px' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', background: '#fbf7ef', border: '1px solid #eadfca', borderRadius: '12px', padding: '10px 14px' }}>
           <Search size={16} color="#94a3b8" />
           <input 
             type="text"
@@ -123,7 +123,7 @@ export default function StoreDetailView({ store, products: propProducts, onBack,
             style={{ border: 'none', background: 'transparent', flex: 1, fontSize: '0.88rem', color: '#1e293b', outline: 'none' }}
           />
         </div>
-        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b', background: '#f1f5f9', padding: '5px 12px', borderRadius: '999px', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b', background: '#f5efe2', padding: '5px 12px', borderRadius: '999px', whiteSpace: 'nowrap' }}>
           {allProducts.length} {productsLabel}
         </span>
       </div>
@@ -138,7 +138,7 @@ export default function StoreDetailView({ store, products: propProducts, onBack,
             <button
               type="button"
               onClick={() => setStoreSearch('')}
-              style={{ marginTop: '16px', background: '#f1f5f9', border: 'none', borderRadius: '10px', padding: '10px 20px', fontSize: '0.85rem', fontWeight: 700, color: '#475569', cursor: 'pointer' }}
+              style={{ marginTop: '16px', background: '#f5efe2', border: 'none', borderRadius: '10px', padding: '10px 20px', fontSize: '0.85rem', fontWeight: 700, color: '#475569', cursor: 'pointer' }}
             >
               {language === 'ru' ? 'Сбросить поиск' : (language === 'en' ? 'Clear search' : 'Qidiruvni tozalash')}
             </button>

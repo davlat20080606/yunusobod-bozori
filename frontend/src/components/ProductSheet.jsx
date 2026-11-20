@@ -69,7 +69,7 @@ export default function ProductSheet({ product, store, categoryName, otherProduc
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-      <div onClick={(e) => e.stopPropagation()} className="animate-fade" style={{ width: '100%', maxWidth: 640, maxHeight: '94vh', background: '#f8fafc', borderRadius: '28px 28px 0 0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div onClick={(e) => e.stopPropagation()} className="animate-fade" style={{ width: '100%', maxWidth: 640, maxHeight: '94vh', background: '#fbf7ef', borderRadius: '28px 28px 0 0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto' }}>
           {/* Photo */}
           <div style={{ position: 'relative', background: '#ffffff', borderRadius: '0 0 28px 28px', paddingBottom: 16 }}>
@@ -85,7 +85,7 @@ export default function ProductSheet({ product, store, categoryName, otherProduc
 
             <div style={{ padding: '14px 16px 0' }}>
               {discount && (
-                <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, background: '#059669', color: '#ffffff', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>
+                <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, background: '#12355b', color: '#ffffff', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>
                   −{discount.toLocaleString()} {cur}
                 </span>
               )}
@@ -106,9 +106,9 @@ export default function ProductSheet({ product, store, categoryName, otherProduc
           {/* Seller (teacher's request: the seller's other products) */}
           {store && (
             <button type="button" onClick={() => onOpenStore?.(store)} style={{ width: 'calc(100% - 24px)', margin: '12px 12px 0', display: 'flex', alignItems: 'center', gap: 12, padding: 14, borderRadius: 20, border: 'none', background: '#ffffff', cursor: 'pointer', textAlign: 'left' }}>
-              <img src={store.avatar_url} alt="" style={{ width: 46, height: 46, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, background: '#e2e8f0' }} />
+              <img src={store.avatar_url} alt="" style={{ width: 46, height: 46, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, background: '#eadfca' }} />
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 12, color: '#047857', fontWeight: 700 }}>{lang === 'ru' ? 'Продавец' : (lang === 'en' ? 'Seller' : "Do'konchi")} · {stallLabel(store.stall_number, lang)}</span>
+                <span style={{ display: 'block', fontSize: 12, color: '#0b2440', fontWeight: 700 }}>{lang === 'ru' ? 'Продавец' : (lang === 'en' ? 'Seller' : "Do'konchi")} · {stallLabel(store.stall_number, lang)}</span>
                 <span style={{ display: 'block', fontSize: 15, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{store.owner_name} — {getLocalized(store, 'name')}</span>
               </span>
               <ChevronRight size={20} color="#94a3b8" />
@@ -144,23 +144,23 @@ export default function ProductSheet({ product, store, categoryName, otherProduc
               {getLocalized(product, 'name')} <span style={{ color: '#94a3b8', fontWeight: 500 }}>{fmtQty(qty)}</span>
             </span>
             {oldPrice && <span style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through' }}>{oldPrice.toLocaleString()}</span>}
-            <span style={{ fontSize: 17, fontWeight: 800, color: '#047857', whiteSpace: 'nowrap' }}>{price.toLocaleString()} {cur}</span>
+            <span style={{ fontSize: 17, fontWeight: 800, color: '#0b2440', whiteSpace: 'nowrap' }}>{price.toLocaleString()} {cur}</span>
           </div>
           {fewLeft(product) && (
             <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 800, color: '#92400e' }}>⏳ {fewLeftLabel(product, unit, lang)}</div>
           )}
           {unavailable ? (
-            <div style={{ height: 56, borderRadius: 18, background: '#f1f5f9', color: '#94a3b8', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ height: 56, borderRadius: 18, background: '#f5efe2', color: '#94a3b8', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {lang === 'ru' ? 'Нет в наличии' : (lang === 'en' ? 'Out of stock' : "Hozir yo'q")}
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', background: '#f1f5f9', borderRadius: 18, height: 56 }}>
+              <div style={{ display: 'flex', alignItems: 'center', background: '#f5efe2', borderRadius: 18, height: 56 }}>
                 <button type="button" onClick={() => change(-1)} disabled={qty <= min} aria-label="minus" style={{ width: 48, height: 56, border: 'none', background: 'none', cursor: 'pointer', opacity: qty <= min ? 0.35 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={20} /></button>
                 <span style={{ minWidth: 56, textAlign: 'center', fontWeight: 800, fontSize: 16 }}>{fmtQty(qty)}</span>
                 <button type="button" onClick={() => change(1)} disabled={atLimit} aria-label="plus" style={{ width: 48, height: 56, border: 'none', background: 'none', cursor: 'pointer', opacity: atLimit ? 0.35 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={20} /></button>
               </div>
-              <button type="button" onClick={confirm} style={{ flex: 1, height: 56, borderRadius: 18, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 17, cursor: 'pointer' }}>
+              <button type="button" onClick={confirm} style={{ flex: 1, height: 56, borderRadius: 18, border: 'none', background: '#12355b', color: '#ffffff', fontWeight: 800, fontSize: 17, cursor: 'pointer' }}>
                 {inCart
                   ? (lang === 'ru' ? 'Готово' : (lang === 'en' ? 'Done' : 'Tayyor'))
                   : (lang === 'ru' ? 'Добавить' : (lang === 'en' ? 'Add' : "Qo'shish"))}

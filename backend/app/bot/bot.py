@@ -219,6 +219,9 @@ def terms_keyboard(lang: str, with_agree: bool = True):
 
 
 async def terms_accepted(tg_id) -> bool:
+    # Rules switched off (settings.TERMS_ENABLED): nobody is asked
+    if not settings.TERMS_ENABLED:
+        return True
     from app.database import async_session_factory
     from app.services import terms
     async with async_session_factory() as db:
@@ -527,13 +530,19 @@ def setup_dispatcher() -> Dispatcher:
             phone = await get_setting(db, "support_phone")
             radius = await get_setting(db, "delivery_radius_km")
         phone_line = "\n\n" + REG_TEXTS["help_phone"][lang].format(phone=escape(phone)) if phone else ""
-        await message.answer(REG_TEXTS["help"][lang].format(radius=radius, phone_line=phone_line), parse_mode="HTML")
+        text = REG_TEXTS["help"][lang].format(radius=radius, phone_line=phone_line)
+        if not settings.TERMS_ENABLED:
+            text = text.split("\n/qoidalar")[0]
+        await message.answer(text, parse_mode="HTML")
 
     @dp.message(Command("qoidalar", "rules", "terms"))
     async def cmd_rules(message: types.Message):
         from app.services import terms
         customer = await get_customer(message.from_user.id)
         lang = (customer.lang if customer else None) or "uz"
+        if not settings.TERMS_ENABLED:
+            await message.answer(terms.SOON[lang])
+            return
         accepted = await terms_accepted(message.from_user.id)
         await message.answer(terms.WARNING[lang], reply_markup=terms_keyboard(lang, with_agree=not accepted), parse_mode="HTML")
 

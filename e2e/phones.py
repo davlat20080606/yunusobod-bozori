@@ -40,7 +40,11 @@ async def main():
                     await cmd("Page.navigate", {"url": f"{B}/?lang={lang}{q}"}); await asyncio.sleep(1.6)
                     r = await js(OVERFLOW)
                     cut = await js(CUT)
-                    corner = await js("(()=>{const b=document.querySelector('header [data-testid=language-switcher]');if(!b)return null;const r=b.getBoundingClientRect();return {right:Math.round(innerWidth-r.right),top:Math.round(r.top)}})()")
+                    # the very first load after the server starts can take longer than 1.6 s: wait for the header up to 5 s
+                    for _ in range(25):
+                        corner = await js("(()=>{const b=document.querySelector('header [data-testid=language-switcher]');if(!b)return null;const r=b.getBoundingClientRect();return {right:Math.round(innerWidth-r.right),top:Math.round(r.top)}})()")
+                        if corner: break
+                        await asyncio.sleep(0.2)
                     ok(corner and corner["right"] <= 20 and corner["top"] <= 30, f"{lang} {w}px {screen}: language button in the top right corner {corner}")
                     ok(r and r["page"] <= r["w"] + 1 and not r["bad"] and not cut, f"{lang} {w}px {name} {screen}: {r} cut={cut}")
                     if screen == "market":

@@ -5,6 +5,7 @@ import { CartContext } from './context/CartContext';
 import { initTelegramApp, triggerHaptic } from './services/telegram';
 
 import Navbar from './components/Navbar';
+import WelcomeHero from './components/WelcomeHero';
 import AddressBar from './components/AddressBar';
 import CategoryGrid from './components/CategoryGrid';
 import ReviewsSection from './components/ReviewsSection';
@@ -30,7 +31,7 @@ import PorterPanel from './components/PorterPanel';
 import OrderTracker, { statusTitle, ACTIVE_STATUSES, rememberMyOrder } from './components/OrderTracker';
 import MobileBottomNav from './components/MobileBottomNav';
 import Footer from './components/Footer';
-import { TermsPage, TermsGate } from './components/Terms';
+import { TermsPage, TermsGate, termsStatusOnce } from './components/Terms';
 
 import { Search, Sparkles, ChevronRight, Store, ShoppingBag, X } from 'lucide-react';
 
@@ -58,6 +59,15 @@ export default function App() {
 
   // Media Inspection Modal
   const [selectedMediaProduct, setSelectedMediaProduct] = useState(null);
+
+  // Platform rules are off until the payment gateway is ready (server setting TERMS_ENABLED)
+  const [termsOn, setTermsOn] = useState(false);
+  useEffect(() => {
+    termsStatusOnce().then((r) => {
+      setTermsOn(Boolean(r.enabled));
+      if (!r.enabled) setActiveTab((tab) => (tab === 'terms' ? 'market' : tab));
+    });
+  }, []);
 
   // Cart State (In-session only, resets when user closes and re-enters the bot)
   const [cart, setCart] = useState(() => {
@@ -344,7 +354,7 @@ export default function App() {
               setActiveTab('orders');
             }}
             style={{
-              background: 'linear-gradient(135deg, #064e3b 0%, #059669 100%)',
+              background: 'linear-gradient(135deg, #0b2440 0%, #12355b 100%)',
               color: '#ffffff',
               padding: '10px 14px',
               borderRadius: '14px',
@@ -352,8 +362,8 @@ export default function App() {
               alignItems: 'center',
               justifyContent: 'space-between',
               cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(5,150,105,0.25)',
-              border: '1px solid #10b981'
+              boxShadow: '0 4px 12px rgba(18,53,91,0.25)',
+              border: '1px solid #1f8a8a'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -373,13 +383,13 @@ export default function App() {
                 <div style={{ fontSize: '0.84rem', fontWeight: 800 }}>
                   {t('tracker.title')}: #{activeOrderNumber}
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#a7f3d0' }}>
+                <div style={{ fontSize: '0.72rem', color: '#e9c46a' }}>
                   {statusTitle(activeOrderStatus, language)}
                 </div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ChevronRight size={18} color="#a7f3d0" />
+              <ChevronRight size={18} color="#e9c46a" />
               <button
                 type="button"
                 onClick={(e) => {
@@ -533,7 +543,8 @@ export default function App() {
                     /* BAZAAR MAIN STOREFRONT */
                     <div className="animate-fade">
                       
-                      {/* 1. Yandex Go style: delivery address and time first, no ad banners */}
+                      {/* 1. «O'zbek naqshi» greeting, then where we deliver and how fast */}
+                      <WelcomeHero />
                       <AddressBar />
 
                       {/* 3. Big photo cards for bazaar sections */}
@@ -587,6 +598,7 @@ export default function App() {
         onNavigatePorter={() => setActiveTab('porter')}
         onNavigateOrders={() => setActiveTab('orders')}
         onNavigateTerms={() => { setActiveTab('terms'); window.scrollTo(0, 0); }}
+        showTerms={termsOn}
       />
 
       <TermsGate hidden={activeTab === 'terms'} onReadAll={() => { setActiveTab('terms'); window.scrollTo(0, 0); }} />
@@ -597,12 +609,12 @@ export default function App() {
           type="button"
           className="animate-fade"
           onClick={() => { triggerHaptic('medium'); setCartDrawerOpen(true); }}
-          style={{ position: 'fixed', right: 14, bottom: 'calc(84px + env(safe-area-inset-bottom))', zIndex: 60, height: 56, padding: '0 20px', borderRadius: 28, border: 'none', background: '#059669', color: '#ffffff', fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 6px 20px rgba(5,150,105,0.4)', cursor: 'pointer' }}
+          style={{ position: 'fixed', right: 14, bottom: 'calc(84px + env(safe-area-inset-bottom))', zIndex: 60, height: 56, padding: '0 20px', borderRadius: 28, background: '#12355b', color: '#ffffff', border: '2px solid #e9c46a', fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 6px 20px rgba(18,53,91,0.35)', cursor: 'pointer' }}
         >
           {Math.round(cartTotal).toLocaleString()} {language === 'ru' ? 'сум' : (language === 'en' ? 'UZS' : "so'm")}
           <span style={{ position: 'relative', display: 'flex' }}>
             <ShoppingBag size={22} />
-            <span style={{ position: 'absolute', top: -7, right: -9, minWidth: 18, height: 18, padding: '0 4px', boxSizing: 'border-box', borderRadius: 9, background: '#ffffff', color: '#047857', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartItemsCount}</span>
+            <span style={{ position: 'absolute', top: -7, right: -9, minWidth: 18, height: 18, padding: '0 4px', boxSizing: 'border-box', borderRadius: 9, background: '#e9c46a', color: '#12355b', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartItemsCount}</span>
           </span>
         </button>
       )}

@@ -36,7 +36,7 @@ export default function ReviewsSection() {
 
   return (
     <section style={{ marginTop: 28 }}>
-      <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1.2, color: '#059669' }}>{t('kicker')}</div>
+      <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1.2, color: '#12355b' }}>{t('kicker')}</div>
       <h2 className="med-section-title" style={{ margin: '4px 0 4px' }}>{t('title')}</h2>
       <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 12px' }}>{t('subtitle')}</p>
 
@@ -53,7 +53,7 @@ export default function ReviewsSection() {
           return (
             <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#475569', marginTop: 6 }}>
               <span style={{ width: 22 }}>{n}★</span>
-              <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#f1f5f9', overflow: 'hidden' }}>
+              <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#f5efe2', overflow: 'hidden' }}>
                 <div style={{ width: `${share}%`, height: '100%', background: '#f59e0b' }} />
               </div>
               <span style={{ width: 36, textAlign: 'right' }}>{share}%</span>

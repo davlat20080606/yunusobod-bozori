@@ -48,6 +48,12 @@ WARNING = {
 AGREE = {"uz": "✅ Roziman", "ru": "✅ Согласен", "en": "✅ I agree"}
 READ_ALL = {"uz": "📄 To'liq qoidalar", "ru": "📄 Полные правила", "en": "📄 Full rules"}
 ACCEPTED = {"uz": "✅ Qabul qilindi", "ru": "✅ Принято", "en": "✅ Accepted"}
+# /qoidalar while the rules are switched off (settings.TERMS_ENABLED)
+SOON = {
+    "uz": "Foydalanish qoidalari yangilanmoqda va tez orada e'lon qilinadi.",
+    "ru": "Правила использования обновляются и скоро будут опубликованы.",
+    "en": "The terms of use are being updated and will be published soon.",
+}
 
 
 async def has_accepted(db: AsyncSession, tg_id) -> bool:

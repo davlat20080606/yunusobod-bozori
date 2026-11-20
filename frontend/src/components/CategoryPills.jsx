@@ -4,7 +4,7 @@ import { triggerHaptic } from '../services/telegram';
 import { ChevronRight } from 'lucide-react';
 
 const CATEGORY_META = {
-  all: { icon: '🛒', color: '#059669', bg: '#ecfdf5', uz: 'Barchasi', ru: 'Все товары', en: 'All' },
+  all: { icon: '🛒', color: '#12355b', bg: '#eef5f5', uz: 'Barchasi', ru: 'Все товары', en: 'All' },
   bakery: { icon: '🥖', color: '#d97706', bg: '#fef3c7', uz: 'Non & Tandir', ru: 'Выпечка & Нон', en: 'Bakery' },
   fruits: { icon: '🍇', color: '#db2777', bg: '#fce7f3', uz: 'Mevalar', ru: 'Фрукты & Ягоды', en: 'Fruits' },
   meat: { icon: '🥩', color: '#dc2626', bg: '#fee2e2', uz: 'Go\'sht & Qazi', ru: 'Мясо & Казы', en: 'Fresh Meat' },
@@ -73,7 +73,7 @@ export default function CategoryPills({ categories, activeCategory, onSelectCate
 
           {/* Categories */}
           {categories.map((cat) => {
-            const meta = CATEGORY_META[cat.slug] || { icon: '🥬', bg: '#f1f5f9', color: '#059669' };
+            const meta = CATEGORY_META[cat.slug] || { icon: '🥬', bg: '#f5efe2', color: '#12355b' };
             const isSelected = activeCategory === cat.slug;
             const shortTitle = getShortName(cat.slug, cat);
 
@@ -120,7 +120,7 @@ export default function CategoryPills({ categories, activeCategory, onSelectCate
         {/* Dynamic Categories */}
         {categories.map((cat) => {
           const count = getProductCount(cat.slug);
-          const meta = CATEGORY_META[cat.slug] || { icon: '🥬', bg: '#f1f5f9' };
+          const meta = CATEGORY_META[cat.slug] || { icon: '🥬', bg: '#f5efe2' };
           const isSelected = activeCategory === cat.slug;
 
           return (

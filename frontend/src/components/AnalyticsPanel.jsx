@@ -45,7 +45,7 @@ const money = (v) => Math.round(v || 0).toLocaleString('ru-RU');
 // The bazaar is open 06:00–20:00; the map shows those hours (and a little around them)
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 5);
 
-export default function AnalyticsPanel({ lang }) {
+export default function AnalyticsPanel({ lang, readOnly = false }) {
   const t = (key) => T[key]?.[lang] ?? T[key]?.uz ?? key;
   const [days, setDays] = useState(7);
   const [report, setReport] = useState(null);
@@ -144,14 +144,14 @@ export default function AnalyticsPanel({ lang }) {
           {list(t('porters'), r.porters, (p) => <><span>{p.name}</span><b>{p.delivered}</b></>)}
           {list(t('taxis'), r.taxis, (p) => <><span>{p.name}</span><b>{p.delivered}</b></>)}
 
-          <button type="button" disabled={busy} onClick={() => act(() => api.adminSendCsv(days), t('csv_sent'))} style={{ width: '100%', padding: 13, borderRadius: 14, border: '1.5px solid #e2e8f0', background: '#ffffff', fontWeight: 800, fontSize: 14, cursor: 'pointer', marginBottom: 8 }}>{t('csv')}</button>
+          {!readOnly && <button type="button" disabled={busy} onClick={() => act(() => api.adminSendCsv(days), t('csv_sent'))} style={{ width: '100%', padding: 13, borderRadius: 14, border: '1.5px solid #e2e8f0', background: '#ffffff', fontWeight: 800, fontSize: 14, cursor: 'pointer', marginBottom: 8 }}>{t('csv')}</button>}
 
           <div style={card}>
             <b style={{ fontSize: 14 }}>💾 {t('backup')}</b>
             <div data-testid="backup-state" style={{ fontSize: 13, color: r.backup.startsWith('ok') ? '#047857' : '#b45309', margin: '4px 0 8px' }}>
               {r.backup.startsWith('off (missing: BACKUP_KEY)') ? t('backup_off') : r.backup}
             </div>
-            {!r.backup.startsWith('off') && (
+            {!readOnly && !r.backup.startsWith('off') && (
               <button type="button" disabled={busy} onClick={() => act(() => api.adminBackupNow(), t('backup'))} style={{ padding: '9px 12px', borderRadius: 10, border: 'none', background: '#0f172a', color: '#ffffff', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>{t('backup_now')}</button>
             )}
           </div>

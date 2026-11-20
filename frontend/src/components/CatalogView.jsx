@@ -5,7 +5,7 @@ import { ChevronRight, ArrowLeft } from 'lucide-react';
 import { triggerHaptic } from '../services/telegram';
 
 const CATEGORY_META = {
-  all: { icon: '🛒', bg: '#ecfdf5', uz: 'Barchasi', ru: 'Все', en: 'All' },
+  all: { icon: '🛒', bg: '#eef5f5', uz: 'Barchasi', ru: 'Все', en: 'All' },
   bakery: { icon: '🥖', bg: '#fef3c7', uz: 'Non & Tandir', ru: 'Выпечка', en: 'Bakery' },
   fruits: { icon: '🍇', bg: '#fce7f3', uz: 'Mevalar', ru: 'Фрукты', en: 'Fruits' },
   meat: { icon: '🥩', bg: '#fee2e2', uz: 'Go\'sht', ru: 'Мясо', en: 'Fresh Meat' },
@@ -58,7 +58,7 @@ export default function CatalogView({
             alignItems: 'center',
             gap: '6px',
             background: '#ffffff',
-            border: '1px solid #e2e8f0',
+            border: '1px solid #eadfca',
             borderRadius: '12px',
             padding: '8px 14px',
             fontSize: '0.85rem',
@@ -76,7 +76,7 @@ export default function CatalogView({
           fontSize: '0.78rem',
           fontWeight: 700,
           color: '#64748b',
-          background: '#f1f5f9',
+          background: '#f5efe2',
           padding: '5px 12px',
           borderRadius: '999px'
         }}>
@@ -98,7 +98,7 @@ export default function CatalogView({
               onSelectCategory('');
             }}
           >
-            <div className="med-cat-squircle-box" style={{ background: '#ecfdf5' }}>
+            <div className="med-cat-squircle-box" style={{ background: '#eef5f5' }}>
               <span className="med-cat-squircle-icon">🛒</span>
             </div>
             <span className="med-cat-squircle-label">
@@ -123,7 +123,7 @@ export default function CatalogView({
                   onSelectCategory(cat.slug);
                 }}
               >
-                <div className="med-cat-squircle-box" style={{ background: meta.bg || '#f1f5f9' }}>
+                <div className="med-cat-squircle-box" style={{ background: meta.bg || '#f5efe2' }}>
                   <span className="med-cat-squircle-icon">{meta.icon}</span>
                 </div>
                 <span className="med-cat-squircle-label">

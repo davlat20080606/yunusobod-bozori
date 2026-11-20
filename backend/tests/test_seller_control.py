@@ -3,7 +3,7 @@ and the customer are told; each only once. The Bozorkom panel shows each stall's
 import asyncio
 from datetime import datetime, timedelta
 
-from test_no_show import backdate
+from test_no_show import backdate, db
 from conftest import BASE_ORDER
 
 TOMATO, MEAT = 6, 10  # stall 1 and stall 2
@@ -19,10 +19,12 @@ def run(now):
 
 def test_late_stall_reminded_then_reported(api, ok, sellers, admin, relaxed_limits):
     c, o = api("POST", "/orders", {**BASE_ORDER, "customer_phone": "+998 90 720-00-01", "fulfillment": "self",
-                                   "delivery_time_slot": "Express (45-60 min)",
                                    "items": [{"product_id": TOMATO, "store_id": 1, "quantity": 1},
                                              {"product_id": MEAT, "store_id": 2, "quantity": 1}]})
-    ok(c == 200, f"express order with two stalls ({c})")
+    ok(c == 200, f"order with two stalls ({c})")
+    # Express is only taken 06:00–19:00 Tashkent time; make it Express directly so the test passes at any hour
+    with db() as conn:
+        conn.execute("UPDATE orders SET delivery_time_slot = 'Express (45-60 min)' WHERE id = ?", (o["id"],))
     api("POST", f"/seller/orders/{o['id']}/ready", None, sellers[1])  # stall 2 packs at once
 
     now = datetime.utcnow()

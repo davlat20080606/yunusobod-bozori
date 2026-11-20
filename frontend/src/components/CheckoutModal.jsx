@@ -257,11 +257,11 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
   };
   const section = { background: '#ffffff', borderRadius: 26, padding: '18px 16px', marginBottom: 10 };
   const h = { fontSize: 24, fontWeight: 800, margin: '0 0 10px' };
-  const row = { width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', border: 'none', borderBottom: '1px solid #f1f5f9', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 16, color: '#0f172a' };
-  const line = { width: '100%', boxSizing: 'border-box', border: 'none', borderBottom: '1px solid #e2e8f0', padding: '14px 0', fontSize: 16, outline: 'none', background: 'transparent' };
+  const row = { width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', border: 'none', borderBottom: '1px solid #f5efe2', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 16, color: '#0f172a' };
+  const line = { width: '100%', boxSizing: 'border-box', border: 'none', borderBottom: '1px solid #eadfca', padding: '14px 0', fontSize: 16, outline: 'none', background: 'transparent' };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 8800, background: '#f1f5f9', display: 'flex', flexDirection: 'column' }} className="animate-fade">
+    <div style={{ position: 'fixed', inset: 0, zIndex: 8800, background: '#f5efe2', display: 'flex', flexDirection: 'column' }} className="animate-fade">
       <div style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', background: '#ffffff' }}>
         <button type="button" onClick={onClose} aria-label="back" style={{ width: 44, height: 44, border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><ArrowLeft size={24} /></button>
         <div style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: 700, marginRight: 44 }}>{tr('Buyurtmani rasmiylashtirish', 'Оформление заказа', 'Placing an order')}</div>
@@ -277,7 +277,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
               {ways.map((f) => {
                 const active = fulfillment === f.id;
                 return (
-                  <button key={f.id} type="button" onClick={() => { triggerHaptic('selection'); setFulfillment(f.id); setError(''); }} style={{ padding: '12px 8px', borderRadius: 18, border: active ? '2px solid #059669' : '1.5px solid #e2e8f0', background: active ? '#ecfdf5' : '#ffffff', cursor: 'pointer', textAlign: 'center', minWidth: 0 }}>
+                  <button key={f.id} type="button" onClick={() => { triggerHaptic('selection'); setFulfillment(f.id); setError(''); }} style={{ padding: '12px 8px', borderRadius: 18, border: active ? '2px solid #12355b' : '1.5px solid #eadfca', background: active ? '#eef5f5' : '#ffffff', cursor: 'pointer', textAlign: 'center', minWidth: 0 }}>
                     <span style={{ display: 'block', fontSize: 26 }}>{f.icon}</span>
                     <span style={{ display: 'block', fontSize: 14, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>{tr(...f.title)}</span>
                     <span style={{ display: 'block', fontSize: 11, color: '#64748b', marginTop: 2, lineHeight: 1.25 }}>{tr(...f.sub)}</span>
@@ -299,7 +299,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                 {zone.handoff_points.map((p) => {
                   const active = handoffPoint === p.id;
                   return (
-                    <button key={p.id} type="button" onClick={() => { triggerHaptic('selection'); setHandoffPoint(p.id); }} style={{ padding: '10px 14px', borderRadius: 999, border: active ? '2px solid #0f172a' : '1.5px solid #e2e8f0', background: '#ffffff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                    <button key={p.id} type="button" onClick={() => { triggerHaptic('selection'); setHandoffPoint(p.id); }} style={{ padding: '10px 14px', borderRadius: 999, border: active ? '2px solid #0f172a' : '1.5px solid #eadfca', background: '#ffffff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
                       📍 {pointName(zone.handoff_points, p.id, lang)}
                     </button>
                   );
@@ -328,7 +328,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                 const [name, time] = slotInfo[slot.id] || [slot.label, ''];
                 const active = timeSlot === slot.id;
                 return (
-                  <button key={slot.id} type="button" onClick={() => { triggerHaptic('selection'); setTimeSlot(slot.id); }} style={{ flexShrink: 0, padding: '10px 16px', borderRadius: 18, border: active ? '2px solid #0f172a' : '1.5px solid #e2e8f0', background: '#ffffff', textAlign: 'left', cursor: 'pointer' }}>
+                  <button key={slot.id} type="button" onClick={() => { triggerHaptic('selection'); setTimeSlot(slot.id); }} style={{ flexShrink: 0, padding: '10px 16px', borderRadius: 18, border: active ? '2px solid #0f172a' : '1.5px solid #eadfca', background: '#ffffff', textAlign: 'left', cursor: 'pointer' }}>
                     <span style={{ display: 'block', fontSize: 16, fontWeight: 800 }}>{name}</span>
                     <span style={{ display: 'block', fontSize: 13, color: '#64748b' }}>{time}</span>
                   </button>
@@ -361,7 +361,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                     [apartment, setApartment, tr('Xonadon', 'Квартира', 'Apartment'), 'numeric', 6],
                     [doorPhone, setDoorPhone, tr('Domofon', 'Домофон', 'Door phone'), 'text', 10],
                   ].map(([value, setter, label, mode, max]) => (
-                    <label key={label} style={{ display: 'block', borderBottom: '1px solid #e2e8f0', padding: value ? '6px 0 8px' : '14px 0' }}>
+                    <label key={label} style={{ display: 'block', borderBottom: '1px solid #eadfca', padding: value ? '6px 0 8px' : '14px 0' }}>
                       {/* Keep the label visible once filled, like Yandex Go */}
                       {value && <span style={{ display: 'block', fontSize: 12, color: '#94a3b8' }}>{label}</span>}
                       <input inputMode={mode} maxLength={max} placeholder={label} value={value} onChange={(e) => setter(e.target.value)} style={{ width: '100%', border: 'none', outline: 'none', fontSize: 16, padding: 0, background: 'transparent' }} />
@@ -380,11 +380,11 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
                 ))}
                 <div style={{ display: 'grid', gridTemplateColumns: isDesktopTelegram() ? '1fr' : '1fr 1fr', gap: 8, marginTop: 10 }}>
                   {!isDesktopTelegram() && (
-                    <button type="button" onClick={locateMe} disabled={locating} style={{ height: 56, borderRadius: 18, border: 'none', background: '#059669', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer', opacity: locating ? 0.7 : 1 }}>
+                    <button type="button" onClick={locateMe} disabled={locating} style={{ height: 56, borderRadius: 18, border: 'none', background: '#12355b', color: '#ffffff', fontWeight: 800, fontSize: 15, cursor: 'pointer', opacity: locating ? 0.7 : 1 }}>
                     📍 {locating ? tr('Aniqlanmoqda…', 'Определяем…', 'Locating…') : tr('Joylashuvim', 'Где я', 'My location')}
                   </button>
                   )}
-                  <button type="button" onClick={() => setShowMap(true)} style={{ height: 56, borderRadius: 18, border: 'none', background: '#f1f5f9', color: '#0f172a', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
+                  <button type="button" onClick={() => setShowMap(true)} style={{ height: 56, borderRadius: 18, border: 'none', background: '#f5efe2', color: '#0f172a', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
                     🗺 {tr('Xaritadan', 'На карте', 'On the map')}
                   </button>
                 </div>
@@ -401,7 +401,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
               <ChevronRight size={20} color="#94a3b8" />
             </button>}
             {isCourier && noteOpen && (
-              <textarea value={landmark} onChange={(e) => setLandmark(e.target.value)} rows={2} maxLength={150} autoFocus placeholder={tr('Masalan: Makro yonida, sariq darvoza', 'Например: рядом с Макро, жёлтые ворота', 'E.g. next to Makro, yellow gate')} style={{ width: '100%', boxSizing: 'border-box', borderRadius: 14, border: '1.5px solid #e2e8f0', padding: 12, fontSize: 15, fontFamily: 'inherit', resize: 'none', margin: '8px 0' }} />
+              <textarea value={landmark} onChange={(e) => setLandmark(e.target.value)} rows={2} maxLength={150} autoFocus placeholder={tr('Masalan: Makro yonida, sariq darvoza', 'Например: рядом с Макро, жёлтые ворота', 'E.g. next to Makro, yellow gate')} style={{ width: '100%', boxSizing: 'border-box', borderRadius: 14, border: '1.5px solid #eadfca', padding: 12, fontSize: 15, fontFamily: 'inherit', resize: 'none', margin: '8px 0' }} />
             )}
 
             {/* Recipient */}
@@ -431,7 +431,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
               <DoorOpen size={22} color="#64748b" />
               <span style={{ flex: 1 }}>{tr("Eshik oldiga qoldirish", 'Оставить у двери', 'Leave at the door')}</span>
               <input type="checkbox" checked={leaveAtDoor} onChange={(e) => setLeaveAtDoor(e.target.checked)} style={{ display: 'none' }} />
-              <span style={{ width: 52, height: 32, borderRadius: 16, background: leaveAtDoor ? '#059669' : '#e2e8f0', position: 'relative', transition: 'background 0.15s' }}>
+              <span style={{ width: 52, height: 32, borderRadius: 16, background: leaveAtDoor ? '#12355b' : '#eadfca', position: 'relative', transition: 'background 0.15s' }}>
                 <span style={{ position: 'absolute', top: 3, left: leaveAtDoor ? 23 : 3, width: 26, height: 26, borderRadius: '50%', background: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: 'left 0.15s' }} />
               </span>
             </label>}
@@ -451,7 +451,7 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
               ['card', '💳', tr('Kartaga o\'tkazma', 'Перевод на карту', 'Card transfer'),
                 tr("Karta raqamlari buyurtmada ko'rinadi", 'Номера карт будут в заказе', 'Card numbers are shown in the order')],
             ].map(([id, icon, title, sub]) => (
-              <button key={id} type="button" data-testid={`pay-${id}`} onClick={() => { triggerHaptic('selection'); setPaymentMethod(id); }} style={{ width: '100%', height: 64, marginBottom: 10, borderRadius: 18, border: paymentMethod === id ? '2px solid #0f172a' : '1.5px solid transparent', background: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', cursor: 'pointer', textAlign: 'left' }}>
+              <button key={id} type="button" data-testid={`pay-${id}`} onClick={() => { triggerHaptic('selection'); setPaymentMethod(id); }} style={{ width: '100%', height: 64, marginBottom: 10, borderRadius: 18, border: paymentMethod === id ? '2px solid #0f172a' : '1.5px solid transparent', background: '#f5efe2', display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', cursor: 'pointer', textAlign: 'left' }}>
                 <span style={{ fontSize: 26 }}>{icon}</span>
                 <span style={{ flex: 1 }}>
                   <span style={{ display: 'block', fontSize: 16, fontWeight: 800, color: '#0f172a' }}>{title}</span>
@@ -471,22 +471,22 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
             <h3 style={h}>{tr('Narx tafsiloti', 'Детали цены', 'Price details')}</h3>
             {[
               [tr('Savatdagi mahsulotlar', 'Товары в корзине', 'Items in the cart'), `${Math.round(oldItemsTotal).toLocaleString()} ${cur}`],
-              oldItemsTotal > itemsTotal ? [tr('Chegirma', 'Скидка', 'Discount'), `−${Math.round(oldItemsTotal - itemsTotal).toLocaleString()} ${cur}`, '#047857'] : null,
+              oldItemsTotal > itemsTotal ? [tr('Chegirma', 'Скидка', 'Discount'), `−${Math.round(oldItemsTotal - itemsTotal).toLocaleString()} ${cur}`, '#0b2440'] : null,
               quote && quote.porter_fee > 0 ? [tr('Aravachi', 'Аравачи', 'Porter'), `${Math.round(quote.porter_fee).toLocaleString()} ${cur}`] : null,
               quote && quote.taxi_fee > 0 ? [tr('Taksi', 'Такси', 'Taxi'), `${Math.round(quote.taxi_fee).toLocaleString()} ${cur}`] : null,
               !quote ? [tr('Yetkazish', 'Доставка', 'Delivery'), `${Math.round(deliveryFee).toLocaleString()} ${cur}`] : null,
               quote && fulfillment === 'self' ? [tr('Yetkazish', 'Доставка', 'Delivery'), tr('Yo\'q', 'Нет', 'None')] : null,
-              ...stallDiscounts.map((b) => [`${bonusLabel(b, lang)} · ${stallLabel(b.stall_number, lang)}`, `−${Math.round(b.amount).toLocaleString()} ${cur}`, '#047857']),
+              ...stallDiscounts.map((b) => [`${bonusLabel(b, lang)} · ${stallLabel(b.stall_number, lang)}`, `−${Math.round(b.amount).toLocaleString()} ${cur}`, '#0b2440']),
             ].filter(Boolean).map(([label, value, color]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, padding: '6px 0' }}>
                 <span>{label}</span><span style={{ color: color || '#0f172a' }}>{value}</span>
               </div>
             ))}
             {gifts.map((b) => (
-              <div key={`${b.store_id}-${b.text}`} style={{ fontSize: 15, padding: '6px 0', color: '#047857', fontWeight: 700 }}>{bonusLabel(b, lang)} · {stallLabel(b.stall_number, lang)}</div>
+              <div key={`${b.store_id}-${b.text}`} style={{ fontSize: 15, padding: '6px 0', color: '#0b2440', fontWeight: 700 }}>{bonusLabel(b, lang)} · {stallLabel(b.stall_number, lang)}</div>
             ))}
             {(quote?.hints || []).map((hint) => (
-              <div key={`${hint.store_id}-${hint.kind}`} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 14, background: '#f0fdf4', color: '#166534', fontSize: 13, fontWeight: 600 }}>
+              <div key={`${hint.store_id}-${hint.kind}`} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 14, background: '#eef5f5', color: '#0b2440', fontSize: 13, fontWeight: 600 }}>
                 💡 {hintLabel(hint, lang)}
               </div>
             ))}
@@ -504,10 +504,10 @@ export default function CheckoutModal({ isOpen, onClose, cart = [], notes = '', 
             <span style={{ fontSize: 24, fontWeight: 800 }}>{tr('Jami', 'Итого', 'Total')}</span>
             <span>
               {fullPrice > payTotal && <s style={{ color: '#94a3b8', fontSize: 16, marginRight: 8 }}>{Math.round(fullPrice).toLocaleString()}</s>}
-              <b style={{ fontSize: 24, color: '#047857' }}>{Math.round(payTotal).toLocaleString()} {cur}</b>
+              <b style={{ fontSize: 24, color: '#0b2440' }}>{Math.round(payTotal).toLocaleString()} {cur}</b>
             </span>
           </div>
-          <button type="submit" disabled={loading} style={{ width: '100%', height: 58, borderRadius: 18, border: 'none', background: '#059669', color: '#ffffff', fontSize: 18, fontWeight: 800, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+          <button type="submit" disabled={loading} style={{ width: '100%', height: 58, borderRadius: 18, border: 'none', background: '#12355b', color: '#ffffff', fontSize: 18, fontWeight: 800, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
             {loading ? '…' : tr('Buyurtma berish', 'Заказать', 'Place order')}
           </button>
         </div>

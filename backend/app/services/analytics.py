@@ -65,8 +65,27 @@ def stage_minutes(order: OrderModel, events: list) -> dict:
     }
 
 
-async def report(db: AsyncSession, days: int = 7, now: Optional[datetime] = None) -> dict:
-    start, end = period(days, now)
+def calendar_range(kind: str, day) -> tuple:
+    """A whole day, the Monday–Sunday week or the calendar month that contains `day` (a Tashkent date),
+    as UTC times [start, end): what the founders pick in the monitoring tab."""
+    if kind == "week":
+        first = day - timedelta(days=day.weekday())
+        last = first + timedelta(days=7)
+    elif kind == "month":
+        first = day.replace(day=1)
+        last = (first.replace(year=first.year + 1, month=1) if first.month == 12 else first.replace(month=first.month + 1))
+    else:
+        first, last = day, day + timedelta(days=1)
+    start = datetime.combine(first, datetime.min.time()) - TASHKENT
+    # The report counts up to and including `end`, so the range stops just before the next day's midnight
+    end = datetime.combine(last, datetime.min.time()) - TASHKENT - timedelta(microseconds=1)
+    return start, end, first, last - timedelta(days=1)
+
+
+async def report(db: AsyncSession, days: int = 7, now: Optional[datetime] = None,
+                 start: Optional[datetime] = None, end: Optional[datetime] = None) -> dict:
+    if start is None:
+        start, end = period(days, now)
     orders = (await db.execute(
         select(OrderModel).where(OrderModel.created_at >= start, OrderModel.created_at <= end)
         .options(selectinload(OrderModel.items))
