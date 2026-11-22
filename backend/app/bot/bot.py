@@ -265,6 +265,12 @@ async def continue_registration(message: types.Message, customer, tg_first_name:
             reply_markup=ReplyKeyboardRemove()
         )
         await send_welcome(message, lang)
+        # 📒 Nasiya entries stalls wrote for this phone before the buyer joined the bot now ask to be confirmed
+        try:
+            from app.services import debts
+            await debts.link_new_buyer(customer.tg_id, customer.phone)
+        except Exception as e:
+            logger.warning(f"Debt link failed: {e}")
 
 
 JOIN_TEXTS = {
@@ -598,6 +604,49 @@ def setup_dispatcher() -> Dispatcher:
                 await query.message.edit_text(f"{query.message.html_text}\n\n<b>{mark}</b>", parse_mode="HTML")
             except Exception:
                 pass
+
+    @dp.callback_query(F.data.startswith("dok_") | F.data.startswith("dno_") | F.data.startswith("dstop_") | F.data.startswith("dpaid_"))
+    async def handle_debt_answer(query: types.CallbackQuery):
+        """📒 The buyer confirms or rejects a stall's nasiya entry, stops its reminders, or says «💵 To'ladim»."""
+        from app.services import debts
+        kind, debt_id = query.data.split("_", 1)
+        answer = {"dok": "yes", "dno": "no", "dstop": "stop", "dpaid": "paid"}[kind]
+        key = await debts.buyer_answer(query.from_user.id, int(debt_id), answer)
+        lang = await _lang_of(query.from_user)
+        if lang not in debts.BUYER_TEXTS:
+            lang = "uz"
+        text = debts.BUYER_TEXTS[lang].get(key) if key else None
+        await query.answer(text or "—", show_alert=False)
+        if text:
+            # After «Tasdiqlayman» the message keeps one button: «💵 To'ladim» for the day it is paid
+            keyboard = debts.buyer_keyboard(int(debt_id), lang) if key == "confirmed" else None
+            try:
+                await query.message.edit_text(f"{query.message.html_text}\n\n<b>{text}</b>", parse_mode="HTML", reply_markup=keyboard)
+            except Exception:
+                pass
+
+    @dp.callback_query(F.data.startswith("dsok_") | F.data.startswith("dsno_"))
+    async def handle_debt_claim(query: types.CallbackQuery):
+        """📒 The stall answers the buyer's «To'ladim»: «Oldim» closes the debt, «Olmadim» tells the buyer."""
+        from app.services import debts
+        kind, debt_id = query.data.split("_", 1)
+        result = await debts.stall_answer(int(debt_id), kind == "dsok", tg_id=query.from_user.id)
+        if result is None:
+            await query.answer("—")
+            return
+        if result.get("answered_before"):
+            mark = "✅ Javob berilgan · Уже отвечено" if result["status"] != "open" else "—"
+        elif result["status"] == "paid":
+            mark = "✅ Yopildi · Закрыто"
+        elif kind == "dsno":
+            mark = "❌ Mijozga aytildi · Покупателю сообщили"
+        else:
+            mark = "—"
+        await query.answer(mark)
+        try:
+            await query.message.edit_text(f"{query.message.html_text}\n\n<b>{mark}</b>", parse_mode="HTML")
+        except Exception:
+            pass
 
     @dp.callback_query(F.data.in_(["profile_phone", "profile_name"]))
     async def handle_profile_change(query: types.CallbackQuery):

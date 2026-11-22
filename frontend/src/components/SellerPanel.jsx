@@ -3,6 +3,7 @@ import SellerPromos from './SellerPromos';
 import SellerTeam from './SellerTeam';
 import SellerStock from './SellerStock';
 import SellerOrderBody from './SellerOrderBody';
+import SellerDebts from './SellerDebts';
 import { newIdsWatcher } from '../services/sound';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -419,6 +420,8 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
             </div>
           </div>
 
+          <SellerDebts language={language} isOwner={getSellerSession()?.role !== 'helper'} />
+
           <SellerStock language={language} products={storeData.products} onSaved={(products) => setStoreData((prev) => ({ ...prev, products }))} />
 
           {/* Products & Real-time Price Management */}
@@ -427,7 +430,7 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
             <span style={{ fontSize: '0.82rem', color: '#64748b' }}>{t('seller.price_hint')}</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px', marginBottom: '36px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '16px', marginBottom: '36px' }}>
             {storeData.products.map(product => {
               const currentEditPrice = editingPrices[product.id] ?? product.price;
               const hasChanged = currentEditPrice !== product.price;

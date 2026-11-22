@@ -6,6 +6,7 @@ import { formatUnit } from './ProductCard';
 import { fulfillmentLabel, bonusLabel, weightRange, weightOk } from '../services/offers';
 import { statusTitle } from './OrderTracker';
 import { stallLabel, itemName } from '../services/stall';
+import { openNasiya } from './SellerDebts';
 
 // One order in the seller cabinet: their items, gifts to add, and the "Ready" / "Handed over" confirmations
 export default function SellerOrderBody({ order, language, onChanged }) {
@@ -145,6 +146,17 @@ export default function SellerOrderBody({ order, language, onChanged }) {
         <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>{tr('Aravachi kelganda bosing', 'Нажмите, когда придёт аравачи', 'Tap when the porter arrives')}</div>
       )}
       {error && <div style={{ marginTop: 8, color: '#b91c1c', fontSize: 13, fontWeight: 600 }}>⚠️ {error}</div>}
+
+      {/* 📒 A buyer the seller knows takes it on credit: one tap writes it in the stall's notebook */}
+      {!['cancelled', 'returned', 'no_show'].includes(order.status) && (
+        <button type="button" data-testid="seller-order-nasiya" onClick={() => openNasiya({
+          order_id: order.id, order_number: order.order_number, customer_name: order.customer_name, customer_phone: order.customer_phone,
+          amount: Math.round(items.filter((i) => i.item_status !== 'missing').reduce((s, i) => s + (i.total_price || 0), 0)),
+          note: items.filter((i) => i.item_status !== 'missing').map((i) => `${itemName(i, lang)} ${i.actual_quantity ?? i.quantity} ${formatUnit(i.unit, language)}`).join(', ').slice(0, 200),
+        })} style={{ ...smallBtn, flex: 'none', width: '100%', height: 44, marginTop: 10, color: 'var(--naqsh-blue)', borderColor: 'var(--naqsh-line)' }}>
+          📒 {tr('Nasiyaga yozish', 'Записать в насию', 'Write as credit')}
+        </button>
+      )}
 
       {/* Everyone in the order can reach each other (Shuhrat) */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: 10 }}>

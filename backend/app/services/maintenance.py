@@ -90,6 +90,20 @@ async def morning_stock(now: datetime = None) -> bool:
     return True
 
 
+async def debt_morning(now: datetime = None) -> bool:
+    """📒 Once a day at the set hour: each stall's list of debts due and late, and the confirmed buyers' reminders."""
+    from app.services import debts
+    tashkent = (now or datetime.utcnow()) + timedelta(hours=5)
+    today = tashkent.date().isoformat()
+    async with async_session_factory() as db:
+        hour = int(await get_setting(db, "debt_morning_hour"))
+        if not hour <= tashkent.hour < hour + MORNING_WINDOW_HOURS or await get_setting(db, "debt_morning_sent") == today:
+            return False
+        await set_setting(db, "debt_morning_sent", today)
+    await debts.morning(now)
+    return True
+
+
 async def no_show_timers(now: datetime = None) -> dict:
     """Remind the customer who is being waited for; close self-pickup orders nobody came for;
     warn when goods sit outside their stall too long after a no-show."""
@@ -250,6 +264,7 @@ async def run_forever():
             await taxi_timers()
             await seller_timers()
             await morning_stock()
+            await debt_morning()
             await daily_report()
             await nightly_backup()
         except Exception as e:

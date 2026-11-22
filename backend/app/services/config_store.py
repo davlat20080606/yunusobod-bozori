@@ -52,6 +52,9 @@ DEFAULTS = {
     "backup_hour": "3",
     "backup_sent": "",
     "backup_last": "",
+    # 📒 Nasiya daftari: hour (Tashkent) of the stalls' morning list and the buyers' reminders; the day it was last sent
+    "debt_morning_hour": "9",
+    "debt_morning_sent": "",
 }
 
 # Where an aravachi hands the order to the customer or the taxi

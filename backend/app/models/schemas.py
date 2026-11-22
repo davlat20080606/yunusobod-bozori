@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, LargeBinary, JSON
+from sqlalchemy import Column, Integer, String, Float, Boolean, Date, DateTime, ForeignKey, Text, LargeBinary, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy import inspect as sa_inspect, false as sa_false
 from app.database import Base
@@ -411,6 +411,49 @@ class OrderBonusModel(Base):
     amount = Column(Float, default=0.0)
 
     order = relationship("OrderModel", back_populates="bonuses")
+
+
+class DebtModel(Base):
+    """📒 Nasiya daftari: goods a stall gave on credit, in that stall's own notebook (Shuhrat, 2026-11-21).
+    Only that stall sees it, never the bozorkom; the bot reminds, it never holds or guarantees money.
+    status: open | paid | cancelled (never deleted: a dispute needs the whole history).
+    confirm: waiting (sent to the buyer in the bot) | confirmed | disputed | none (no phone or the buyer is not in the bot)."""
+    __tablename__ = "debts"
+
+    id = Column(Integer, primary_key=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    customer_name = Column(String(100), nullable=False)
+    customer_phone = Column(String(30), nullable=True)
+    customer_tg_id = Column(String(50), nullable=True, index=True)
+    amount = Column(Integer, nullable=False)
+    paid = Column(Integer, nullable=False, default=0)
+    note = Column(String(200), nullable=True)
+    due_date = Column(Date, nullable=False)
+    status = Column(String(20), nullable=False, default="open")
+    confirm = Column(String(20), nullable=False, default="none")
+    cancel_reason = Column(String(200), nullable=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    # The buyer pressed «Eslatmang»; the last day a reminder went to the buyer
+    reminders_off = Column(Boolean, nullable=False, default=False, server_default=sa_false())
+    reminded_on = Column(Date, nullable=True)
+    # The buyer pressed «💵 To'ladim»: waits for the stall to say «✅ Oldim» (closes it) or «❌ Olmadim»
+    paid_claim_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    closed_at = Column(DateTime, nullable=True)
+
+
+class DebtEventModel(Base):
+    """One step in a debt's life. kind: created | sent | confirmed | disputed | payment | snoozed | reminded | cancelled | reminders_off |
+    claimed (buyer: «paid») | claim_rejected (stall: «not received»)"""
+    __tablename__ = "debt_events"
+
+    id = Column(Integer, primary_key=True)
+    debt_id = Column(Integer, ForeignKey("debts.id"), nullable=False, index=True)
+    kind = Column(String(20), nullable=False)
+    amount = Column(Integer, nullable=True)
+    note = Column(String(200), nullable=True)
+    actor = Column(String(20), nullable=False, default="seller")  # seller | buyer | system
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class MediaModel(Base):

@@ -388,6 +388,15 @@ export const api = {
   sellerStock: (lines) => sellerFetch('/stock', { method: 'POST', body: JSON.stringify({ lines }) }),
   sellerAddPromo: (promo) => sellerFetch('/promos', { method: 'POST', body: JSON.stringify(promo) }),
   sellerDeletePromo: (id) => sellerFetch(`/promos/${id}`, { method: 'DELETE' }),
+  // 📒 Nasiya daftari: only this stall's notebook
+  sellerDebts: () => sellerFetch('/debts'),
+  sellerDebt: (id) => sellerFetch(`/debts/${id}`),
+  sellerAddDebt: (debt) => sellerFetch('/debts', { method: 'POST', body: JSON.stringify(debt) }),
+  sellerDebtPay: (id, amount) => sellerFetch(`/debts/${id}/pay`, { method: 'POST', body: JSON.stringify({ amount }) }),
+  sellerDebtSnooze: (id, days) => sellerFetch(`/debts/${id}/snooze`, { method: 'POST', body: JSON.stringify({ days }) }),
+  sellerDebtRemind: (id) => sellerFetch(`/debts/${id}/remind`, { method: 'POST' }),
+  sellerDebtClaim: (id, accept) => sellerFetch(`/debts/${id}/claim`, { method: 'POST', body: JSON.stringify({ accept }) }),
+  sellerDebtCancel: (id, reason) => sellerFetch(`/debts/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }),
 
   // Market stats
   async getMarketStats() {

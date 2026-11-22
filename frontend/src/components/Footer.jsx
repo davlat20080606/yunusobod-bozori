@@ -2,49 +2,8 @@ import React from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Phone, Clock, MapPin, Send, ShieldCheck, Sparkles } from 'lucide-react';
 
-// Photos under CC BY / CC BY-SA must name their authors
-const PHOTO_CREDITS = [
-  {
-    "what": "Go'shtli Tandir Somsa (Varaqi)",
-    "what_ru": "Самса с мясом из тандыра (Слоеная)",
-    "what_en": "Tandoor Flaky Meat Somsa",
-    "author": "Davide Mauro",
-    "license": "CC BY-SA 4.0",
-    "url": "https://commons.wikimedia.org/wiki/File:Samsa_of_Khiva.jpg"
-  },
-  {
-    "what": "Quva Qizil Shirin Anori",
-    "what_ru": "Сладкий гранат из Кувы (Рубиновый)",
-    "what_en": "Quva Sweet Red Pomegranate",
-    "author": "Ivar Leidus",
-    "license": "CC BY-SA 4.0",
-    "url": "https://commons.wikimedia.org/wiki/File:Pomegranate_fruit_-_whole_and_piece_with_arils.jpg"
-  },
-  {
-    "what": "Haqiqiy Choyxona Oshi Seti (10-15 kishilik Maxsus To'plam)",
-    "what_ru": "Набор для Настоящего Чайханского Плова (на 10-15 человек)",
-    "what_en": "Authentic Choyxona Plov Master Set (10-15 servings)",
-    "author": "Adam Harangozó",
-    "license": "CC BY-SA 4.0",
-    "url": "https://commons.wikimedia.org/wiki/File:Central_Asian_Plov_Centre_in_Tashkent.jpg"
-  },
-  {
-    "what": "Shohona Palov & Qazi VIP To'plami (5-7 kishilik)",
-    "what_ru": "Шахский Плов & Казы VIP Сет (на 5-7 человек)",
-    "what_en": "Royal Plov & Qazi VIP Set",
-    "author": "赤猫法師",
-    "license": "CC BY-SA 4.0",
-    "url": "https://commons.wikimedia.org/wiki/File:Uzbekistan_style_plov_in_Japan.jpg"
-  },
-  {
-    "what": "Toza Suzma / Chaqqa (Sho'r & Mayin)",
-    "what_ru": "Натуральная сузьма / чакка (Свежая)",
-    "what_en": "Organic Suzma / Strained Fresh Yogurt",
-    "author": "Leslie Seaton from Seattle, WA, USA",
-    "license": "CC BY 2.0",
-    "url": "https://commons.wikimedia.org/wiki/File:Labneh_(5196911587).jpg"
-  }
-];
+// Shuhrat, 2026-11-22: no photo credits in the footer. The credited Wikimedia photos (CC BY / CC BY-SA) belong only to
+// the demo stalls hidden by migration 0008; a photo like that shown again must name its author next to it.
 
 export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateSeller, onNavigateOrders, onNavigatePorter, onNavigateTerms, showTerms = false }) {
   const { t, language } = useLanguage();
@@ -180,16 +139,6 @@ export default function Footer({ onNavigateCatalog, onNavigateSaved, onNavigateS
         </div>
 
         {/* Bottom Bar: Copyright & Location */}
-        <details style={{ margin: '0 0 12px', fontSize: 11, color: '#94a3b8' }}>
-          <summary style={{ cursor: 'pointer' }}>{language === 'ru' ? 'Авторы фотографий' : (language === 'en' ? 'Photo credits' : 'Rasm mualliflari')}</summary>
-          <ul style={{ margin: '6px 0 0', paddingLeft: 16, lineHeight: 1.6 }}>
-            {PHOTO_CREDITS.map((c) => (
-              <li key={c.url}>
-                {c[`what_${language}`] || c.what}: <a href={c.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>{c.author}</a>, {c.license} (Wikimedia Commons)
-              </li>
-            ))}
-          </ul>
-        </details>
 
         <div className="med-footer-bottom">
           <p className="med-footer-copyright">

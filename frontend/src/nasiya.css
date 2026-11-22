@@ -1,0 +1,238 @@
+/* 📒 Nasiya daftari: the stall's credit notebook. «O'zbek naqshi» tokens from naqsh.css; red only for what is late. */
+.nz {
+  --nz-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nz-late: #b42318;
+  --nz-late-bg: #fdf0ee;
+  --nz-today: #8a5a00;
+  --nz-today-bg: #fdf4dc;
+  --nz-ok: #17777a;
+  --nz-ok-bg: #e8f3f3;
+  --nz-muted: #5f6b7a;
+  --nz-card: #ffffff;
+}
+
+/* Entry card in the seller cabinet */
+.nz-entry {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  background: var(--naqsh-blue) var(--naqsh-pattern);
+  color: #fff;
+  border: none;
+  border-bottom: 3px solid var(--naqsh-gold);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 20px;
+  cursor: pointer;
+  transition: transform 140ms var(--nz-ease), box-shadow 160ms var(--nz-ease);
+}
+.nz-entry:hover { box-shadow: 0 6px 18px rgba(11, 36, 64, 0.22); }
+.nz-entry:active { transform: scale(0.985); }
+.nz-entry:focus-visible, .nz button:focus-visible, .nz input:focus-visible, .nz a:focus-visible {
+  outline: 2px solid var(--naqsh-gold);
+  outline-offset: 2px;
+}
+.nz-entry-title { font-family: 'Lora', Georgia, serif; font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+.nz-entry-sub { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+.nz-entry-sum { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 20px; letter-spacing: -0.02em; color: var(--naqsh-gold); text-align: right; white-space: nowrap; }
+.nz-entry-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.nz-entry-chip { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); }
+.nz-entry-add { display: inline-block; font-size: 14px; font-weight: 800; color: var(--naqsh-blue-deep); background: var(--naqsh-gold); border-radius: 999px; padding: 8px 14px; }
+.nz-entry-chip.claim { background: var(--naqsh-gold); color: var(--naqsh-blue-deep); }
+.nz-entry-chip.late { background: #fff; color: var(--nz-late); }
+
+/* Full-screen notebook */
+.nz-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 99990;
+  background: var(--naqsh-ivory);
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+}
+@starting-style { .nz-screen { opacity: 0; transform: translateY(12px); } }
+.nz-screen { transition: opacity 180ms var(--nz-ease), transform 220ms var(--nz-ease); }
+
+.nz-head {
+  background: var(--naqsh-blue) var(--naqsh-pattern);
+  color: #fff;
+  border-bottom: 3px solid var(--naqsh-gold);
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 14px;
+}
+.nz-head-row { display: flex; align-items: center; gap: 10px; max-width: 640px; margin: 0 auto; }
+.nz-head h2 { flex: 1; margin: 0; font-size: 20px; letter-spacing: -0.02em; color: #fff; }
+.nz-icon-btn {
+  width: 44px; height: 44px; flex-shrink: 0;
+  border-radius: 12px; border: 1px solid rgba(233, 196, 106, 0.5);
+  background: rgba(255, 255, 255, 0.1); color: #fff; font-size: 18px; cursor: pointer;
+  transition: background 140ms var(--nz-ease), transform 120ms var(--nz-ease);
+}
+.nz-icon-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.nz-icon-btn:active { transform: scale(0.95); }
+
+.nz-totals { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px auto 0; max-width: 640px; }
+.nz-total { background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+.nz-total-label { font-size: 12px; opacity: 0.85; }
+.nz-total-value { font-variant-numeric: tabular-nums; font-weight: 800; font-size: clamp(15px, 4.8vw, 19px); letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nz-total.late .nz-total-value { color: #ffd2cc; }
+
+.nz-seg { display: flex; gap: 4px; background: var(--naqsh-sand); border-radius: 12px; padding: 4px; margin: 14px 16px 6px; }
+@media (min-width: 672px) { .nz-seg { width: 640px; margin: 14px auto 6px; box-sizing: border-box; } }
+.nz-seg button {
+  flex: 1; min-height: 40px; border: none; border-radius: 9px; background: transparent;
+  font-weight: 700; font-size: 14px; color: var(--nz-muted); cursor: pointer;
+  transition: background 140ms var(--nz-ease), color 140ms var(--nz-ease);
+}
+.nz-seg button[aria-pressed='true'] { background: #fff; color: var(--naqsh-blue); box-shadow: 0 1px 2px rgba(11, 36, 64, 0.12); }
+
+.nz-body { flex: 1; overflow-y: auto; padding: 8px 16px 110px; }
+.nz-body-inner { max-width: 640px; margin: 0 auto; }
+
+/* One customer: all their entries, the running total */
+.nz-cust {
+  background: var(--nz-card);
+  border: 1px solid var(--naqsh-line);
+  border-radius: 14px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.nz-cust.late { border-left: 4px solid var(--nz-late); }
+.nz-cust.today { border-left: 4px solid var(--naqsh-gold); }
+.nz-cust-head {
+  display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
+  width: 100%; text-align: left; background: none; border: none; padding: 14px; cursor: pointer;
+  min-height: 64px;
+  transition: background 140ms var(--nz-ease);
+}
+.nz-cust-head:hover { background: #fdfbf6; }
+.nz-cust-head:active { background: var(--naqsh-sand); }
+.nz-cust-name { font-weight: 800; font-size: 16px; color: var(--naqsh-blue-deep); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.nz-cust-meta { font-size: 13px; color: var(--nz-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nz-cust-sum { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 17px; color: var(--naqsh-blue-deep); text-align: right; white-space: nowrap; }
+.nz-cust-left { min-width: 0; }
+
+.nz-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.nz-badge.late { background: var(--nz-late-bg); color: var(--nz-late); }
+.nz-badge.today { background: var(--nz-today-bg); color: var(--nz-today); }
+.nz-badge.ok { background: var(--nz-ok-bg); color: var(--nz-ok); }
+.nz-badge.muted { background: var(--naqsh-sand); color: var(--nz-muted); }
+.nz-badge.claim { background: var(--naqsh-gold); color: var(--naqsh-blue-deep); }
+.nz-badge.bad { background: var(--nz-late-bg); color: var(--nz-late); }
+
+.nz-debt { border-top: 1px solid var(--naqsh-line); padding: 12px 14px; }
+.nz-debt-row { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.nz-debt-note { font-weight: 700; color: #1f2933; min-width: 0; overflow-wrap: anywhere; }
+.nz-debt-amt { font-variant-numeric: tabular-nums; font-weight: 800; white-space: nowrap; }
+.nz-debt-amt s { color: var(--nz-muted); font-weight: 600; margin-right: 6px; }
+.nz-debt-info { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 13px; color: var(--nz-muted); align-items: center; }
+.nz-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.nz-act {
+  min-height: 44px; border-radius: 10px; border: 1px solid var(--naqsh-line); background: #fff;
+  font-weight: 700; font-size: 13px; color: var(--naqsh-blue-deep); cursor: pointer; padding: 0 4px;
+  transition: background 140ms var(--nz-ease), border-color 140ms var(--nz-ease), transform 120ms var(--nz-ease);
+}
+.nz-act:hover:not(:disabled) { background: #fdfbf6; border-color: var(--border-hover); }
+.nz-act:active:not(:disabled) { transform: scale(0.97); }
+.nz-act:disabled { opacity: 0.45; cursor: not-allowed; }
+.nz-act.primary { background: var(--naqsh-turq); border-color: var(--naqsh-turq); color: #fff; }
+.nz-act.primary:hover:not(:disabled) { background: var(--naqsh-turq-light); }
+.nz-hint { font-size: 12px; color: var(--nz-muted); margin-top: 6px; }
+
+/* The buyer says «To'ladim»: the stall answers here */
+.nz-claim { margin-top: 10px; padding: 12px; border-radius: 12px; background: #fdf6e3; border: 1px solid var(--naqsh-gold); }
+.nz-claim-title { font-weight: 800; color: var(--naqsh-blue-deep); font-variant-numeric: tabular-nums; }
+.nz-claim-sub { font-size: 13px; color: var(--nz-muted); margin: 2px 0 10px; }
+.nz-claim-actions { display: grid; grid-template-columns: 3fr 2fr; gap: 6px; }
+
+/* Bottom bar: the one main action */
+.nz-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 99991;
+  padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  background: linear-gradient(to top, var(--naqsh-ivory) 70%, rgba(251, 247, 239, 0));
+}
+.nz-main {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; max-width: 640px; margin: 0 auto; min-height: 52px;
+  border: none; border-radius: 14px; background: var(--naqsh-blue); color: #fff;
+  border-bottom: 3px solid var(--naqsh-gold);
+  font-weight: 800; font-size: 16px; cursor: pointer;
+  transition: background 140ms var(--nz-ease), transform 120ms var(--nz-ease);
+}
+.nz-main:hover:not(:disabled) { background: var(--naqsh-blue-deep); }
+.nz-main:active:not(:disabled) { transform: scale(0.98); }
+.nz-main:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Sheets: new entry, payment, due date, history */
+.nz-sheet-back { position: fixed; inset: 0; z-index: 99995; background: rgba(11, 36, 64, 0.45); display: flex; align-items: flex-end; justify-content: center; }
+.nz-sheet {
+  width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto;
+  background: var(--naqsh-ivory); border-radius: 20px 20px 0 0;
+  padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  border-top: 3px solid var(--naqsh-gold);
+  transition: transform 220ms var(--nz-ease);
+}
+@starting-style { .nz-sheet { transform: translateY(40px); } }
+.nz-grab { width: 40px; height: 4px; border-radius: 4px; background: var(--naqsh-line); margin: 0 auto 12px; }
+.nz-sheet h3 { margin: 0 0 4px; font-size: 19px; letter-spacing: -0.02em; color: var(--naqsh-blue-deep); }
+.nz-sheet-sub { font-size: 13px; color: var(--nz-muted); margin-bottom: 14px; }
+.nz-field { display: block; margin-bottom: 12px; }
+.nz-label { display: block; font-size: 13px; font-weight: 700; color: #344054; margin-bottom: 5px; }
+.nz-input {
+  width: 100%; min-height: 48px; border-radius: 12px; border: 1px solid var(--naqsh-line); background: #fff;
+  padding: 0 14px; font-size: 16px; color: #1f2933; box-sizing: border-box;
+  transition: border-color 140ms var(--nz-ease), box-shadow 140ms var(--nz-ease);
+}
+.nz-input:hover { border-color: var(--border-hover); }
+.nz-input:focus { border-color: var(--naqsh-turq); box-shadow: 0 0 0 3px rgba(23, 119, 122, 0.15); outline: none; }
+.nz-input[aria-invalid='true'] { border-color: var(--nz-late); }
+.nz-input.money { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 20px; letter-spacing: -0.01em; }
+.nz-err-text { font-size: 12px; color: var(--nz-late); margin-top: 4px; font-weight: 600; }
+.nz-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.nz-pill {
+  min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--naqsh-line); background: #fff;
+  font-weight: 700; font-size: 14px; color: var(--naqsh-blue-deep); cursor: pointer;
+  transition: background 140ms var(--nz-ease), border-color 140ms var(--nz-ease), transform 120ms var(--nz-ease);
+}
+.nz-pill:hover { border-color: var(--border-hover); }
+.nz-pill:active { transform: scale(0.97); }
+.nz-pill[aria-pressed='true'] { background: var(--naqsh-blue); border-color: var(--naqsh-blue); color: #fff; }
+.nz-pill-date { font-variant-numeric: tabular-nums; font-weight: 600; opacity: 0.75; margin-left: 4px; }
+.nz-note { font-size: 12px; color: var(--nz-muted); line-height: 1.5; background: var(--naqsh-sand); border-radius: 10px; padding: 10px 12px; margin: 4px 0 14px; }
+.nz-error { background: var(--nz-late-bg); color: var(--nz-late); border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+.nz-sheet-actions { display: flex; gap: 8px; margin-top: 6px; }
+.nz-sheet-actions .nz-main { flex: 1; }
+.nz-ghost {
+  min-height: 52px; padding: 0 18px; border-radius: 14px; border: 1px solid var(--naqsh-line); background: #fff;
+  font-weight: 700; font-size: 15px; color: var(--nz-muted); cursor: pointer;
+}
+.nz-ghost:active { transform: scale(0.98); }
+.nz-danger { color: var(--nz-late); }
+
+.nz-spin { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(255, 255, 255, 0.4); border-top-color: #fff; animation: nz-spin 0.7s linear infinite; }
+@keyframes nz-spin { to { transform: rotate(360deg); } }
+
+.nz-history { list-style: none; margin: 0; padding: 0; }
+.nz-history li { display: grid; grid-template-columns: 92px 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--naqsh-line); font-size: 14px; }
+.nz-history time { font-variant-numeric: tabular-nums; color: var(--nz-muted); font-size: 12px; }
+
+/* Empty, loading, error */
+.nz-empty { text-align: center; padding: 40px 16px; color: var(--nz-muted); }
+.nz-empty-icon { font-size: 40px; }
+.nz-empty h3 { color: var(--naqsh-blue-deep); margin: 8px 0 6px; font-size: 18px; }
+.nz-empty p { margin: 0 auto; max-width: 34ch; line-height: 1.5; font-size: 14px; }
+.nz-skel { height: 68px; border-radius: 14px; margin-bottom: 10px; background: linear-gradient(90deg, var(--naqsh-sand), #fbf7ef, var(--naqsh-sand)); background-size: 200% 100%; animation: nz-shimmer 1.2s ease-in-out infinite; }
+@keyframes nz-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+.nz-toast {
+  position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 99999;
+  background: var(--naqsh-blue-deep); color: #fff; padding: 10px 16px; border-radius: 12px; font-weight: 700; font-size: 14px;
+  box-shadow: 0 8px 20px rgba(11, 36, 64, 0.3); max-width: calc(100vw - 32px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nz *, .nz-entry, .nz-screen, .nz-sheet { transition: none !important; animation: none !important; }
+}

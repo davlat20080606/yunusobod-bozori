@@ -82,6 +82,9 @@ report "Payment: cash or card; phones and cards of seller, porter, taxi in the o
 stop; server monitor; chrome; "$PY" "$E/monitor_ui.py" "$S" > "$S/monitor.txt" 2>&1
 report "Founders' monitoring: partner PIN, view only, day/week/month, feed, system" "$S/monitor.txt"
 
+stop; server nasiya; chrome; "$PY" "$E/nasiya_ui.py" "$S" > "$S/nasiya.txt" 2>&1
+report "📒 Nasiya daftari: write, buyer confirms, remind, part payment, new date, history, from an order, 320 px" "$S/nasiya.txt"
+
 stop; TERMS_ENABLED=1 server terms; RULES_FRESH=1 chrome; "$PY" "$E/terms_ui.py" "$S" > "$S/terms.txt" 2>&1
 report "Platform rules (when switched on): «DIQQAT!» once, full rules page, footer link" "$S/terms.txt"
 
