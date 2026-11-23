@@ -56,6 +56,10 @@ body {
   overflow-x: hidden;
   padding-bottom: calc(75px + env(safe-area-inset-bottom, 0px));
 }
+/* The room is for the phone's bottom menu; from 768 px there is none, and the footer is the last thing on the page */
+@media (min-width: 768px) {
+  body { padding-bottom: 0; }
+}
 
 button, input, select, textarea {
   font-family: inherit;

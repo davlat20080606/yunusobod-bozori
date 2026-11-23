@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from './i18n/LanguageContext';
 import { api, getSellerSession } from './services/api';
 import { CartContext } from './context/CartContext';
-import { initTelegramApp, triggerHaptic } from './services/telegram';
+import { initTelegramApp, triggerHaptic, getTelegramInitData } from './services/telegram';
 
 import Navbar from './components/Navbar';
 import WelcomeHero from './components/WelcomeHero';
@@ -590,8 +590,8 @@ export default function App() {
         </div>
       </main>
 
-      {/* Modern E-Commerce Enterprise Footer */}
-      <Footer 
+      {/* Footer only on the website, never inside the bot (Shuhrat, 2026-11-23) */}
+      {!getTelegramInitData() && <Footer 
         onNavigateCatalog={() => setActiveTab('catalog')}
         onNavigateSaved={() => setActiveTab('saved')}
         onNavigateSeller={() => setActiveTab('seller')}
@@ -599,7 +599,7 @@ export default function App() {
         onNavigateOrders={() => setActiveTab('orders')}
         onNavigateTerms={() => { setActiveTab('terms'); window.scrollTo(0, 0); }}
         showTerms={termsOn}
-      />
+      />}
 
       <TermsGate hidden={activeTab === 'terms'} onReadAll={() => { setActiveTab('terms'); window.scrollTo(0, 0); }} />
 
