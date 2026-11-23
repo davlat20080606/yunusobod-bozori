@@ -85,12 +85,18 @@ async def lifespan(app: FastAPI):
         bot_status["r2"] = await r2_self_check()
     asyncio.create_task(check_r2())
 
+    # A standby copy (STANDBY=1: the new server while Render still serves the bot) shows the site and the API on the same
+    # database, but runs no background jobs and leaves Telegram alone: no morning messages twice, no webhook taken over
+    standby = os.getenv("STANDBY", "").strip() == "1"
+    if standby:
+        logger.warning("⏸ STANDBY=1: no background jobs, no Telegram bot in this copy")
+
     # Close orders nobody took in time, so customers are not stuck with a "live" order
-    maintenance_task = asyncio.create_task(maintenance.run_forever())
+    maintenance_task = None if standby else asyncio.create_task(maintenance.run_forever())
 
     # 2. Start Telegram Bot polling in background
-    bot = get_bot()
-    bot_status["bot"] = "ok" if bot else ("no token" if not settings.TELEGRAM_BOT_TOKEN else "invalid token")
+    bot = None if standby else get_bot()
+    bot_status["bot"] = "standby" if standby else ("ok" if bot else ("no token" if not settings.TELEGRAM_BOT_TOKEN else "invalid token"))
     bot_status["mode"] = "webhook" if USE_WEBHOOK else "polling"
     if bot:
         dp = setup_dispatcher()
@@ -150,7 +156,8 @@ async def lifespan(app: FastAPI):
     yield
 
     # Teardown
-    maintenance_task.cancel()
+    if maintenance_task:
+        maintenance_task.cancel()
     if bot_task:
         bot_task.cancel()
     bot = get_bot()

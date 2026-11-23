@@ -1,0 +1,25 @@
+# Bozorbot on the team server (89.117.56.2), next to the Kigo projects and apart from them:
+# its own folder /srv/bozorbot, its own compose project «bozorbot», a port only nginx can reach, hard limits.
+name: bozorbot
+services:
+  web:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    image: bozorbot-web:latest
+    env_file: .env          # secrets live only on the server (chmod 600), never in git
+    environment:
+      PORT: "7860"
+    ports:
+      - "127.0.0.1:3700:7860"   # Kigo uses 3100–3601, 8080, 8090
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:7860/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
