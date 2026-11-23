@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { ShoppingBag, Store, ShoppingCart, ChevronRight, Car, Receipt, Landmark } from 'lucide-react';
+import { ShoppingBag, Store, ShoppingCart, ChevronRight, Car, Receipt } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { triggerHaptic } from '../services/telegram';
 
@@ -18,8 +18,6 @@ const T = {
   taxi_hint: { uz: 'Buyurtmani mijozga olib borish', ru: 'Доставка заказа покупателю', en: 'Drive orders to customers' },
   pattachi: { uz: 'Pattachi kabineti', ru: 'Кабинет паттачи', en: 'Fee collector' },
   pattachi_hint: { uz: "Kunlik patta pulini yig'ish", ru: 'Сбор ежедневной патты', en: 'Collect daily stall fees' },
-  admin: { uz: 'Bozorkom', ru: 'Базарком', en: 'Bazaar administration' },
-  admin_hint: { uz: 'Arizalar, rastalar, xodimlar, hisobot', ru: 'Заявки, расты, работники, отчёты', en: 'Requests, stalls, workers, reports' },
   workers: { uz: 'Bozor xodimlari uchun', ru: 'Для работников базара', en: 'For bazaar workers' },
 };
 
@@ -73,7 +71,7 @@ export default function SellerHub({ cartItemsCount, cartTotal, onOpenCart, onOpe
       {row(ShoppingCart, '#d97706', t('porter'), t('porter_hint'), () => onOpenRole('porter'))}
       {row(Car, '#2563eb', t('taxi'), t('taxi_hint'), () => onOpenRole('taxi'))}
       {pattaOn && row(Receipt, '#7c3aed', t('pattachi'), t('pattachi_hint'), () => onOpenRole('pattachi'))}
-      {row(Landmark, '#0f172a', t('admin'), t('admin_hint'), () => onOpenRole('admin'))}
+      {/* No Bozorkom row: its own link (?tab=admin) and the bot's «🏛 Bozorkom» buttons only (Shuhrat, 2026-11-23) */}
     </div>
   );
 }

@@ -141,9 +141,9 @@ function AdminLogin({ t, onBack, onSignedIn }) {
   };
   return (
     <form onSubmit={submit} className="animate-fade" style={{ maxWidth: 360, margin: '0 auto', padding: '16px 0 110px', textAlign: 'center' }}>
-      <button type="button" onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#047857', fontWeight: 700, fontSize: 15, cursor: 'pointer', padding: '0 0 14px' }}>
+      {onBack && <button type="button" onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#047857', fontWeight: 700, fontSize: 15, cursor: 'pointer', padding: '0 0 14px' }}>
         <ArrowLeft size={18} /> {t('back')}
-      </button>
+      </button>}
       <div style={{ fontSize: 44, marginBottom: 8 }}>🏛</div>
       <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px' }}>{t('title')}</h2>
       <p style={{ color: '#64748b', fontSize: 14, margin: '0 0 18px' }}>{t('pin_hint')}</p>

@@ -3734,3 +3734,30 @@ h1, h2, h3, h4, .font-heading {
     display: none !important;
   }
 }
+
+/* Bozorkom's own page: its header only, nothing of the market around it */
+body.bk-on { padding-bottom: 0; background: var(--naqsh-ivory); }
+.bk-page { min-height: 100vh; background: var(--naqsh-ivory); }
+.bk-head {
+  background: var(--naqsh-blue) var(--naqsh-pattern);
+  border-bottom: 3px solid var(--naqsh-gold);
+  color: #fff;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 10px;
+  position: sticky; top: 0; z-index: 40;
+}
+.bk-head-row { display: flex; align-items: center; gap: 10px; max-width: 1100px; margin: 0 auto; }
+.bk-mark { font-size: 26px; line-height: 1; }
+.bk-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.bk-title strong { font-family: 'Lora', Georgia, serif; font-size: 19px; letter-spacing: -0.02em; }
+.bk-title small { font-size: 12px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-langs { display: flex; gap: 2px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(233, 196, 106, 0.45); border-radius: 12px; padding: 2px; }
+.bk-langs button {
+  min-width: 40px; min-height: 40px; border: none; border-radius: 10px; background: transparent;
+  color: #fff; font-weight: 800; font-size: 13px; cursor: pointer;
+  transition: background 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bk-langs button:hover { background: rgba(255, 255, 255, 0.14); }
+.bk-langs button:active { transform: scale(0.96); }
+.bk-langs button[aria-pressed='true'] { background: var(--naqsh-gold); color: var(--naqsh-blue-deep); }
+.bk-langs button:focus-visible { outline: 2px solid var(--naqsh-gold); outline-offset: 2px; }
+.bk-body { max-width: 1100px; margin: 0 auto; padding: 16px 16px 40px; }

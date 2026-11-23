@@ -26,7 +26,7 @@ import SellerLogin from './components/SellerLogin';
 import SellerHub from './components/SellerHub';
 import TaxiPanel from './components/TaxiPanel';
 import PattachiPanel from './components/PattachiPanel';
-import AdminPanel from './components/AdminPanel';
+import BozorkomPage from './components/BozorkomPage';
 import PorterPanel from './components/PorterPanel';
 import OrderTracker, { statusTitle, ACTIVE_STATUSES, rememberMyOrder } from './components/OrderTracker';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -41,6 +41,8 @@ export default function App() {
   // Active Navigation Tab: 'market' | 'catalog' | 'saved' | 'orders' | 'seller' | 'porter'
   const [activeTab, setActiveTab] = useState(() => {
     try {
+      // bozorbot.uz/bozorkom: the panel's own address, not shown anywhere on the site (Shuhrat, 2026-11-23)
+      if (/^\/bozorkom\/?$/i.test(window.location.pathname)) return 'admin';
       const urlParams = new URLSearchParams(window.location.search);
       const tab = urlParams.get('tab');
       if (tab && ['market', 'catalog', 'saved', 'orders', 'seller', 'seller_cabinet', 'porter', 'taxi', 'pattachi', 'admin', 'terms'].includes(tab)) return tab;
@@ -315,6 +317,9 @@ export default function App() {
     }),
   };
 
+  // The bozorkom has its own page, apart from the market (Shuhrat, 2026-11-23)
+  if (activeTab === 'admin') return <BozorkomPage />;
+
   return (
     <CartContext.Provider value={cartApi}>
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
@@ -477,8 +482,7 @@ export default function App() {
               )}
               {activeTab === 'taxi' && <TaxiPanel onBackToMarket={() => setActiveTab('seller')} />}
               {activeTab === 'pattachi' && <PattachiPanel onBackToMarket={() => setActiveTab('seller')} />}
-              {activeTab === 'admin' && <AdminPanel onBackToMarket={() => setActiveTab('seller')} />}
-              {activeTab === 'terms' && <TermsPage onBack={() => { setActiveTab('market'); window.scrollTo(0, 0); }} />}
+                      {activeTab === 'terms' && <TermsPage onBack={() => { setActiveTab('market'); window.scrollTo(0, 0); }} />}
 
               {/* VIEW B: ORDER TRACKER */}
               {activeTab === 'orders' && (
