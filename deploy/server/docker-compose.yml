@@ -12,6 +12,8 @@ services:
       PORT: "7860"
     ports:
       - "127.0.0.1:3700:7860"   # Kigo uses 3100–3601, 8080, 8090
+    depends_on:
+      db: { condition: service_healthy }
     restart: unless-stopped
     mem_limit: 1g
     cpus: 1.0
@@ -23,3 +25,28 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # Our own Postgres, next to the app (2026-11-26): the server is in France and Supabase in Oregon, so every
+  # query crossed the ocean (~160 ms). No published port: only the web container reaches it, on this project's
+  # private network. Data in the named volume bozorbot_pgdata; the daily R2 backup keeps running from the app.
+  db:
+    image: postgres:17-alpine
+    env_file: db.env        # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB, generated on the server, chmod 600
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 0.5
+    shm_size: 128m
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=40"]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

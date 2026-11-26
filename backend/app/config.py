@@ -62,6 +62,9 @@ IS_POSTGRES = settings.DATABASE_URL.startswith(("postgres://", "postgresql://", 
 DB_SSL = True
 if IS_POSTGRES and "neon.tech" not in settings.DATABASE_URL:
     DB_SSL = "require"
+# The team server's own Postgres sits on a private docker network next to the app: no SSL there (DB_SSL=off)
+if os.getenv("DB_SSL", "").strip().lower() in ("0", "off", "false", "disable"):
+    DB_SSL = False
 if IS_POSTGRES:
     url = settings.DATABASE_URL.split("?", 1)[0]
     url = url.replace("postgres://", "postgresql://", 1).replace("postgresql://", "postgresql+asyncpg://", 1)
