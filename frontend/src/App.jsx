@@ -41,7 +41,9 @@ export default function App() {
   // Active Navigation Tab: 'market' | 'catalog' | 'saved' | 'orders' | 'seller' | 'porter'
   const [activeTab, setActiveTab] = useState(() => {
     try {
-      // bozorbot.uz/bozorkom: the panel's own address, not shown anywhere on the site (Shuhrat, 2026-11-23)
+      // bozorkom.bozorbot.uz: the panel's own address, apart from the market (Shuhrat, 2026-11-26)
+      if (/^bozorkom\./i.test(window.location.hostname)) return 'admin';
+      // bozorbot.uz/bozorkom: the older address; on the live site the server moves it to the subdomain
       if (/^\/bozorkom\/?$/i.test(window.location.pathname)) return 'admin';
       const urlParams = new URLSearchParams(window.location.search);
       const tab = urlParams.get('tab');

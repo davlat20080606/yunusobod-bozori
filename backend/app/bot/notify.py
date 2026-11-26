@@ -89,8 +89,12 @@ def point_name(point_id, lang: str = None) -> str:
 
 
 def _webapp_button(text: str, query: str) -> InlineKeyboardMarkup:
+    base = settings.WEBAPP_URL
+    # The bozorkom's buttons open the panel at its own address when it has one
+    if query.startswith("tab=admin") and settings.BOZORKOM_HOST:
+        base = f"https://{settings.BOZORKOM_HOST.strip().lower()}/"
     return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text=text, web_app=WebAppInfo(url=f"{settings.WEBAPP_URL}?{query}"))
+        InlineKeyboardButton(text=text, web_app=WebAppInfo(url=f"{base}?{query}"))
     ]])
 
 

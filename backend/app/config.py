@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     TERMS_ENABLED: bool = False
     # The site's own address: the Render address (…onrender.com) sends visitors and Google here
     SITE_HOST: str = "bozorbot.uz"
+    # The bozorkom panel's own address, apart from the market (Shuhrat, 2026-11-26), e.g. "bozorkom.bozorbot.uz".
+    # When set, the panel and its /api/admin calls answer only there; empty (local, tests) = no split
+    BOZORKOM_HOST: str = ""
     # "polling" (local Mac), "webhook" (cloud) or "auto" (webhook when running on Render)
     BOT_MODE: str = "auto"
     # Cloudflare R2 for seller photos/videos; empty = keep them in the database

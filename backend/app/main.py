@@ -12,7 +12,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
+from urllib.parse import urlencode
 from aiogram.types import MenuButtonWebApp, WebAppInfo, BotCommand
 from app.config import settings, USE_WEBHOOK, API_URL
 from app.database import get_db
@@ -187,7 +188,22 @@ async def to_main_address(request: Request, call_next):
         if request.url.query:
             target += f"?{request.url.query}"
         return RedirectResponse(target, status_code=301)
-    return await call_next(request)
+    # The bozorkom panel lives only at its own address (Shuhrat, 2026-11-26): old links on the market's address
+    # (/bozorkom, ?tab=admin) move there, and the market's address does not answer the panel's API at all
+    bozorkom = settings.BOZORKOM_HOST.strip().lower()
+    # (the server's own checks come over loopback; nginx never passes those names from outside)
+    if bozorkom and host != bozorkom and host not in ("127.0.0.1", "localhost"):
+        path = request.url.path
+        if path.startswith("/api/admin"):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        if request.method in ("GET", "HEAD") and (
+                path.rstrip("/").lower() == "/bozorkom" or request.query_params.get("tab") == "admin"):
+            query = urlencode([(k, v) for k, v in request.query_params.multi_items() if k != "tab"])
+            return RedirectResponse(f"https://{bozorkom}/" + (f"?{query}" if query else ""), status_code=302)
+    response = await call_next(request)
+    if bozorkom and host == bozorkom:
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
 
 # CORS configuration
 app.add_middleware(
