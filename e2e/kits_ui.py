@@ -58,7 +58,7 @@ async def main():
         imgs = await js("[...document.querySelectorAll('.kit-sheet-qr img')].filter(i=>i.complete && i.naturalWidth>0).length")
         ok(sheets == 2 and imgs == 2, f"2 sheets made, each with its QR ({sheets}, {imgs})")
         text = await js("document.querySelector('.kit-sheet').innerText")
-        ok("BZR-" in text and "FAOLLASHTIRISH KODI" in text and "osib qo'ymang" in text and "TestBozorBot" in text,
+        ok("BZR-" in text and "FAOLLASHTIRISH KODI" in text and "osib qo'ymang" in text and "TestBozorBot" in text and "Raqamni yuborish" in text,
            "a sheet: code, activation code, «do not stick it on the stall»")
         await shot("print_390", True)
         await cmd("Emulation.setEmulatedMedia", {"media": "print"}); await asyncio.sleep(0.5)
@@ -69,7 +69,7 @@ async def main():
         pdf = await cmd("Page.printToPDF", {"preferCSSPageSize": True, "printBackground": True})
         open(f"{S}/kits_print.pdf", "wb").write(base64.b64decode(pdf["result"]["data"]))
         pages = base64.b64decode(pdf["result"]["data"]).count(b"/Type /Page\n") or base64.b64decode(pdf["result"]["data"]).count(b"/Type/Page")
-        ok(pages in (0, 2), f"printed: one A4 page per sheet ({pages})")
+        ok(pages in (0, 1), f"printed: two sheets on one A4 page ({pages})")
         await js("[...document.querySelectorAll('.kit-print-bar button')].find(b=>/Yopish/.test(b.innerText)).click()"); await asyncio.sleep(1)
 
         code = api("GET", "/api/admin/kits", headers={"x-admin-token": founder["token"]})["kits"][-1]["code"]

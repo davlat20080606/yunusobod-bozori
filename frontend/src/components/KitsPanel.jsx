@@ -129,6 +129,8 @@ function PrintSheets({ bot, kits, onClose, t }) {
     return () => document.body.classList.remove('kit-printing');
   }, [bot, kits]);
   const inTelegram = Boolean(getTelegramInitData());
+  const pairs = [];
+  for (let i = 0; i < kits.length; i += 2) pairs.push(kits.slice(i, i + 2));
   return createPortal(
     <div className="kit-print-root" data-testid="kit-print">
       <div className="kit-print-bar">
@@ -137,55 +139,52 @@ function PrintSheets({ bot, kits, onClose, t }) {
           : <button type="button" onClick={() => window.print()} style={btn('var(--naqsh-blue)', 'var(--naqsh-gold)')}>{t('print')}</button>}
         <button type="button" onClick={onClose} style={btn('#f1f5f9', '#334155')}>{t('close')}</button>
       </div>
-      {kits.map((k) => (
-        // A4 instruction sheet in the layout Shuhrat drew (2026-11-27); every line matches what the bot really does
-        <section key={k.id} className="kit-sheet">
-          <header className="kit-sheet-head">
-            <div>
-              <div className="kit-sheet-title">🏛 Yunusobod Dehqon Bozori — sotuvchi yo'riqnomasi</div>
-              <div className="kit-sheet-sub">Rasta egasi va yordamchilari uchun yagona kabinetga kirish · Вход в кабинет расты для владельца и помощников</div>
-              <div className="kit-sheet-warn">MUHIM: bu varaq faqat rasta egasi va xodimlari uchun — xaridorlarga ko'rsatilmaydi.</div>
-            </div>
-            <div className="kit-sheet-badge">{k.code}</div>
-          </header>
-
-          <div className="kit-sheet-fill">
-            <b>RO'YXATGA OLISH (joyida to'ldiriladi):</b>
-            <div>Rasta nomi: <i /> Rasta №: <i className="short" /></div>
-            <div>Sotuvchi tel: +998 <i /> Yordamchi tel: +998 <i /></div>
-          </div>
-
-          <div className="kit-sheet-main">
-            <div className="kit-sheet-left">
-              <div className="kit-sheet-qr-title">KABINETGA KIRISH QR KODI</div>
-              <div className="kit-sheet-qr">{images[k.id] ? <img src={images[k.id]} alt={k.code} /> : null}</div>
-              <div className="kit-sheet-bot">@{bot}</div>
-              <div className="kit-sheet-pin">
-                <div>YORDAMCHI FAOLLASHTIRISH KODI</div>
-                <b>{k.pin}</b>
-                <div>{k.code} · begonalarga bermang</div>
+      {pairs.map((pair, i) => (
+        // Two half-A4 sheets per page with a cut line (Shuhrat, 2026-11-28); every line matches what the bot does
+        <div key={i} className="kit-page">
+          {pair.map((k) => (
+            <section key={k.id} className="kit-sheet">
+              <header className="kit-sheet-head">
+                <div>
+                  <div className="kit-sheet-title">🏛 Yunusobod Dehqon Bozori — sotuvchi yo'riqnomasi</div>
+                  <div className="kit-sheet-sub">Faqat rasta egasi va xodimlar uchun • Xaridorlarga ko'rsatilmaydi</div>
+                </div>
+                <div className="kit-sheet-badge">{k.code}</div>
+              </header>
+              <div className="kit-sheet-main">
+                <div className="kit-sheet-left">
+                  <div className="kit-sheet-qr-title">KABINETGA KIRISH QR KODI</div>
+                  <div className="kit-sheet-qr">{images[k.id] ? <img src={images[k.id]} alt={k.code} /> : null}</div>
+                  <div className="kit-sheet-bot">@{bot}</div>
+                  <div className="kit-sheet-pin">
+                    <div>YORDAMCHI FAOLLASHTIRISH KODI</div>
+                    <b>{k.pin}</b>
+                    <div>Begonalarga bermang</div>
+                  </div>
+                </div>
+                <div className="kit-sheet-right">
+                  <div className="kit-sheet-fill">
+                    <div>Rasta nomi: <i /> Rasta №: <i className="short" /></div>
+                    <div>Sotuvchi tel: +998 <i /> Yordamchi tel: +998 <i /></div>
+                  </div>
+                  <div className="kit-sheet-steps-box">
+                    <div className="kit-sheet-steps-title">Kabinetga kirish tartibi (sotuvchi va yordamchilar):</div>
+                    <ol className="kit-sheet-steps">
+                      <li><b>QR kodni skanerlang.</b> Telefon kamerasi bilan oching — Telegram'da bot ochiladi, «Start» ni bosing.</li>
+                      <li><b>Rasta egasi (1-marta).</b> «📱 Raqamni yuborish» ni bosing — ro'yxatdagi raqam mos kelsa, kabinet darhol ochiladi (rasta bozorkom tasdiqlagach).</li>
+                      <li><b>Yordamchilar (1-marta).</b> Raqami ro'yxatda bo'lsa — darhol kiradi; bo'lmasa «🔢 Faollashtirish kodini kiritish» ni bosib, chapdagi kodni yozadi yoki egasi bir marta tasdiqlaydi.</li>
+                      <li><b>Keyingi safar — tasdiqsiz.</b> Bir marta kirgan xodim QR yoki bot orqali darhol ishlaydi.</li>
+                    </ol>
+                    <div className="kit-sheet-features"><b>Imkoniyatlar:</b> Buyurtmalar va tarozi • 📒 Nasiya daftari (bot o'zi eslatadi) • 👥 Kabinetda «Rasta jamoasi»</div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <ol className="kit-sheet-steps">
-              <li><b>QR kodni skanerlang.</b> Telefon kamerasi bilan oching — Telegram'da bot ochiladi, «Start» ni bosing.<span>Отсканируйте QR, в Telegram откроется бот — нажмите «Start».</span></li>
-              <li><b>Rasta egasi (1-marta).</b> Botda «📱 Raqamni yuborish» ni bosing. Raqam ro'yxatga yozilgani bilan bir xil bo'lsa — kabinet darhol ochiladi. Rasta bozorkom tasdiqlagach ishlaydi.<span>Владелец: «Отправить номер» — номер совпал, кабинет открыт.</span></li>
-              <li><b>Yordamchilar (1-marta).</b> Raqami ro'yxatda bo'lsa — raqamini yuborishi bilan kiradi. Bo'lmasa — «🔢 Faollashtirish kodini kiritish» ni bosib, chapdagi kodni yozadi yoki «👷 Men shu rastada ishlayman» — egasi bir marta tasdiqlaydi.<span>Помощник: номер из списка — сразу; иначе код слева или одно подтверждение владельца.</span></li>
-              <li><b>Keyingi safar — tasdiqsiz.</b> Bir marta kirgan xodim QR ni skanerlashi yoki botni ochishi bilan kabinetga kiradi.<span>Дальше — без подтверждений.</span></li>
-            </ol>
-          </div>
-
-          <div className="kit-sheet-cards">
-            <div><b>🛒 Buyurtmalar</b>Yangi buyurtma botga keladi. Mahsulotni yig'ib, kerak bo'lsa tortib haqiqiy vaznini kiriting va kabinetda «Tayyor» ni bosing.</div>
-            <div><b>📒 Nasiya daftari</b>Tanish xaridorga nasiyani yozing. Xaridor botda tasdiqlaydi; muddatida va keyin har 3 kunda bot o'zi eslatadi. «📲 Eslatish» ni o'zingiz ham bosishingiz mumkin.</div>
-            <div><b>👥 Rasta jamoasi</b>Kabinetdagi «Rasta jamoasi» bo'limida hamma yordamchilar ko'rinadi; ishdan ketganini bir bosishda chiqarasiz. Kod bilan kirgan yangi xodim haqida sizga darhol xabar keladi.</div>
-          </div>
-
-          <footer className="kit-sheet-foot">
-            <b>XAVFSIZLIK:</b> bu varaq ({k.code}) — rasta jamoasining kabinetiga kalit. Uni peshtaxtaga osib qo'ymang.
-            Yo'qolsa yoki begona qo'liga tushsa, darhol bozorkomga ayting — eski QR o'chiriladi, yangisi beriladi.
-            <span>Лист — ключ к кабинету расты. Не вешайте его на прилавок. Потеряли — скажите бозоркому, старый QR отключат.</span>
-          </footer>
-        </section>
+              <footer className="kit-sheet-foot">
+                <b>XAVFSIZLIK ({k.code}):</b> bu varaq — rasta kabinetiga kirish kaliti. Peshtaxtaga osib qo'ymang; yo'qolsa yoki begona qo'liga tushsa, darhol bozorkomga ayting — eski QR o'chiriladi, yangisi beriladi.
+              </footer>
+            </section>
+          ))}
+        </div>
       ))}
     </div>,
     document.body,
