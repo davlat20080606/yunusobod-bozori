@@ -61,3 +61,17 @@ export function requestPhone(callback) {
     return false;
   }
 }
+
+// Telegram's own QR camera (Bot API 6.4+): resolves with the scanned text, or null when there is no camera here
+export function scanQr(hint) {
+  return new Promise((resolve) => {
+    if (!tg?.showScanQrPopup || !tg.isVersionAtLeast?.('6.4')) { resolve(null); return; }
+    try {
+      tg.showScanQrPopup({ text: hint }, (text) => { resolve(text); return true; });
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+export const canScanQr = () => Boolean(tg?.showScanQrPopup && tg.isVersionAtLeast?.('6.4'));

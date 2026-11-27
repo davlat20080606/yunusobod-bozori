@@ -8,6 +8,7 @@ import { stallLabel, itemName } from '../services/stall';
 import { useLive } from '../services/live';
 import AnalyticsPanel from './AnalyticsPanel';
 import MonitorPanel from './MonitorPanel';
+import KitsPanel from './KitsPanel';
 
 const T = {
   title: { uz: 'Bozorkom kabineti', ru: 'Кабинет базаркома', en: 'Bazaar administration' },
@@ -17,11 +18,12 @@ const T = {
   logout: { uz: 'Chiqish', ru: 'Выйти', en: 'Sign out' },
   founder: { uz: '👑 Asoschi', ru: '👑 Основатель', en: '👑 Founder' },
   partner: { uz: '🤝 Hamkor', ru: '🤝 Партнёр', en: '🤝 Partner' },
-  view_only: { uz: "Faqat ko'rish: qarorlarni bozorkom qabul qiladi", ru: 'Только просмотр: решения принимает бозорком', en: 'View only: the bozorkom makes the decisions' },
+  // The founder and the partner watch and register stalls with QR sheets; every decision stays with the bozorkom
+  view_only: { uz: "Qarorlarni bozorkom qabul qiladi", ru: 'Решения принимает бозорком', en: 'The bozorkom makes the decisions' },
   tabs: {
-    uz: ['Umumiy', 'Arizalar', 'Rastalar', 'Xodimlar', 'Buyurtmalar', 'Patta', 'Sozlamalar', 'Xaridorlar', '📊 Tahlil', '📡 Monitoring'],
-    ru: ['Обзор', 'Заявки', 'Расты', 'Работники', 'Заказы', 'Патта', 'Настройки', 'Покупатели', '📊 Аналитика', '📡 Мониторинг'],
-    en: ['Overview', 'Requests', 'Stalls', 'Workers', 'Orders', 'Stall fees', 'Settings', 'Customers', '📊 Analytics', '📡 Monitoring'],
+    uz: ['Umumiy', 'Arizalar', 'Rastalar', 'Xodimlar', 'Buyurtmalar', 'Patta', 'Sozlamalar', 'Xaridorlar', '📊 Tahlil', '📡 Monitoring', '📄 QR varaqlar'],
+    ru: ['Обзор', 'Заявки', 'Расты', 'Работники', 'Заказы', 'Патта', 'Настройки', 'Покупатели', '📊 Аналитика', '📡 Мониторинг', '📄 QR-листы'],
+    en: ['Overview', 'Requests', 'Stalls', 'Workers', 'Orders', 'Stall fees', 'Settings', 'Customers', '📊 Analytics', '📡 Monitoring', '📄 QR sheets'],
   },
   pending: { uz: 'Yangi arizalar', ru: 'Новые заявки', en: 'New requests' },
   stalls: { uz: 'Faol rastalar', ru: 'Активные расты', en: 'Active stalls' },
@@ -107,8 +109,10 @@ const T = {
 
 const ANALYTICS_TAB = 8;
 const MONITOR_TAB = 9;
+// 📄 QR sheets: the founder and the partner register stalls at the bazaar too (the bozorkom approves them)
+const KITS_TAB = 10;
 // The founder and the partner only watch: monitoring first, no settings, no action buttons
-const VIEWER_TABS = [MONITOR_TAB, 0, 1, 2, 3, 4, 7, ANALYTICS_TAB];
+const VIEWER_TABS = [MONITOR_TAB, KITS_TAB, 0, 1, 2, 3, 4, 7, ANALYTICS_TAB];
 const isViewer = () => ['founder', 'partner'].includes(adminSession.get()?.role);
 const LIMIT_KEYS = ['new_customer_max_total', 'new_customer_max_open', 'max_open_orders', 'orders_per_10_min', 'morning_stock_hour',
   'no_show_remind_min', 'no_show_after_min', 'self_no_show_min', 'return_alert_min', 'no_show_strikes',
@@ -367,6 +371,10 @@ export default function AdminPanel({ onBackToMarket }) {
       )}
 
       {tab === 2 && stores.map(storeCard)}
+      {tab === KITS_TAB && (
+        <KitsPanel lang={lang} stores={stores} categories={categories} onChanged={load}
+          onError={setError} onNotice={(m) => { setNotice(m); setTimeout(() => setNotice(''), 2500); }} />
+      )}
       {tab === 3 && overview?.patta_enabled && (
         <form data-testid="add-pattachi" style={{ ...card, background: '#f5f3ff', border: '1px solid #ddd6fe' }} onSubmit={(e) => {
           e.preventDefault();

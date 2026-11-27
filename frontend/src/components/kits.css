@@ -1,0 +1,44 @@
+/* 📄 QR sheets: the Bozorkom panel's tab and the printable sheets (A5, one per page) */
+.kit-label { font-size: 13px; font-weight: 800; color: #334155; margin: 4px 0 6px; }
+.kit-form input:focus-visible, .kit-form select:focus-visible { outline: 2px solid var(--naqsh-turq); outline-offset: 1px; }
+.kit-form button, .kit-row-btn { transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1), filter 140ms cubic-bezier(0.22, 1, 0.36, 1); }
+.kit-form button:hover:not(:disabled) { filter: brightness(1.06); }
+.kit-form button:active:not(:disabled), .kit-row-btn:active { transform: scale(0.98); }
+.kit-form button:focus-visible, .kit-row-btn:focus-visible { outline: 2px solid var(--naqsh-turq); outline-offset: 2px; }
+.kit-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+.kit-grid { display: grid; grid-template-columns: 1fr; column-gap: 8px; }
+@media (min-width: 768px) { .kit-grid { grid-template-columns: 1fr 1fr; } }
+.kit-counts { font-size: 13px; font-weight: 700; color: #64748b; font-variant-numeric: tabular-nums; }
+.kit-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--naqsh-line); }
+.kit-row-code { font-variant-numeric: tabular-nums; font-size: 14px; }
+.kit-row-store { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.kit-row-btn { min-height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid #fecaca; background: #fff; color: #b91c1c; font-weight: 800; font-size: 12px; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .kit-form button, .kit-row-btn { transition: none; } }
+
+/* The print view sits on top of the panel; on paper only the sheets are printed */
+.kit-print-root { position: fixed; inset: 0; z-index: 1000; overflow-y: auto; background: var(--naqsh-sand); padding: 0 16px 40px; }
+.kit-print-bar { position: sticky; top: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 0; background: var(--naqsh-sand); border-bottom: 1px solid var(--naqsh-line); margin-bottom: 16px; z-index: 1; }
+.kit-print-bar b { margin-right: auto; font-variant-numeric: tabular-nums; }
+.kit-sheet { width: 100%; max-width: 148mm; margin: 0 auto 16px; background: #fff; color: #0f172a; border: 1px solid var(--naqsh-line); border-radius: 12px; padding: 10mm; box-sizing: border-box; font-family: inherit; }
+.kit-sheet header { border-bottom: 3px solid var(--naqsh-gold); padding-bottom: 6px; margin-bottom: 8px; text-align: center; }
+.kit-sheet-title { font-family: 'Lora', Georgia, serif; font-size: 20px; font-weight: 700; color: var(--naqsh-blue); letter-spacing: -0.02em; }
+.kit-sheet-sub { font-size: 12px; color: #475569; }
+.kit-sheet-qr { display: flex; justify-content: center; min-height: 60mm; }
+.kit-sheet-qr img { width: 62mm; height: 62mm; image-rendering: pixelated; }
+.kit-sheet-code { text-align: center; font-size: 22px; font-weight: 800; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; margin: 4px 0 8px; }
+.kit-sheet-steps { margin: 0 0 8px; padding-left: 18px; font-size: 12.5px; line-height: 1.45; }
+.kit-sheet-steps li { margin-bottom: 5px; }
+.kit-sheet-steps span { color: #475569; font-size: 11.5px; }
+.kit-sheet-pin { border: 2px dashed var(--naqsh-turq); border-radius: 10px; padding: 6px 10px; text-align: center; font-size: 13px; margin-bottom: 8px; }
+.kit-sheet-pin b { font-size: 20px; letter-spacing: 0.15em; font-variant-numeric: tabular-nums; }
+.kit-sheet-pin div { font-size: 11px; color: #475569; }
+.kit-sheet footer { font-size: 10.5px; color: #64748b; line-height: 1.4; }
+
+@media print {
+  @page { size: A5 portrait; margin: 0; }
+  body.kit-printing > *:not(.kit-print-root) { display: none !important; }
+  body.kit-printing { background: #fff !important; padding: 0 !important; }
+  .kit-print-root { position: static; overflow: visible; background: #fff; padding: 0; }
+  .kit-print-bar { display: none; }
+  .kit-sheet { max-width: none; width: 148mm; height: 210mm; margin: 0; border: none; border-radius: 0; page-break-after: always; break-after: page; }
+}
