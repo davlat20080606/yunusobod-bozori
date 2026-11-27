@@ -21,7 +21,7 @@ from app.models.schemas import MediaModel
 from app.services.seed_data import init_db_and_seed
 from app.services.migrate import migrate
 from app.services import maintenance
-from app.api import stores, products, seller, orders, stats, porter, reviews, staff, taxi, patta, admin, terms, debts
+from app.api import stores, products, seller, orders, stats, porter, reviews, staff, taxi, patta, admin, terms, debts, kits
 from app.bot.bot import setup_dispatcher, get_bot
 
 logging.basicConfig(level=logging.INFO)
@@ -225,6 +225,7 @@ app.include_router(reviews.router)
 app.include_router(staff.router)
 app.include_router(taxi.router)
 app.include_router(patta.router)
+app.include_router(kits.router)
 app.include_router(admin.router)
 app.include_router(terms.router)
 app.include_router(debts.router)

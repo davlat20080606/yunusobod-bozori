@@ -180,8 +180,7 @@ def make_admin_token(kind: str = "admin") -> str:
     return f"{kind}.{expires}.{_sign_kind(kind, 0, expires, _panel_pin(kind))}"
 
 
-async def current_admin(request: Request, x_admin_token: Optional[str] = Header(None)):
-    """Bozorkom panel session (the bozorkom or the founder); changing a PIN signs that person out."""
+def _panel_kind(x_admin_token: Optional[str]) -> str:
     unauthorized = HTTPException(status_code=401, detail="Iltimos, qaytadan kiring / Пожалуйста, войдите снова")
     try:
         kind, expires_s, signature = (x_admin_token or "").split(".")
@@ -191,6 +190,21 @@ async def current_admin(request: Request, x_admin_token: Optional[str] = Header(
     pin = _panel_pin(kind) if kind in ADMIN_KINDS else ""
     if not pin or expires < time.time() or not hmac.compare_digest(signature, _sign_kind(kind, 0, expires, pin)):
         raise unauthorized
+    return kind
+
+
+async def current_field_team(x_admin_token: Optional[str] = Header(None)):
+    """The team that registers stalls at the bazaar (Shuhrat, 2026-11-26): the bozorkom, the founder and the
+    partner may make QR sheets and register a stall on the spot. A stall they register still waits for the
+    bozorkom's approval, so decisions stay with the bozorkom."""
+    kind = _panel_kind(x_admin_token)
+    act_as(kind)
+    return kind
+
+
+async def current_admin(request: Request, x_admin_token: Optional[str] = Header(None)):
+    """Bozorkom panel session (the bozorkom or the founder); changing a PIN signs that person out."""
+    kind = _panel_kind(x_admin_token)
     if kind in VIEW_ONLY_KINDS and request.method not in ("GET", "HEAD"):
         raise HTTPException(status_code=403, detail="Faqat ko'rish rejimi / Только просмотр: решения принимает бозорком")
     act_as(kind)

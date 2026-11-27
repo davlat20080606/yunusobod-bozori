@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from typing import Optional
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandStart
@@ -265,6 +266,14 @@ async def continue_registration(message: types.Message, customer, tg_first_name:
             reply_markup=ReplyKeyboardRemove()
         )
         await send_welcome(message, lang)
+        # Came by a stall's QR or a printed sheet: open the stall now that the phone is known
+        from types import SimpleNamespace
+        who = message.from_user if getattr(message, "from_user", None) and not getattr(message.from_user, "is_bot", False) else SimpleNamespace(
+            id=int(customer.tg_id), first_name=customer.name, last_name=None, username=None, language_code=None, is_bot=False)
+        try:
+            await resume_entry(message, who)
+        except Exception as e:
+            logger.warning(f"Stall entry after registration failed: {e}")
         # 📒 Nasiya entries stalls wrote for this phone before the buyer joined the bot now ask to be confirmed
         try:
             from app.services import debts
@@ -373,14 +382,194 @@ async def _stall_owners(db, store) -> set:
     return owners
 
 
-async def stall_qr(message: types.Message, store_id: str):
-    """The stall's permanent QR (printed and stuck on the stall): its people go to the cabinet, everyone else
-    to the bot's start page. Someone new who works there asks the owner once."""
+KIT_TEXTS = {
+    "unbound": {
+        "uz": "📄 Bu varaq hali rastaga biriktirilmagan. Ro'yxatdan o'tkazgan xodimdan so'rang.",
+        "ru": "📄 Этот лист ещё не привязан к расте. Спросите сотрудника, который вас регистрировал.",
+        "en": "📄 This sheet is not linked to a stall yet. Ask the person who registered you.",
+    },
+    "revoked": {
+        "uz": "❌ Bu varaq bekor qilingan. Rasta egasidan yangi varaq so'rang.",
+        "ru": "❌ Этот лист отменён. Попросите у владельца расты новый.",
+        "en": "❌ This sheet was cancelled. Ask the stall owner for a new one.",
+    },
+    "pending": {
+        "uz": "⏳ Rasta bozorkom tasdig'ini kutmoqda. Tasdiqlangach, QR kodni qayta skanerlang.",
+        "ru": "⏳ Раста ждёт подтверждения бозоркома. После подтверждения отсканируйте QR ещё раз.",
+        "en": "⏳ The stall is waiting for the bozorkom's approval. Scan the QR again once it is approved.",
+    },
+    "pin_button": {"uz": "🔢 Faollashtirish kodini kiritish", "ru": "🔢 Ввести код активации", "en": "🔢 Enter the activation code"},
+    "pin_ask": {
+        "uz": "Varaq ichidagi 4 xonali <b>faollashtirish kodini</b> yozing:",
+        "ru": "Напишите 4-значный <b>код активации</b> с листа:",
+        "en": "Type the 4-digit <b>activation code</b> from the sheet:",
+    },
+    "pin_bad": {
+        "uz": "❌ Kod noto'g'ri. Varaqdagi kodni tekshirib, qayta yozing.",
+        "ru": "❌ Неверный код. Проверьте код на листе и напишите снова.",
+        "en": "❌ Wrong code. Check the code on the sheet and type it again.",
+    },
+    "pin_limit": {
+        "uz": "⏳ Juda ko'p urinish. Bir soatdan keyin yoki rasta egasidan so'rang.",
+        "ru": "⏳ Слишком много попыток. Через час — или попросите владельца расты.",
+        "en": "⏳ Too many tries. Try in an hour, or ask the stall owner.",
+    },
+}
+
+# Who scanned a sheet before finishing registration (the stall is opened for them when the phone is shared), and
+# who was asked for a sheet's activation code. Both live in this process only and expire on their own.
+PENDING_ENTRY: dict = {}   # tg_id -> (kind, value, time)   kind: "kit" | "stall"
+AWAIT_PIN: dict = {}       # tg_id -> (kit_id, time)
+_PENDING_TTL = 1800
+
+
+def _pending(store: dict, uid: str):
+    item = store.get(uid)
+    import time as _t
+    if item and _t.time() - item[-1] < _PENDING_TTL:
+        return item
+    store.pop(uid, None)
+    return None
+
+
+async def kit_qr(message: types.Message, token: str, user=None):
+    """A printed QR sheet: t.me/<bot>?start=kit_<token>. Once bound to an approved stall it works like the stall's
+    QR, plus the helper phones written at registration and the sheet's activation code."""
+    from sqlalchemy import select
+    from app.database import async_session_factory
+    from app.models.schemas import VendorKitModel, StoreModel
+    user = user or message.from_user
+    lang = await _lang_of(user)
+    async with async_session_factory() as db:
+        kit = (await db.execute(select(VendorKitModel).where(VendorKitModel.token == token[:40]))).scalars().first()
+        store = await db.get(StoreModel, kit.store_id) if kit and kit.store_id else None
+    if not kit:
+        await message.answer(STALL_TEXTS["bad"][lang])
+        return
+    if kit.status == "revoked":
+        await message.answer(KIT_TEXTS["revoked"][lang])
+        return
+    if kit.status != "bound" or not store:
+        await message.answer(KIT_TEXTS["unbound"][lang])
+        return
+    if store.status == "pending":
+        await message.answer(KIT_TEXTS["pending"][lang])
+        return
+    await stall_qr(message, str(store.id), user=user, kit_id=kit.id, entry=("kit", token))
+
+
+async def ask_kit_pin(user, kit_id: int) -> str:
+    import time as _t
+    AWAIT_PIN[str(user.id)] = (kit_id, _t.time())
+    return KIT_TEXTS["pin_ask"][await _lang_of(user)]
+
+
+async def check_kit_pin(message: types.Message) -> bool:
+    """A text answering «type the activation code». True when the message was handled here."""
+    import hmac as _hmac
+    from app.database import async_session_factory
+    from app.models.schemas import VendorKitModel, StoreModel
+    from app.api.seller import add_member
+    from app.services.customer_guard import rate_limit
+    from app.bot import notify
+    uid = str(message.from_user.id)
+    waiting = _pending(AWAIT_PIN, uid)
+    text = (message.text or "").strip()
+    if not waiting or not re.fullmatch(r"\d{4}", text):
+        return False
+    lang = await _lang_of(message.from_user)
+    kit_id = waiting[0]
+    try:
+        rate_limit(f"kpin:{uid}", 5, 3600)
+        rate_limit(f"kpinkit:{kit_id}", 10, 3600)
+    except Exception:
+        AWAIT_PIN.pop(uid, None)
+        await message.answer(KIT_TEXTS["pin_limit"][lang])
+        return True
+    async with async_session_factory() as db:
+        kit = await db.get(VendorKitModel, kit_id)
+        store = await db.get(StoreModel, kit.store_id) if kit and kit.store_id else None
+        if not kit or kit.status != "bound" or not store or store.status != "approved":
+            AWAIT_PIN.pop(uid, None)
+            await message.answer(KIT_TEXTS["revoked"][lang])
+            return True
+        if not _hmac.compare_digest(text, kit.pin):
+            await message.answer(KIT_TEXTS["pin_bad"][lang])
+            return True
+        user = message.from_user
+        await add_member(db, store.id, {"id": user.id, "first_name": user.first_name, "last_name": user.last_name,
+                                        "username": user.username}, "helper")
+        await db.commit()
+        owners = await _stall_owners(db, store)
+        store_name = getattr(store, f"name_{lang}", None) or store.name_uz
+        stall = store.stall_number
+        store_id = store.id
+    AWAIT_PIN.pop(uid, None)
+    keyboard = None
+    if settings.WEBAPP_URL.startswith("https://"):
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+            text=JOIN_TEXTS["button"][lang], web_app=WebAppInfo(url=f"{settings.WEBAPP_URL}?tab=seller_cabinet&lang={lang}"))]])
+    await message.answer(JOIN_TEXTS["ok"][lang].format(store=escape(store_name), stall=escape(stall)),
+                         reply_markup=keyboard, parse_mode="HTML")
+    # The owner is only told, with one button to take it back (Shuhrat: work at the stall never waits)
+    who = " ".join(x for x in (user.first_name, user.last_name) if x) or "—"
+    if user.username:
+        who += f" (@{user.username})"
+    kick = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+        text="❌ Chiqarib yuborish · Удалить", callback_data=f"kick_{store_id}_{uid}")]])
+    for owner in owners - {uid}:
+        await notify._send(owner, f"ℹ️ <b>{escape(who)}</b> varaqdagi kod bilan rastangizga yordamchi bo'lib qo'shildi.\n"
+                                  f"ℹ️ <b>{escape(who)}</b> вошёл помощником в вашу расту по коду с листа.", kick)
+    return True
+
+
+async def kick_helper(owner_id, store_id: int, helper_id: str) -> bool:
+    """The owner's «remove» under the notice: only an owner of this stall, and never an owner."""
+    from sqlalchemy import delete
+    from app.database import async_session_factory
+    from app.models.schemas import StoreModel, StoreMemberModel
+    from app.bot import notify
+    async with async_session_factory() as db:
+        store = await db.get(StoreModel, store_id)
+        if not store or str(owner_id) not in await _stall_owners(db, store):
+            return False
+        await db.execute(delete(StoreMemberModel).where(StoreMemberModel.store_id == store_id,
+                                                        StoreMemberModel.tg_id == str(helper_id),
+                                                        StoreMemberModel.role == "helper"))
+        await db.commit()
+        stall = store.stall_number
+    await notify._send(helper_id, f"❌ Rasta egasi sizni {escape(stall)} rastasidan chiqardi · Владелец удалил вас из расты {escape(stall)}")
+    return True
+
+
+async def resume_entry(message: types.Message, user) -> bool:
+    """Registration just finished for someone who came by a stall's QR or sheet: open it for them now."""
+    item = _pending(PENDING_ENTRY, str(user.id))
+    if not item:
+        return False
+    PENDING_ENTRY.pop(str(user.id), None)
+    kind, value, _ = item
+    if kind == "kit":
+        await kit_qr(message, value, user)
+    else:
+        await stall_qr(message, value, user=user)
+    return True
+
+
+async def stall_qr(message: types.Message, store_id: str, user=None, kit_id: int = None, entry: tuple = None):
+    """The stall's permanent QR (printed and stuck on the stall), or a printed sheet bound to the stall: its people
+    go to the cabinet, everyone else to the bot's start page. Someone new who works there asks the owner once, or,
+    with a sheet, types its activation code. `user` is who scanned it (the message may be the bot's own)."""
     from sqlalchemy import select
     from app.database import async_session_factory
     from app.models.schemas import StoreModel, StoreMemberModel
-    lang = await _lang_of(message.from_user)
-    uid = str(message.from_user.id)
+    from app.api.auth import normalize_phone
+    from app.api.seller import add_member
+    from app.api.kits import helper_phone_allowed
+    import time as _t
+    user = user or message.from_user
+    lang = await _lang_of(user)
+    uid = str(user.id)
     async with async_session_factory() as db:
         store = await db.get(StoreModel, int(store_id)) if store_id.isdigit() else None
         if not store or store.status != "approved":
@@ -390,16 +579,20 @@ async def stall_qr(message: types.Message, store_id: str):
             StoreMemberModel.store_id == store.id, StoreMemberModel.tg_id == uid))).scalars().first()
         is_member = bool(member) or str(store.telegram_chat_id or "") == uid
         if not is_member:
+            customer = await get_customer(user.id)
+            phone = normalize_phone(customer.phone) if customer and customer.phone else ""
+            role = None
             # The stall's registered owner is never asked (Shuhrat): Telegram confirmed this person's own phone at
             # registration, and it is the stall's owner phone, so they become the owner in the bot right away
-            from app.api.auth import normalize_phone
-            from app.api.seller import add_member
-            customer = await get_customer(message.from_user.id)
-            if customer and customer.phone and normalize_phone(customer.phone) == normalize_phone(store.owner_phone):
-                user = message.from_user
+            if phone and phone == normalize_phone(store.owner_phone):
+                role = "owner"
+            # A helper whose phone was written down when the stall was registered gets in the same way
+            elif phone and await helper_phone_allowed(db, store.id, phone):
+                role = "helper"
+            if role:
                 await add_member(db, store.id, {"id": user.id, "first_name": user.first_name,
-                                                "last_name": getattr(user, "last_name", None), "username": getattr(user, "username", None)}, "owner")
-                if not store.telegram_chat_id:
+                                                "last_name": getattr(user, "last_name", None), "username": getattr(user, "username", None)}, role)
+                if role == "owner" and not store.telegram_chat_id:
                     store.telegram_chat_id = uid
                 await db.commit()
                 is_member = True
@@ -411,11 +604,15 @@ async def stall_qr(message: types.Message, store_id: str):
                              reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode="HTML")
         return
     # Everyone else: the bot's normal start page, like opening the bot (Davlatbek's wish). A registered person also
-    # gets a small «I work at this stall» button, so a new helper can ask the owner
+    # gets a small «I work at this stall» button, so a new helper can ask the owner (with a sheet: or type its code).
+    # Someone who still has to register is remembered: the stall opens for them once their phone is shared
+    PENDING_ENTRY[uid] = (*(entry or ("stall", str(store.id))), _t.time())
     if await start_customer(message):
-        await message.answer(STALL_TEXTS["staff_hint"][lang],
-                             reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
-                                 text=STALL_TEXTS["work"][lang], callback_data=f"jreq_{store.id}")]]))
+        PENDING_ENTRY.pop(uid, None)
+        rows = [[InlineKeyboardButton(text=STALL_TEXTS["work"][lang], callback_data=f"jreq_{store.id}")]]
+        if kit_id:
+            rows.insert(0, [InlineKeyboardButton(text=KIT_TEXTS["pin_button"][lang], callback_data=f"kpin_{kit_id}")])
+        await message.answer(STALL_TEXTS["staff_hint"][lang], reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
 
 
 async def request_join(user, store_id: int) -> str:
@@ -516,6 +713,10 @@ def setup_dispatcher() -> Dispatcher:
         if len(args) > 1 and args[1].startswith("join_"):
             await join_stall(message, args[1][5:])
             return
+        # A printed QR sheet bound to a stall at registration: t.me/<bot>?start=kit_<token>
+        if len(args) > 1 and args[1].startswith("kit_"):
+            await kit_qr(message, args[1][4:])
+            return
         # The stall's permanent QR stuck on the stall: t.me/<bot>?start=stall_<id>
         if len(args) > 1 and args[1].startswith("stall_"):
             await stall_qr(message, args[1][6:])
@@ -586,6 +787,22 @@ def setup_dispatcher() -> Dispatcher:
         key = await request_join(query.from_user, int(query.data[5:]))
         await query.answer()
         await query.message.answer(STALL_TEXTS[key][lang])
+
+    @dp.callback_query(F.data.startswith("kpin_"))
+    async def handle_kit_pin_ask(query: types.CallbackQuery):
+        await query.answer()
+        await query.message.answer(await ask_kit_pin(query.from_user, int(query.data[5:])), parse_mode="HTML")
+
+    @dp.callback_query(F.data.startswith("kick_"))
+    async def handle_kick(query: types.CallbackQuery):
+        _, store_id, helper_id = query.data.split("_")
+        done = await kick_helper(query.from_user.id, int(store_id), helper_id)
+        await query.answer("✅" if done else "❌")
+        if done:
+            try:
+                await query.message.edit_text(f"{query.message.html_text}\n\n<b>❌ Chiqarildi · Удалён</b>", parse_mode="HTML")
+            except Exception:
+                pass
 
     @dp.callback_query(F.data.startswith("jok_") | F.data.startswith("jno_"))
     async def handle_join_decision(query: types.CallbackQuery):
@@ -689,6 +906,9 @@ def setup_dispatcher() -> Dispatcher:
         lang = customer.lang
         if not customer.phone:
             await ask_phone(message, lang)
+            return
+        # The activation code from a printed sheet, when the bot asked for it
+        if customer.name and await check_kit_pin(message):
             return
         if not customer.name:
             name = " ".join(message.text.split())

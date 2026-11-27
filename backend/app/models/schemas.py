@@ -336,6 +336,34 @@ class StoreInviteModel(Base):
     used_at = Column(DateTime, nullable=True)
 
 
+class VendorKitModel(Base):
+    """A printed QR sheet (Shuhrat, 2026-11-26): made blank before going to the bazaar, bound to a stall at its
+    registration, handed to the seller. Its QR opens the stall's cabinet for the stall's people; its 4-digit
+    activation code lets a new helper in at once (the owner is told, with a button to remove them)."""
+    __tablename__ = "vendor_kits"
+
+    id = Column(Integer, primary_key=True)
+    token = Column(String(40), unique=True, index=True, nullable=False)   # in the QR: t.me/<bot>?start=kit_<token>
+    code = Column(String(20), unique=True, index=True, nullable=False)    # printed under the QR: BZR-0042
+    pin = Column(String(8), nullable=False)                               # printed inside: Faollashtirish kodi
+    status = Column(String(20), nullable=False, default="unbound")        # unbound | bound | revoked
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    bound_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+
+
+class StoreHelperPhoneModel(Base):
+    """A helper's phone written down when the stall was registered: that person gets in by sharing their number,
+    even when the owner cannot answer."""
+    __tablename__ = "store_helper_phones"
+
+    id = Column(Integer, primary_key=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    phone = Column(String(20), nullable=False, index=True)   # normalized digits
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class PromoModel(Base):
     """A stall's offer for big orders once its part reaches min_amount:
     a % discount, a delivery bonus worth `amount` so'm, or a gift product added for 0 so'm."""
