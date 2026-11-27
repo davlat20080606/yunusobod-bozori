@@ -138,25 +138,52 @@ function PrintSheets({ bot, kits, onClose, t }) {
         <button type="button" onClick={onClose} style={btn('#f1f5f9', '#334155')}>{t('close')}</button>
       </div>
       {kits.map((k) => (
+        // A4 instruction sheet in the layout Shuhrat drew (2026-11-27); every line matches what the bot really does
         <section key={k.id} className="kit-sheet">
-          <header>
-            <div className="kit-sheet-title">🏛 Yunusobod Dehqon Bozori</div>
-            <div className="kit-sheet-sub">Sotuvchi va yordamchilar uchun · Для продавца и помощников</div>
+          <header className="kit-sheet-head">
+            <div>
+              <div className="kit-sheet-title">🏛 Yunusobod Dehqon Bozori — sotuvchi yo'riqnomasi</div>
+              <div className="kit-sheet-sub">Rasta egasi va yordamchilari uchun yagona kabinetga kirish · Вход в кабинет расты для владельца и помощников</div>
+              <div className="kit-sheet-warn">MUHIM: bu varaq faqat rasta egasi va xodimlari uchun — xaridorlarga ko'rsatilmaydi.</div>
+            </div>
+            <div className="kit-sheet-badge">{k.code}</div>
           </header>
-          <div className="kit-sheet-qr">{images[k.id] ? <img src={images[k.id]} alt={k.code} /> : null}</div>
-          <div className="kit-sheet-code">KOD: {k.code}</div>
-          <ol className="kit-sheet-steps">
-            <li><b>Telefon kamerasi bilan QR kodni skanerlang.</b> Bot ochiladi.<br /><span>Отсканируйте QR камерой телефона — откроется бот.</span></li>
-            <li><b>«📞 Raqamni ulashish» ni bosing.</b> Rasta egasi darhol kabinetga kiradi.<br /><span>Нажмите «Поделиться номером» — владелец сразу входит в кабинет.</span></li>
-            <li><b>Yordamchilar ham shu QR ni skanerlaydi.</b> Raqami ro'yxatda bo'lsa — darhol kiradi; bo'lmasa — pastdagi kodni kiritadi yoki egasidan ruxsat so'raydi.<br /><span>Помощники сканируют тот же QR: по номеру из списка — сразу, иначе код ниже или разрешение владельца.</span></li>
-          </ol>
-          <div className="kit-sheet-pin">
-            Faollashtirish kodi · Код активации: <b>{k.pin}</b>
-            <div>Faqat o'z xodimlaringizga ayting · Сообщайте только своим работникам</div>
+
+          <div className="kit-sheet-fill">
+            <b>RO'YXATGA OLISH (joyida to'ldiriladi):</b>
+            <div>Rasta nomi: <i /> Rasta №: <i className="short" /></div>
+            <div>Sotuvchi tel: +998 <i /> Yordamchi tel: +998 <i /></div>
           </div>
-          <footer>
-            ⚠️ Bu varaqni rastaga yopishtirmang — u faqat xodimlar uchun. Yo'qolsa, bozorkomga ayting: eski varaq o'chiriladi.<br />
-            Не вешайте этот лист на расту — он только для работников. Потеряли — скажите бозоркому, старый лист отключат.
+
+          <div className="kit-sheet-main">
+            <div className="kit-sheet-left">
+              <div className="kit-sheet-qr-title">KABINETGA KIRISH QR KODI</div>
+              <div className="kit-sheet-qr">{images[k.id] ? <img src={images[k.id]} alt={k.code} /> : null}</div>
+              <div className="kit-sheet-bot">@{bot}</div>
+              <div className="kit-sheet-pin">
+                <div>YORDAMCHI FAOLLASHTIRISH KODI</div>
+                <b>{k.pin}</b>
+                <div>{k.code} · begonalarga bermang</div>
+              </div>
+            </div>
+            <ol className="kit-sheet-steps">
+              <li><b>QR kodni skanerlang.</b> Telefon kamerasi bilan oching — Telegram'da bot ochiladi, «Start» ni bosing.<span>Отсканируйте QR, в Telegram откроется бот — нажмите «Start».</span></li>
+              <li><b>Rasta egasi (1-marta).</b> Botda «📱 Raqamni yuborish» ni bosing. Raqam ro'yxatga yozilgani bilan bir xil bo'lsa — kabinet darhol ochiladi. Rasta bozorkom tasdiqlagach ishlaydi.<span>Владелец: «Отправить номер» — номер совпал, кабинет открыт.</span></li>
+              <li><b>Yordamchilar (1-marta).</b> Raqami ro'yxatda bo'lsa — raqamini yuborishi bilan kiradi. Bo'lmasa — «🔢 Faollashtirish kodini kiritish» ni bosib, chapdagi kodni yozadi yoki «👷 Men shu rastada ishlayman» — egasi bir marta tasdiqlaydi.<span>Помощник: номер из списка — сразу; иначе код слева или одно подтверждение владельца.</span></li>
+              <li><b>Keyingi safar — tasdiqsiz.</b> Bir marta kirgan xodim QR ni skanerlashi yoki botni ochishi bilan kabinetga kiradi.<span>Дальше — без подтверждений.</span></li>
+            </ol>
+          </div>
+
+          <div className="kit-sheet-cards">
+            <div><b>🛒 Buyurtmalar</b>Yangi buyurtma botga keladi. Mahsulotni yig'ib, kerak bo'lsa tortib haqiqiy vaznini kiriting va kabinetda «Tayyor» ni bosing.</div>
+            <div><b>📒 Nasiya daftari</b>Tanish xaridorga nasiyani yozing. Xaridor botda tasdiqlaydi; muddatida va keyin har 3 kunda bot o'zi eslatadi. «📲 Eslatish» ni o'zingiz ham bosishingiz mumkin.</div>
+            <div><b>👥 Rasta jamoasi</b>Kabinetdagi «Rasta jamoasi» bo'limida hamma yordamchilar ko'rinadi; ishdan ketganini bir bosishda chiqarasiz. Kod bilan kirgan yangi xodim haqida sizga darhol xabar keladi.</div>
+          </div>
+
+          <footer className="kit-sheet-foot">
+            <b>XAVFSIZLIK:</b> bu varaq ({k.code}) — rasta jamoasining kabinetiga kalit. Uni peshtaxtaga osib qo'ymang.
+            Yo'qolsa yoki begona qo'liga tushsa, darhol bozorkomga ayting — eski QR o'chiriladi, yangisi beriladi.
+            <span>Лист — ключ к кабинету расты. Не вешайте его на прилавок. Потеряли — скажите бозоркому, старый QR отключат.</span>
           </footer>
         </section>
       ))}
