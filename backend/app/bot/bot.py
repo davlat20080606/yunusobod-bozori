@@ -364,6 +364,13 @@ STALL_TEXTS = {
         "en": "This stall's owner has not connected to the bot yet. Ask them to open the cabinet in Telegram once.",
     },
     "bad": {"uz": "❌ Rasta topilmadi.", "ru": "❌ Раста не найдена.", "en": "❌ Stall not found."},
+    # The stall has no owner in the bot yet and this person's number is not the one written at registration
+    # (Shuhrat, 2026-11-28): if it is the owner, the registration has the wrong number
+    "phone_mismatch": {
+        "uz": "📱 Telegram raqamingiz bu rastaga yozilgan raqamga mos kelmadi.\nSiz rasta egasimisiz? Sizni ro'yxatga olgan xodimga yoki bozorkomga ayting — raqamni to'g'rilaydi, keyin QR ni qayta skanerlang.\nYordamchi bo'lsangiz — pastdagi tugmalar.",
+        "ru": "📱 Ваш номер в Telegram не совпал с номером, записанным для этой расты.\nВы владелец? Скажите тому, кто вас регистрировал, или бозоркому — номер исправят, затем отсканируйте QR снова.\nЕсли вы помощник — кнопки ниже.",
+        "en": "📱 Your Telegram number is not the one written for this stall.\nAre you the owner? Tell whoever registered you or the bozorkom — they will fix the number; then scan the QR again.\nIf you are a helper — the buttons below.",
+    },
 }
 
 
@@ -596,6 +603,7 @@ async def stall_qr(message: types.Message, store_id: str, user=None, kit_id: int
                     store.telegram_chat_id = uid
                 await db.commit()
                 is_member = True
+        owner_connected = is_member or bool(await _stall_owners(db, store))
     name = escape(getattr(store, f"name_{lang}", None) or store.name_uz)
     url = settings.WEBAPP_URL
     if is_member:
@@ -612,7 +620,8 @@ async def stall_qr(message: types.Message, store_id: str, user=None, kit_id: int
         rows = [[InlineKeyboardButton(text=STALL_TEXTS["work"][lang], callback_data=f"jreq_{store.id}")]]
         if kit_id:
             rows.insert(0, [InlineKeyboardButton(text=KIT_TEXTS["pin_button"][lang], callback_data=f"kpin_{kit_id}")])
-        await message.answer(STALL_TEXTS["staff_hint"][lang], reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+        hint = STALL_TEXTS["staff_hint" if owner_connected else "phone_mismatch"][lang]
+        await message.answer(hint, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
 
 
 async def request_join(user, store_id: int) -> str:

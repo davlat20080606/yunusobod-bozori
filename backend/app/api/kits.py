@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import current_field_team, normalize_phone
 from app.database import get_db
-from app.models.schemas import CategoryModel, StoreModel, StoreHelperPhoneModel, VendorKitModel
+from app.models.schemas import CategoryModel, StoreModel, StoreHelperPhoneModel, StoreMemberModel, VendorKitModel
 
 router = APIRouter(prefix="/api/admin/kits", tags=["kits"])
 
@@ -111,7 +111,18 @@ async def list_kits(status: Optional[str] = None, db: AsyncSession = Depends(get
     if ids:
         stores = {s.id: s for s in (await db.execute(select(StoreModel).where(StoreModel.id.in_(ids)))).scalars().all()}
     counts = dict((await db.execute(select(VendorKitModel.status, func.count()).group_by(VendorKitModel.status))).all())
-    return {"kits": [kit_public(k, stores.get(k.store_id)) for k in kits], "counts": counts}
+    connected = set()
+    if ids:
+        connected = set((await db.execute(select(StoreMemberModel.store_id).where(
+            StoreMemberModel.store_id.in_(ids), StoreMemberModel.role == "owner"))).scalars().all())
+        connected |= {sid for sid, st in stores.items() if st.telegram_chat_id}
+    out = []
+    for k in kits:
+        item = kit_public(k, stores.get(k.store_id))
+        if k.store_id:
+            item["owner_connected"] = k.store_id in connected
+        out.append(item)
+    return {"kits": out, "counts": counts}
 
 
 class PrintSchema(BaseModel):
@@ -232,5 +243,32 @@ async def revoke(kit_id: int, db: AsyncSession = Depends(get_db), kind: str = De
     if not kit:
         raise HTTPException(status_code=404, detail="Varaq topilmadi / Лист не найден")
     kit.status, kit.revoked_at = "revoked", datetime.utcnow()
+    await db.commit()
+    return {"success": True}
+
+
+class OwnerPhoneSchema(BaseModel):
+    owner_phone: str = Field(..., max_length=50)
+
+
+@router.post("/stores/{store_id}/owner-phone")
+async def fix_owner_phone(store_id: int, data: OwnerPhoneSchema, db: AsyncSession = Depends(get_db),
+                          kind: str = Depends(current_field_team)):
+    """The seller's phone was written wrong at registration (Shuhrat's case, 2026-11-28: the stall had another SIM
+    than his Telegram): fixed on the spot, but only while no owner has entered the stall yet. Once the owner is in,
+    the phone is the stall's own business and only the bozorkom changes it."""
+    from app.api.seller import phone_taken
+    store = await db.get(StoreModel, store_id)
+    if not store or store.status == "archived":
+        raise HTTPException(status_code=404, detail="Rasta topilmadi / Раста не найдена")
+    owner_in = store.telegram_chat_id or (await db.execute(select(StoreMemberModel.id).where(
+        StoreMemberModel.store_id == store_id, StoreMemberModel.role == "owner"))).first()
+    if owner_in and kind != "admin":
+        raise HTTPException(status_code=409, detail="Rasta egasi allaqachon kirgan — raqamni faqat bozorkom o'zgartiradi / Владелец уже вошёл — номер меняет только бозорком")
+    if len(normalize_phone(data.owner_phone)) < 9:
+        raise HTTPException(status_code=400, detail="Telefon raqamini to'liq kiriting / Введите номер телефона полностью")
+    if await phone_taken(db, data.owner_phone, except_store_id=store_id):
+        raise HTTPException(status_code=409, detail="Bu telefon raqami band / Этот телефон уже занят")
+    store.owner_phone = data.owner_phone.strip()
     await db.commit()
     return {"success": True}

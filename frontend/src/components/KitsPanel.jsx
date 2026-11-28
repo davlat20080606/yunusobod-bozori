@@ -20,6 +20,20 @@ const T = {
   category: { uz: "Bo'lim", ru: 'Раздел', en: 'Section' },
   owner: { uz: 'Sotuvchi ismi', ru: 'Имя продавца', en: "Seller's name" },
   owner_phone: { uz: 'Sotuvchi telefoni', ru: 'Телефон продавца', en: "Seller's phone" },
+  // Shuhrat's case (2026-11-28): the stall was written with another SIM than his Telegram, so the bot did not know him
+  phone_hint: {
+    uz: "⚠️ Sotuvchining Telegram'i ochilgan raqamni yozing — bot egasini shu raqam orqali taniydi.",
+    ru: '⚠️ Впишите номер, на который заведён Telegram продавца, — бот узнаёт владельца по нему.',
+    en: "⚠️ Write the number the seller's Telegram is on — the bot recognises the owner by it.",
+  },
+  fix_phone: { uz: '📞 Raqamni tuzatish', ru: '📞 Исправить номер', en: '📞 Fix the number' },
+  fix_phone_prompt: {
+    uz: "Sotuvchining Telegram raqami (+998 …). Egasi hali kirmagan — raqamni tuzatish mumkin:",
+    ru: 'Номер Telegram продавца (+998 …). Владелец ещё не входил — номер можно исправить:',
+    en: "The seller's Telegram number (+998 …). The owner has not entered yet, so it can be fixed:",
+  },
+  fixed_phone: { uz: 'Raqam tuzatildi — sotuvchi QR ni qayta skanerlasin', ru: 'Номер исправлен — пусть продавец снова отсканирует QR', en: 'Number fixed — the seller scans the QR again' },
+  no_owner_yet: { uz: 'egasi hali kirmagan', ru: 'владелец ещё не входил', en: 'owner not in yet' },
   helpers: { uz: 'Yordamchilar telefoni (ixtiyoriy)', ru: 'Телефоны помощников (необязательно)', en: "Helpers' phones (optional)" },
   helpers_hint: {
     uz: "Bu raqamlar QR ni skanerlab, raqamini ulashsa — egasini kutmasdan kiradi.",
@@ -271,6 +285,7 @@ export default function KitsPanel({ lang, stores, categories, onError, onNotice,
           {field('owner_name', 'owner')}
           {field('owner_phone', 'owner_phone', { type: 'tel', inputMode: 'tel' })}
         </div>
+        <div data-testid="kit-phone-hint" style={{ fontSize: 12.5, fontWeight: 700, color: '#b45309', margin: '0 0 8px' }}>{t('phone_hint')}</div>
         <div className="kit-label">{t('helpers')}</div>
         {form.helper_phones.map((p, i) => (
           <input key={i} data-testid={`kit-helper-${i}`} type="tel" inputMode="tel" value={p} placeholder="+998" style={input}
@@ -326,6 +341,12 @@ export default function KitsPanel({ lang, stores, categories, onError, onNotice,
             <span className="kit-row-store" style={{ color: STATUS_COLOR[k.status] }}>
               {k.status === 'bound' ? (k.store || t('used')) : k.status === 'unbound' ? t('free') : t('revoked')}
             </span>
+            {k.status === 'bound' && k.owner_connected === false && (
+              <button type="button" className="kit-row-btn kit-row-fix" data-testid="kit-fix-phone" title={t('no_owner_yet')} onClick={() => {
+                const phone = window.prompt(t('fix_phone_prompt'), '+998 ');
+                if (phone && phone.replace(/\D/g, '').length >= 9) run(() => api.adminFixOwnerPhone(k.store_id, phone), t('fixed_phone'));
+              }}>{t('fix_phone')}</button>
+            )}
             {k.status !== 'revoked' && (
               <button type="button" className="kit-row-btn" onClick={() => window.confirm(t('revoke_confirm').replace('{code}', k.code)) && run(() => api.adminRevokeKit(k.id), t('revoked_ok'))}>
                 {t('revoke')}

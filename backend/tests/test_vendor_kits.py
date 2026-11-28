@@ -147,3 +147,37 @@ def test_registration_finishes_then_stall_opens(api, ok, admin, monkeypatch):
     customer = asyncio.run(botmod.get_customer(uid))
     m = Msg(uid, "Dilshod"); asyncio.run(botmod.continue_registration(m, customer))
     ok("tab=seller_cabinet" in str(m.replies), "when registration ends, the stall's cabinet opens without scanning again")
+
+
+def test_wrong_phone_at_registration_is_fixed_on_the_spot(api, ok, admin, monkeypatch):
+    """Shuhrat's case (2026-11-28): the stall was registered with another SIM than his Telegram. The bot says plainly
+    that the number did not match (not «do you work here?»), the team fixes the number while the owner is not in yet,
+    and the owner walks in; once the owner is in, only the bozorkom may change it."""
+    from app.bot import bot as botmod, notify
+    from conftest import FOUNDER_PIN
+    monkeypatch.setattr(botmod.settings, "WEBAPP_URL", "https://bozorbot.uz")
+    async def fake_send(chat, text, keyboard=None): pass
+    monkeypatch.setattr(notify, "_send", fake_send)
+    founder = {"x-admin-token": api("POST", "/admin/login", {"pin": FOUNDER_PIN})[1]["token"]}
+    kit = api("POST", "/admin/kits", {"count": 1}, admin)[1]["kits"][0]
+    cat = api("GET", "/stores")[1][0]["category_slug"]
+    r = api("POST", "/admin/kits/register", {"name_uz": "Ikki SIM", "stall_number": "S-2", "owner_name": "Shuhrat",
+                                             "owner_phone": "+998 88 512-26-23", "category_slug": cat, "kit": kit["code"]}, admin)[1]
+    sid, uid = r["store_id"], 9301
+    register_customer(botmod, uid, "+998 97 201-30-37", "Shuhrat")
+
+    m = Msg(uid, "Shuhrat"); asyncio.run(botmod.kit_qr(m, kit["token"]))
+    ok("не совпал" in m.replies[-1][0] and "tab=seller_cabinet" not in str(m.replies),
+       "wrong number: the bot says the number did not match, no cabinet")
+    row = [k for k in api("GET", "/admin/kits", None, founder)[1]["kits"] if k["id"] == kit["id"]][0]
+    ok(row["owner_connected"] is False, "the panel shows the owner has not entered yet")
+
+    c, _ = api("POST", f"/admin/kits/stores/{sid}/owner-phone", {"owner_phone": "+998 97 201-30-37"}, founder)
+    ok(c == 200, f"the founder fixes the number on the spot: {c}")
+    m = Msg(uid, "Shuhrat"); asyncio.run(botmod.kit_qr(m, kit["token"]))
+    ok("tab=seller_cabinet" in str(buttons(m)), "scanned again: straight into the cabinet as the owner")
+
+    c, _ = api("POST", f"/admin/kits/stores/{sid}/owner-phone", {"owner_phone": "+998 90 000-11-22"}, founder)
+    ok(c == 409, f"once the owner is in, the founder cannot change it: {c}")
+    c, _ = api("POST", f"/admin/kits/stores/{sid}/owner-phone", {"owner_phone": "+998 90 000-11-22"}, admin)
+    ok(c == 200, f"the bozorkom still can: {c}")

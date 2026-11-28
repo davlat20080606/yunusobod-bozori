@@ -9,10 +9,11 @@
 .kit-grid { display: grid; grid-template-columns: 1fr; column-gap: 8px; }
 @media (min-width: 768px) { .kit-grid { grid-template-columns: 1fr 1fr; } }
 .kit-counts { font-size: 13px; font-weight: 700; color: #64748b; font-variant-numeric: tabular-nums; }
-.kit-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--naqsh-line); }
+.kit-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px 0; border-top: 1px solid var(--naqsh-line); }
 .kit-row-code { font-variant-numeric: tabular-nums; font-size: 14px; }
-.kit-row-store { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.kit-row-store { flex: 1 1 140px; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .kit-row-btn { min-height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid #fecaca; background: #fff; color: #b91c1c; font-weight: 800; font-size: 12px; cursor: pointer; }
+.kit-row-btn.kit-row-fix { border-color: #fde68a; color: #92400e; }
 @media (prefers-reduced-motion: reduce) { .kit-form button, .kit-row-btn { transition: none; } }
 
 /* The print view sits on top of the panel; on paper two half-A4 sheets per page, a dashed line to cut between them */

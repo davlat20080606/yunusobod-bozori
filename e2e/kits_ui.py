@@ -88,6 +88,10 @@ async def main():
         ok(code in result and "Bozorkom tasdiqlagach" in result and "PIN" in result, f"registered, waits for the bozorkom: {result[:90]}")
         rows = await js("[...document.querySelectorAll('[data-testid=kit-row]')].map(r=>r.innerText).join(' | ')")
         ok("M-21" in rows, f"the sheet now shows its stall ({rows[:120]})")
+        ok("Telegram" in (await js("(document.querySelector('[data-testid=kit-phone-hint]')||{}).innerText||''")),
+           "the form says: write the seller's Telegram number")
+        ok(await js("document.querySelectorAll('[data-testid=kit-fix-phone]').length") == 1,
+           "the new stall's sheet has «📞 Raqamni tuzatish» while the owner has not entered")
         w = await js("document.documentElement.scrollWidth")
         ok(w <= 391, f"fits the phone ({w})")
         await shot("after_390", True)

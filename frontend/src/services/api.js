@@ -170,6 +170,7 @@ export const api = {
   adminFieldRegister: (form) => adminFetch('/admin/kits/register', json('POST', form)),
   adminBindKit: (kit, storeId, helperPhones = []) => adminFetch('/admin/kits/bind', json('POST', { kit, store_id: storeId, helper_phones: helperPhones })),
   adminRevokeKit: (id) => adminFetch(`/admin/kits/${id}/revoke`, json('POST', {})),
+  adminFixOwnerPhone: (storeId, phone) => adminFetch(`/admin/kits/stores/${storeId}/owner-phone`, json('POST', { owner_phone: phone })),
   adminStoreStatus: (id, status) => adminFetch(`/admin/stores/${id}/status`, json('POST', { status })),
   adminStorePin: (id, pin) => adminFetch(`/admin/stores/${id}/reset-pin`, json('POST', { pin })),
   adminStaff: () => adminFetch('/admin/staff'),
