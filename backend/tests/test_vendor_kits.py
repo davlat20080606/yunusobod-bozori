@@ -181,3 +181,43 @@ def test_wrong_phone_at_registration_is_fixed_on_the_spot(api, ok, admin, monkey
     ok(c == 409, f"once the owner is in, the founder cannot change it: {c}")
     c, _ = api("POST", f"/admin/kits/stores/{sid}/owner-phone", {"owner_phone": "+998 90 000-11-22"}, admin)
     ok(c == 200, f"the bozorkom still can: {c}")
+
+
+def test_owner_adds_helpers_by_phone_in_the_cabinet(api, ok, admin, monkeypatch):
+    """Shuhrat (2026-11-28): the owner writes a helper's name and Telegram number in the cabinet, no QR; the helper
+    scans the stall's sheet once and is in. A helper the owner removes cannot walk back in by that number."""
+    from app.bot import bot as botmod, notify
+    from test_stall_team import init_data
+    monkeypatch.setattr(botmod.settings, "WEBAPP_URL", "https://bozorbot.uz")
+    async def fake_send(chat, text, keyboard=None): pass
+    monkeypatch.setattr(notify, "_send", fake_send)
+    kit = api("POST", "/admin/kits", {"count": 1}, admin)[1]["kits"][0]
+    cat = api("GET", "/stores")[1][0]["category_slug"]
+    owner_phone = "+998 91 444-00-01"
+    r = api("POST", "/admin/kits/register", {"name_uz": "Jamoa rasta", "stall_number": "J-5", "owner_name": "Egasi",
+                                             "owner_phone": owner_phone, "category_slug": cat, "kit": kit["code"]}, admin)[1]
+    c, login = api("POST", "/seller/login", {"phone_or_slug": owner_phone, "pin": r["seller_pin"]})
+    ok(c == 200, f"the owner signs into the cabinet: {c}")
+    OT = {"x-seller-token": login["token"]}
+
+    c, _ = api("POST", "/seller/helper-phones", {"name": "Bekzod", "phone": "+998 91 444-00-02"}, OT)
+    ok(c == 200, f"the owner adds a helper by name and phone: {c}")
+    ok(api("POST", "/seller/helper-phones", {"name": "Bekzod", "phone": "+998914440002"}, OT)[0] == 409, "the same number twice: refused")
+    ok(api("POST", "/seller/helper-phones", {"name": "Men", "phone": owner_phone}, OT)[0] == 400, "the owner's own number: refused")
+    lst = api("GET", "/seller/helper-phones", None, OT)[1]["phones"]
+    ok(len(lst) == 1 and lst[0]["name"] == "Bekzod" and lst[0]["joined"] is False, f"listed, not in yet: {lst}")
+
+    helper = 9401
+    register_customer(botmod, helper, "+998 91 444-00-02", "Bek")
+    m = Msg(helper, "Bek"); asyncio.run(botmod.kit_qr(m, kit["token"]))
+    ok("tab=seller_cabinet" in str(buttons(m)), "the helper scans the sheet once: straight in, nobody asked")
+    team = api("GET", "/seller/members", None, OT)[1]["members"]
+    ok(any(x["name"] == "Bekzod" and x["role"] == "helper" for x in team), f"in the team under the name the owner wrote: {team}")
+    ok(api("GET", "/seller/helper-phones", None, OT)[1]["phones"][0]["joined"] is True, "the list shows he is in")
+
+    member_id = [x for x in team if x["name"] == "Bekzod"][0]["id"]
+    ok(api("DELETE", f"/seller/members/{member_id}", None, OT)[0] == 200, "the owner removes him")
+    ok(api("GET", "/seller/helper-phones", None, OT)[1]["phones"] == [], "his number is forgotten too")
+    m = Msg(helper, "Bek"); asyncio.run(botmod.kit_qr(m, kit["token"]))
+    ok("tab=seller_cabinet" not in str(m.replies), "scanning again does not let him back in")
+    ok(api("POST", "/seller/tg-login", None, {"x-telegram-init-data": init_data(helper, "Bek")})[0] == 404, "and the cabinet stays closed")

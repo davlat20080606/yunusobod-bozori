@@ -97,6 +97,12 @@ report "Analytics + CSV + backup state (Bozorkom)" "$S/analytics.txt"
 stop; server prepilot; chrome; "$PY" "$E/pre_pilot_ui.py" "$S" > "$S/prepilot.txt" 2>&1
 report "Pilot rules (self pickup, phone, switch)" "$S/prepilot.txt"
 
+stop; server kits; chrome; "$PY" "$E/kits_ui.py" "$S" > "$S/kits.txt" 2>&1
+report "📄 QR sheets: make, print two per A4, register a stall on the spot, fix a wrong phone" "$S/kits.txt"
+
+stop; server helperphone; chrome; "$PY" "$E/helper_phone_ui.py" "$S" > "$S/helperphone.txt" 2>&1
+report "📱 The owner adds a helper by phone in the cabinet, no QR" "$S/helperphone.txt"
+
 "$PY" "$E/language_kept.py" > "$S/persist.raw" 2>&1
 awk '/lang=ru \| Юнус/{c++} /lang=en \| Yunusobod Farmers/{e++} END{print (c==3?"PASS":"FAIL")" Russian kept after reopening ("c"/3)"; print (e==2?"PASS":"FAIL")" English kept after reopening ("e"/2)"}' "$S/persist.raw" > "$S/persist.txt"
 report "Language is remembered" "$S/persist.txt"

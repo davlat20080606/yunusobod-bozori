@@ -388,6 +388,10 @@ export const api = {
   sellerSendStallQr: (image) => sellerFetch('/stall-qr/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) }),
   sellerMembers: () => sellerFetch('/members'),
   sellerRemoveMember: (id) => sellerFetch(`/members/${id}`, { method: 'DELETE' }),
+  // 📱 Helpers the owner adds by their Telegram number, no QR (Shuhrat, 2026-11-28)
+  sellerHelperPhones: () => sellerFetch('/helper-phones'),
+  sellerAddHelperPhone: (name, phone) => sellerFetch('/helper-phones', { method: 'POST', body: JSON.stringify({ name, phone }) }),
+  sellerDeleteHelperPhone: (id) => sellerFetch(`/helper-phones/${id}`, { method: 'DELETE' }),
   sellerItemWeight: (itemId, actualQuantity) => sellerFetch(`/items/${itemId}/weight`, { method: 'PATCH', body: JSON.stringify({ actual_quantity: actualQuantity }) }),
   sellerItemMissing: (itemId, missing) => sellerFetch(`/items/${itemId}/missing`, { method: 'POST', body: JSON.stringify({ missing }) }),
   sellerOrderReady: (orderId) => sellerFetch(`/orders/${orderId}/ready`, { method: 'POST' }),

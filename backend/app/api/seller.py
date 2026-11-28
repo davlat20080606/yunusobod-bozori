@@ -608,6 +608,74 @@ async def remove_member(member_id: int, store: StoreModel = Depends(current_owne
         raise HTTPException(status_code=404, detail="Topilmadi / Не найдено")
     if member.role == "owner":
         raise HTTPException(status_code=409, detail="Egani o'chirib bo'lmaydi / Владельца удалить нельзя")
+    await forget_helper_phone(db, store.id, member.tg_id)
     await db.delete(member)
     await db.commit()
     return {"success": True}
+
+
+
+# 📱 Helpers added by phone in the cabinet (Shuhrat, 2026-11-28): the owner writes a helper's name and Telegram
+# number, no QR needed; the helper scans the stall's sheet (or the stall QR) once, shares the number and is in.
+class HelperPhoneSchema(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    phone: str = Field(..., max_length=50)
+
+
+async def _customer_phones(db: AsyncSession, tg_ids) -> dict:
+    from app.models.schemas import CustomerModel
+    if not tg_ids:
+        return {}
+    rows = (await db.execute(select(CustomerModel.tg_id, CustomerModel.phone).where(CustomerModel.tg_id.in_(list(tg_ids))))).all()
+    return {tg: normalize_phone(ph or "") for tg, ph in rows}
+
+
+@router.get("/helper-phones")
+async def list_helper_phones(store: StoreModel = Depends(current_owner_store), db: AsyncSession = Depends(get_db)):
+    from app.models.schemas import StoreHelperPhoneModel
+    rows = (await db.execute(select(StoreHelperPhoneModel).where(StoreHelperPhoneModel.store_id == store.id)
+                             .order_by(StoreHelperPhoneModel.id))).scalars().all()
+    members = (await db.execute(select(StoreMemberModel.tg_id).where(StoreMemberModel.store_id == store.id))).scalars().all()
+    joined = set((await _customer_phones(db, members)).values())
+    return {"phones": [{"id": r.id, "name": r.name or "", "phone": f"+998 {r.phone[:2]} {r.phone[2:5]}-{r.phone[5:7]}-{r.phone[7:]}",
+                        "joined": r.phone in joined} for r in rows]}
+
+
+@router.post("/helper-phones")
+async def add_helper_phone(data: HelperPhoneSchema, store: StoreModel = Depends(current_owner_store), db: AsyncSession = Depends(get_db)):
+    from datetime import datetime
+    from app.models.schemas import StoreHelperPhoneModel
+    phone = normalize_phone(data.phone)
+    if len(phone) < 9:
+        raise HTTPException(status_code=400, detail="Telefon raqamini to'liq kiriting / Введите номер телефона полностью")
+    if phone == normalize_phone(store.owner_phone):
+        raise HTTPException(status_code=400, detail="Bu sizning raqamingiz / Это ваш собственный номер")
+    rows = (await db.execute(select(StoreHelperPhoneModel).where(StoreHelperPhoneModel.store_id == store.id))).scalars().all()
+    if any(r.phone == phone for r in rows):
+        raise HTTPException(status_code=409, detail="Bu raqam allaqachon ro'yxatda / Этот номер уже в списке")
+    if len(rows) >= 10:
+        raise HTTPException(status_code=409, detail="Ko'pi bilan 10 ta yordamchi / Не больше 10 помощников")
+    db.add(StoreHelperPhoneModel(store_id=store.id, phone=phone, name=data.name.strip(), created_at=datetime.utcnow()))
+    await db.commit()
+    return {"success": True}
+
+
+@router.delete("/helper-phones/{phone_id}")
+async def delete_helper_phone(phone_id: int, store: StoreModel = Depends(current_owner_store), db: AsyncSession = Depends(get_db)):
+    from app.models.schemas import StoreHelperPhoneModel
+    row = await db.get(StoreHelperPhoneModel, phone_id)
+    if not row or row.store_id != store.id:
+        raise HTTPException(status_code=404, detail="Topilmadi / Не найдено")
+    await db.delete(row)
+    await db.commit()
+    return {"success": True}
+
+
+async def forget_helper_phone(db: AsyncSession, store_id: int, tg_id: str):
+    """A helper who was removed must not walk back in by the phone the owner once wrote."""
+    from sqlalchemy import delete
+    from app.models.schemas import StoreHelperPhoneModel
+    phone = (await _customer_phones(db, [str(tg_id)])).get(str(tg_id))
+    if phone:
+        await db.execute(delete(StoreHelperPhoneModel).where(StoreHelperPhoneModel.store_id == store_id,
+                                                             StoreHelperPhoneModel.phone == phone))

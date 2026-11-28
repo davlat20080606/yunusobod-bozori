@@ -361,6 +361,7 @@ class StoreHelperPhoneModel(Base):
     id = Column(Integer, primary_key=True)
     store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
     phone = Column(String(20), nullable=False, index=True)   # normalized digits
+    name = Column(String(100), nullable=True)                 # as the owner wrote it
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 

@@ -43,7 +43,11 @@ export default function SellerTeam({ language, store }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const load = () => api.sellerMembers().then(setTeam).catch(() => {});
+  const [phones, setPhones] = useState([]);
+  const [helperForm, setHelperForm] = useState({ name: '', phone: '+998 ' });
+  const [phoneSaved, setPhoneSaved] = useState('');
+  const loadPhones = () => api.sellerHelperPhones().then((r) => setPhones(r.phones)).catch(() => {});
+  const load = () => api.sellerMembers().then((r) => { setTeam(r); if (r.my_role === 'owner') loadPhones(); }).catch(() => {});
   useEffect(() => { load(); }, []);
   // A helper who scanned the code appears in the list without reloading
   useEffect(() => {
@@ -106,6 +110,34 @@ export default function SellerTeam({ language, store }) {
     load();
   };
 
+  const addHelperPhone = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    setPhoneSaved('');
+    try {
+      await api.sellerAddHelperPhone(helperForm.name.trim(), helperForm.phone);
+      triggerHaptic('success');
+      setPhoneSaved(helperForm.name.trim());
+      setHelperForm({ name: '', phone: '+998 ' });
+      loadPhones();
+    } catch (err) {
+      triggerHaptic('error');
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeHelperPhone = async (p) => {
+    if (!window.confirm(tr(`${p.name} ro'yxatdan o'chirilsinmi?`, `Убрать ${p.name} из списка?`, `Remove ${p.name} from the list?`))) return;
+    await api.sellerDeleteHelperPhone(p.id).catch((err) => setError(err.message));
+    loadPhones();
+  };
+
+  const helperFormOk = helperForm.name.trim().length >= 2 && helperForm.phone.replace(/\D/g, '').length >= 12;
+
   const expiresAt = qr?.expires ? qr.expires.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '';
 
   return (
@@ -132,6 +164,46 @@ export default function SellerTeam({ language, store }) {
           )}
         </div>
       ))}
+
+      {isOwner && (
+        <form data-testid="helper-by-phone" onSubmit={addHelperPhone} style={{ marginTop: 10, padding: 12, borderRadius: 14, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>📱 {tr("Yordamchini raqami bilan qo'shish", 'Добавить помощника по номеру', 'Add a helper by phone')}</div>
+          <div style={{ fontSize: 12, color: '#475569', margin: '2px 0 10px' }}>
+            {tr("Yordamchining ismi va Telegram'i ochilgan raqamini yozing. U rasta QR kodini (varaqni) bir marta skanerlab, «📱 Raqamni yuborish» ni bossa — darhol kabinetga kiradi, sizdan hech narsa so'ralmaydi.",
+              'Впишите имя помощника и номер, на который заведён его Telegram. Он один раз сканирует QR расты (лист), нажимает «Отправить номер» — и сразу в кабинете, вас ни о чём не спросят.',
+              "Write the helper's name and the number their Telegram is on. They scan the stall's QR (the sheet) once, share the number and are in — you are not asked anything.")}
+          </div>
+          <input data-testid="helper-name" value={helperForm.name} maxLength={100} placeholder={tr('Ismi', 'Имя', 'Name')}
+            onChange={(e) => setHelperForm((f) => ({ ...f, name: e.target.value }))}
+            style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, borderRadius: 10, border: '1px solid #e2e8f0', padding: '0 12px', fontSize: 15, marginBottom: 6 }} />
+          <input data-testid="helper-phone" type="tel" inputMode="tel" value={helperForm.phone} maxLength={20} placeholder="+998"
+            onChange={(e) => setHelperForm((f) => ({ ...f, phone: e.target.value }))}
+            style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, borderRadius: 10, border: '1px solid #e2e8f0', padding: '0 12px', fontSize: 15, marginBottom: 8 }} />
+          <button type="submit" data-testid="helper-save" disabled={!helperFormOk || busy}
+            style={{ width: '100%', height: 46, borderRadius: 12, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 800, fontSize: 15, cursor: helperFormOk && !busy ? 'pointer' : 'not-allowed', opacity: helperFormOk && !busy ? 1 : 0.5 }}>
+            {tr('Saqlash', 'Сохранить', 'Save')}
+          </button>
+          {phoneSaved && <div data-testid="helper-saved" style={{ marginTop: 8, fontSize: 13, fontWeight: 700, color: '#047857' }}>
+            ✅ {tr(`${phoneSaved} saqlandi — endi u QR ni skanerlasa, darhol kiradi`, `${phoneSaved} сохранён — теперь он сканирует QR и сразу входит`, `${phoneSaved} saved — now they scan the QR and are in`)}
+          </div>}
+          {phones.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              {phones.map((p) => (
+                <div key={p.id} data-testid="helper-phone-row" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '1px solid #dbeafe' }}>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name || '—'}</span>
+                    <span style={{ display: 'block', fontSize: 12, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                      {p.phone} · {p.joined ? tr('✅ kirdi', '✅ вошёл', '✅ in') : tr('⏳ hali skanerlamagan', '⏳ ещё не сканировал', '⏳ not scanned yet')}
+                    </span>
+                  </span>
+                  <button type="button" onClick={() => removeHelperPhone(p)} aria-label="remove"
+                    style={{ width: 44, height: 44, border: 'none', background: '#fef2f2', color: '#dc2626', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}><Trash2 size={16} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </form>
+      )}
 
       {isOwner && (
         <div data-testid="stall-qr" style={{ marginTop: 10, padding: 12, borderRadius: 14, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>

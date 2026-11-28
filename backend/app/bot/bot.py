@@ -540,6 +540,8 @@ async def kick_helper(owner_id, store_id: int, helper_id: str) -> bool:
         store = await db.get(StoreModel, store_id)
         if not store or str(owner_id) not in await _stall_owners(db, store):
             return False
+        from app.api.seller import forget_helper_phone
+        await forget_helper_phone(db, store_id, str(helper_id))
         await db.execute(delete(StoreMemberModel).where(StoreMemberModel.store_id == store_id,
                                                         StoreMemberModel.tg_id == str(helper_id),
                                                         StoreMemberModel.role == "helper"))
@@ -596,6 +598,12 @@ async def stall_qr(message: types.Message, store_id: str, user=None, kit_id: int
             # A helper whose phone was written down when the stall was registered gets in the same way
             elif phone and await helper_phone_allowed(db, store.id, phone):
                 role = "helper"
+            if role == "helper":
+                from app.models.schemas import StoreHelperPhoneModel
+                saved = (await db.execute(select(StoreHelperPhoneModel.name).where(
+                    StoreHelperPhoneModel.store_id == store.id, StoreHelperPhoneModel.phone == phone))).scalars().first()
+                if saved:
+                    user = type("U", (), {"id": user.id, "first_name": saved, "last_name": None, "username": None})()
             if role:
                 await add_member(db, store.id, {"id": user.id, "first_name": user.first_name,
                                                 "last_name": getattr(user, "last_name", None), "username": getattr(user, "username", None)}, role)
