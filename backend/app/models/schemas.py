@@ -353,6 +353,22 @@ class VendorKitModel(Base):
     revoked_at = Column(DateTime, nullable=True)
 
 
+class StallClientModel(Base):
+    """👥 A stall's own customer (Shuhrat, 2026-11-28): written by the seller, by the nasiya notebook, or a buyer who
+    came by the stall's invite link. Only the stall sees its list. tg_id is set once this person is in the bot."""
+    __tablename__ = "stall_clients"
+
+    id = Column(Integer, primary_key=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    phone = Column(String(20), nullable=True, index=True)          # normalized 9 digits
+    note = Column(String(200), nullable=True)
+    tg_id = Column(String(50), nullable=True, index=True)
+    invite_token = Column(String(40), nullable=True, unique=True)   # t.me/<bot>?start=cl_<token>
+    source = Column(String(20), nullable=False, default="manual")    # manual | nasiya | link
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class StoreHelperPhoneModel(Base):
     """A helper's phone written down when the stall was registered: that person gets in by sharing their number,
     even when the owner cannot answer."""

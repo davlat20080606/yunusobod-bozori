@@ -560,6 +560,8 @@ async def resume_entry(message: types.Message, user) -> bool:
     kind, value, _ = item
     if kind == "kit":
         await kit_qr(message, value, user)
+    elif kind == "shop":
+        await shop_entry(message, value, user)
     else:
         await stall_qr(message, value, user=user)
     return True
@@ -630,6 +632,76 @@ async def stall_qr(message: types.Message, store_id: str, user=None, kit_id: int
             rows.insert(0, [InlineKeyboardButton(text=KIT_TEXTS["pin_button"][lang], callback_data=f"kpin_{kit_id}")])
         hint = STALL_TEXTS["staff_hint" if owner_connected else "phone_mismatch"][lang]
         await message.answer(hint, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+
+
+SHOP_TEXTS = {
+    "open": {
+        "uz": "🛒 <b>{store}</b> ({stall}) rastasi mahsulotlari — tugmani bosing:",
+        "ru": "🛒 Товары расты <b>{store}</b> ({stall}) — нажмите кнопку:",
+        "en": "🛒 The goods of <b>{store}</b> ({stall}) — tap the button:",
+    },
+    "button": {"uz": "🛒 Rasta mahsulotlari", "ru": "🛒 Товары расты", "en": "🛒 The stall's goods"},
+    "invite_bad": {
+        "uz": "❌ Taklif eskirgan. Sotuvchidan yangisini so'rang.",
+        "ru": "❌ Приглашение устарело. Попросите у продавца новое.",
+        "en": "❌ This invite is no longer valid. Ask the seller for a new one.",
+    },
+}
+
+
+async def _send_shop(message: types.Message, store, lang: str):
+    name = escape(getattr(store, f"name_{lang}", None) or store.name_uz)
+    rows = [[InlineKeyboardButton(text=SHOP_TEXTS["button"][lang],
+                                  web_app=WebAppInfo(url=f"{settings.WEBAPP_URL}?store={store.id}&lang={lang}"))]]
+    await message.answer(SHOP_TEXTS["open"][lang].format(store=name, stall=escape(store.stall_number)),
+                         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode="HTML")
+
+
+async def shop_entry(message: types.Message, store_id: str, user=None):
+    """🛒 The stall's invite link / counter QR: registration if needed, then straight to this stall's goods; the buyer
+    joins the stall's «👥 Mijozlarim» list (Shuhrat, 2026-11-28)."""
+    import time as _t
+    from app.database import async_session_factory
+    from app.models.schemas import StoreModel
+    from app.api.clients import remember
+    user = user or message.from_user
+    lang = await _lang_of(user)
+    async with async_session_factory() as db:
+        store = await db.get(StoreModel, int(store_id)) if str(store_id).isdigit() else None
+    if not store or store.status != "approved":
+        await message.answer(STALL_TEXTS["bad"][lang])
+        return
+    PENDING_ENTRY[str(user.id)] = ("shop", str(store.id), _t.time())
+    if not await start_customer(message):
+        return  # registration first; resume_entry opens the stall when it is done
+    PENDING_ENTRY.pop(str(user.id), None)
+    customer = await get_customer(user.id)
+    async with async_session_factory() as db:
+        await remember(db, store.id, customer.name if customer else user.first_name, customer.phone if customer else None,
+                       "link", str(user.id))
+        await db.commit()
+    await _send_shop(message, store, lang)
+
+
+async def client_invite(message: types.Message, token: str):
+    """👥 A customer's personal invite from the stall's list: the name the seller wrote is filled in, so the customer
+    only taps «Start» and shares the number; then the stall's goods open."""
+    from sqlalchemy import select
+    from app.database import async_session_factory
+    from app.models.schemas import StallClientModel
+    user = message.from_user
+    async with async_session_factory() as db:
+        client = (await db.execute(select(StallClientModel).where(StallClientModel.invite_token == token[:40]))).scalars().first()
+        if client:
+            client.tg_id = client.tg_id or str(user.id)
+            await db.commit()
+    if not client:
+        await message.answer(SHOP_TEXTS["invite_bad"][await _lang_of(user)])
+        return
+    customer = await get_customer(user.id)
+    if not customer or not customer.name:
+        await save_customer(user.id, name=client.name)
+    await shop_entry(message, str(client.store_id))
 
 
 async def request_join(user, store_id: int) -> str:
@@ -729,6 +801,14 @@ def setup_dispatcher() -> Dispatcher:
         args = (message.text or "").split(maxsplit=1)
         if len(args) > 1 and args[1].startswith("join_"):
             await join_stall(message, args[1][5:])
+            return
+        # 👥 A customer's personal invite from the stall's list: t.me/<bot>?start=cl_<token>
+        if len(args) > 1 and args[1].startswith("cl_"):
+            await client_invite(message, args[1][3:])
+            return
+        # 🛒 The stall's invite for buyers: straight to this stall's goods, t.me/<bot>?start=shop_<id>
+        if len(args) > 1 and args[1].startswith("shop_"):
+            await shop_entry(message, args[1][5:])
             return
         # A printed QR sheet bound to a stall at registration: t.me/<bot>?start=kit_<token>
         if len(args) > 1 and args[1].startswith("kit_"):

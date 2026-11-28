@@ -117,6 +117,9 @@ async def create_debt(data: DebtCreate, store: StoreModel = Depends(current_stor
     db.add(debt)
     await db.flush()
     ledger.log(db, debt, "created", amount=data.amount, note=debt.note)
+    # 👥 whoever gets goods on credit is one of the stall's customers (Shuhrat, 2026-11-28)
+    from app.api.clients import remember
+    await remember(db, store.id, debt.customer_name, phone, "nasiya", buyer.tg_id if buyer else None)
     await db.commit()
     await db.refresh(debt)
     if buyer:
