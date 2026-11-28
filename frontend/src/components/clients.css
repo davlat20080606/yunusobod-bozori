@@ -1,0 +1,50 @@
+/* 👥 Mijozlarim in the seller cabinet: naqsh tokens, 44px targets, all states */
+.cl-card { background: #fff; border: 1px solid var(--naqsh-line); border-radius: var(--radius-md, 16px); padding: 16px; margin-bottom: 20px; }
+.cl-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.cl-title { margin: 0; font-size: 18px; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
+.cl-count { font-size: 12px; font-weight: 800; color: var(--naqsh-blue); background: var(--naqsh-ivory); border: 1px solid var(--naqsh-line); border-radius: 999px; padding: 1px 8px; font-variant-numeric: tabular-nums; }
+.cl-sub { margin: 4px 0 12px; font-size: 13px; color: #64748b; line-height: 1.5; }
+.cl-shop { border: 1px solid #a7f3d0; background: #ecfdf5; border-radius: 14px; padding: 12px; margin-bottom: 10px; display: grid; gap: 6px; }
+.cl-shop-title { font-weight: 800; font-size: 15px; color: #065f46; }
+.cl-shop-hint { font-size: 12.5px; color: #475569; line-height: 1.45; }
+.cl-btn { min-height: 44px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 800; font-size: 14px; cursor: pointer; padding: 0 14px;
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1), filter 140ms cubic-bezier(0.22, 1, 0.36, 1), background-color 140ms cubic-bezier(0.22, 1, 0.36, 1); }
+.cl-btn:hover:not(:disabled) { filter: brightness(0.97); }
+.cl-btn:active:not(:disabled) { transform: scale(0.98); }
+.cl-btn:focus-visible, .cl-icon:focus-visible, .cl-input:focus-visible { outline: 2px solid var(--naqsh-turq); outline-offset: 2px; }
+.cl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.cl-btn-primary { background: var(--naqsh-blue); border-color: var(--naqsh-blue); color: var(--naqsh-gold); }
+.cl-btn-green { background: #047857; border-color: #047857; color: #fff; }
+.cl-btn-outline { width: 100%; border-style: dashed; border-color: var(--naqsh-turq); color: var(--naqsh-turq); background: #fff; }
+.cl-btn-small { min-height: 36px; font-size: 12.5px; padding: 0 10px; }
+.cl-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cl-form { display: grid; gap: 8px; border: 1px solid var(--naqsh-line); background: var(--naqsh-ivory); border-radius: 14px; padding: 10px; }
+.cl-input { width: 100%; box-sizing: border-box; min-height: 44px; border-radius: 10px; border: 1px solid #e2e8f0; padding: 0 12px; font-size: 15px; background: #fff; }
+.cl-search { margin-top: 10px; }
+.cl-error { margin: 8px 0; color: #b91c1c; background: #fef2f2; border-radius: 10px; padding: 8px 10px; font-size: 13px; font-weight: 600; }
+.cl-empty { margin-top: 10px; padding: 16px; text-align: center; color: #64748b; font-size: 13.5px; line-height: 1.5; border: 1px dashed var(--naqsh-line); border-radius: 12px; }
+.cl-skel { display: grid; gap: 8px; margin-top: 10px; }
+.cl-skel div { height: 52px; border-radius: 12px; background: linear-gradient(90deg, #f1f5f9, #f8fafc, #f1f5f9); background-size: 200% 100%; animation: cl-shimmer 1.2s infinite linear; }
+@keyframes cl-shimmer { to { background-position: -200% 0; } }
+.cl-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.cl-item { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; padding: 10px 0; border-top: 1px solid #f1f5f9; }
+.cl-item-main { flex: 1 1 200px; min-width: 0; }
+.cl-item-name { font-weight: 800; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; font-size: 12.5px; color: #475569; }
+.cl-phone { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
+.cl-badge { font-size: 11px; font-weight: 800; border-radius: 999px; padding: 1px 7px; background: #f1f5f9; color: #475569; }
+.cl-badge-ok { background: #dcfce7; color: #15803d; }
+.cl-item-note { font-size: 12.5px; color: #64748b; margin-top: 2px; overflow-wrap: anywhere; }
+.cl-item-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: auto; }
+.cl-icon { width: 44px; height: 44px; border-radius: 10px; border: none; background: #f8fafc; color: #334155; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.cl-icon:active { transform: scale(0.96); }
+.cl-icon-red { background: #fef2f2; color: #dc2626; }
+.cl-dialog { position: fixed; inset: 0; z-index: 1100; background: rgba(11, 36, 64, 0.82); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.cl-dialog-box { width: 100%; max-width: 400px; max-height: calc(100vh - 32px); overflow-y: auto; background: #fff; border-radius: 18px; padding: 16px; display: grid; gap: 10px; text-align: center; }
+.cl-dialog-title { font-weight: 800; font-size: 16px; letter-spacing: -0.01em; }
+.cl-qr { width: 230px; height: 230px; margin: 0 auto; image-rendering: pixelated; border-radius: 10px; }
+.cl-qr-skel { background: #f1f5f9; }
+.cl-dialog-hint { font-size: 13px; color: #334155; line-height: 1.5; }
+.cl-dialog-rule { font-size: 12px; color: #92400e; background: #fffbeb; border-radius: 8px; padding: 6px 8px; }
+.cl-link { font-size: 12px; color: #475569; word-break: break-all; background: #f8fafc; border-radius: 8px; padding: 6px 8px; }
+@media (prefers-reduced-motion: reduce) { .cl-btn { transition: none; } .cl-skel div { animation: none; } }

@@ -399,6 +399,14 @@ function ClaimBox({ tr, cur, debt, onDone, onError }) {
 function NewDebt({ tr, cur, today, prefill, onClose, onSaved }) {
   const [name, setName] = useState(prefill?.customer_name || '');
   const [phone, setPhone] = useState(prefill?.customer_phone || '');
+  // 👥 the stall's own customers: typing a name from the list fills in the phone
+  const [clients, setClients] = useState([]);
+  useEffect(() => { api.sellerClients().then((r) => setClients(r.clients)).catch(() => {}); }, []);
+  const pickName = (value) => {
+    setName(value);
+    const c = clients.find((x) => x.name.toLowerCase() === value.trim().toLowerCase());
+    if (c?.phone && !phone.trim()) setPhone(c.phone);
+  };
   const [amount, setAmount] = useState(prefill?.amount ? fmt(prefill.amount) : '');
   const [note, setNote] = useState(prefill?.note || '');
   const base = today || new Date().toISOString().slice(0, 10);
@@ -448,8 +456,9 @@ function NewDebt({ tr, cur, today, prefill, onClose, onSaved }) {
         {error && <div className="nz-error" role="alert">⚠️ {error}</div>}
         <label className="nz-field">
           <span className="nz-label">{tr('Mijoz ismi', 'Имя покупателя', "Buyer's name")}</span>
-          <input className="nz-input" data-testid="nasiya-name" value={name} maxLength={100} autoComplete="off"
-            aria-invalid={touched && nameBad} onChange={(e) => setName(e.target.value)} placeholder={tr('Masalan: Karim aka', 'Например: Карим ака', 'e.g. Karim aka')} />
+          <input className="nz-input" data-testid="nasiya-name" value={name} maxLength={100} autoComplete="off" list="nz-clients"
+            aria-invalid={touched && nameBad} onChange={(e) => pickName(e.target.value)} placeholder={tr('Masalan: Karim aka', 'Например: Карим ака', 'e.g. Karim aka')} />
+          <datalist id="nz-clients">{clients.map((c) => <option key={c.id} value={c.name}>{c.phone || ''}</option>)}</datalist>
           {touched && nameBad && <div className="nz-err-text">{tr('Ismni yozing', 'Напишите имя', 'Write a name')}</div>}
         </label>
         <label className="nz-field">

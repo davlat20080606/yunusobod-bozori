@@ -405,6 +405,13 @@ export const api = {
   sellerDebts: () => sellerFetch('/debts'),
   sellerDebt: (id) => sellerFetch(`/debts/${id}`),
   sellerAddDebt: (debt) => sellerFetch('/debts', { method: 'POST', body: JSON.stringify(debt) }),
+  // 👥 Mijozlarim: the stall's own customers (Shuhrat, 2026-11-28)
+  sellerClients: () => sellerFetch('/clients'),
+  sellerAddClient: (c) => sellerFetch('/clients', { method: 'POST', body: JSON.stringify(c) }),
+  sellerEditClient: (id, c) => sellerFetch(`/clients/${id}`, { method: 'PATCH', body: JSON.stringify(c) }),
+  sellerDeleteClient: (id) => sellerFetch(`/clients/${id}`, { method: 'DELETE' }),
+  sellerInviteClient: (id) => sellerFetch(`/clients/${id}/invite`, { method: 'POST' }),
+  sellerShopLink: () => sellerFetch('/clients/shop-link'),
   sellerDebtPay: (id, amount) => sellerFetch(`/debts/${id}/pay`, { method: 'POST', body: JSON.stringify({ amount }) }),
   sellerDebtSnooze: (id, days) => sellerFetch(`/debts/${id}/snooze`, { method: 'POST', body: JSON.stringify({ days }) }),
   sellerDebtRemind: (id) => sellerFetch(`/debts/${id}/remind`, { method: 'POST' }),

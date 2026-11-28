@@ -103,6 +103,9 @@ report "📄 QR sheets: make, print two per A4, register a stall on the spot, fi
 stop; server helperphone; chrome; "$PY" "$E/helper_phone_ui.py" "$S" > "$S/helperphone.txt" 2>&1
 report "📱 The owner adds a helper by phone in the cabinet, no QR" "$S/helperphone.txt"
 
+stop; server clients; chrome; "$PY" "$E/clients_ui.py" "$S" > "$S/clients.txt" 2>&1
+report "👥 Mijozlarim: list, personal invite QR, stall invite QR, nasiya picks a customer" "$S/clients.txt"
+
 "$PY" "$E/language_kept.py" > "$S/persist.raw" 2>&1
 awk '/lang=ru \| Юнус/{c++} /lang=en \| Yunusobod Farmers/{e++} END{print (c==3?"PASS":"FAIL")" Russian kept after reopening ("c"/3)"; print (e==2?"PASS":"FAIL")" English kept after reopening ("e"/2)"}' "$S/persist.raw" > "$S/persist.txt"
 report "Language is remembered" "$S/persist.txt"

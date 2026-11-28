@@ -4,6 +4,7 @@ import SellerTeam from './SellerTeam';
 import SellerStock from './SellerStock';
 import SellerOrderBody from './SellerOrderBody';
 import SellerDebts from './SellerDebts';
+import SellerClients from './SellerClients';
 import { newIdsWatcher } from '../services/sound';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -421,6 +422,8 @@ export default function SellerPanel({ onProductPriceUpdated, onBackToMarket, onS
           </div>
 
           <SellerDebts language={language} isOwner={getSellerSession()?.role !== 'helper'} />
+
+          <SellerClients language={language} />
 
           <SellerStock language={language} products={storeData.products} onSaved={(products) => setStoreData((prev) => ({ ...prev, products }))} />
 
