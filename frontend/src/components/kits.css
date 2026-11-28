@@ -16,6 +16,17 @@
 .kit-row-btn.kit-row-fix { border-color: #fde68a; color: #92400e; }
 @media (prefers-reduced-motion: reduce) { .kit-form button, .kit-row-btn { transition: none; } }
 
+/* The camera scanner on the website */
+.kit-cam { position: fixed; inset: 0; z-index: 1100; background: rgba(11, 36, 64, 0.85); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.kit-cam-box { width: 100%; max-width: 420px; background: #fff; border-radius: 16px; padding: 14px; display: grid; gap: 10px; }
+.kit-cam-title { font-weight: 800; font-size: 15px; text-align: center; }
+.kit-cam-view { position: relative; aspect-ratio: 1; background: #0f172a; border-radius: 12px; overflow: hidden; }
+.kit-cam-view video { width: 100%; height: 100%; object-fit: cover; }
+.kit-cam-frame { position: absolute; inset: 18%; border: 3px solid var(--naqsh-gold); border-radius: 14px; box-shadow: 0 0 0 999px rgba(0,0,0,0.25); }
+.kit-cam-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: #fff; font-size: 14px; line-height: 1.5; }
+.kit-cam-close { min-height: 46px; border-radius: 12px; border: none; background: var(--naqsh-blue); color: var(--naqsh-gold); font-weight: 800; font-size: 15px; cursor: pointer; }
+.kit-cam-close:focus-visible { outline: 2px solid var(--naqsh-turq); outline-offset: 2px; }
+
 /* The print view sits on top of the panel; on paper two half-A4 sheets per page, a dashed line to cut between them */
 .kit-print-root { position: fixed; inset: 0; z-index: 1000; overflow-y: auto; background: var(--naqsh-sand); padding: 0 16px 40px; }
 .kit-print-bar { position: sticky; top: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 0; background: var(--naqsh-sand); border-bottom: 1px solid var(--naqsh-line); margin-bottom: 16px; z-index: 1; }

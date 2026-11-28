@@ -96,6 +96,27 @@ async def main():
         ok(w <= 391, f"fits the phone ({w})")
         await shot("after_390", True)
 
+        # a sheet picked from the list (Shuhrat, 2026-11-28)
+        picks = await js("[...document.querySelectorAll('[data-testid=kit-bind] [data-testid=kit-pick] option')].map(o=>o.value).filter(Boolean)")
+        ok(picks and all(p.startswith("BZR-") for p in picks) and code not in picks, f"the list offers only blank sheets: {picks}")
+        await js(f"({set_value})('[data-testid=kit-bind] [data-testid=kit-pick]', {json.dumps(picks[0])})"); await asyncio.sleep(1)
+        ok(picks[0] in (await js("document.querySelector('[data-testid=kit-bind] [data-testid=kit-code]').value")),
+           "picking from the list fills in the sheet")
+        # the website's own camera: opens, Esc closes it
+        await js("document.querySelector('[data-testid=kit-bind] [data-testid=kit-scan]').click()"); await asyncio.sleep(1.5)
+        ok(await js("!!document.querySelector('[data-testid=kit-camera]')"), "«📷 Varaqni skanerlash» opens the camera on the website too")
+        await shot("camera_390")
+        await cmd("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27})
+        await asyncio.sleep(0.5)
+        ok(not await js("!!document.querySelector('[data-testid=kit-camera]')"), "Esc closes the camera")
+        # a stall's card in «Rastalar»: its sheet, or «📄 Varaq biriktirish» that opens the form with the stall chosen
+        await js("[...document.querySelectorAll('button')].find(b=>/^Rastalar/.test(b.innerText.trim())).click()"); await asyncio.sleep(1.2)
+        attach = await js("document.querySelectorAll('[data-testid=store-kit-attach]').length")
+        ok(attach >= 1, f"stalls without a sheet show «📄 Varaq biriktirish» ({attach})")
+        await js("document.querySelector('[data-testid=store-kit-attach]').click()"); await asyncio.sleep(1.5)
+        chosen = await js("document.querySelector('[data-testid=kit-bind] select').value")
+        ok(bool(chosen), f"it opens the sheet form with that stall already chosen ({chosen})")
+
         admin = api("POST", "/api/admin/login", {"pin": "909090"})
         pending = [s for s in api("GET", "/api/admin/stores", headers={"x-admin-token": admin["token"]}) if s["stall_number"] == "M-21"]
         ok(pending and pending[0]["status"] == "pending", "the bozorkom sees it in «Arizalar»")

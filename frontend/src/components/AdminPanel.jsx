@@ -19,6 +19,7 @@ const T = {
   founder: { uz: '👑 Asoschi', ru: '👑 Основатель', en: '👑 Founder' },
   partner: { uz: '🤝 Hamkor', ru: '🤝 Партнёр', en: '🤝 Partner' },
   // The founder and the partner watch and register stalls with QR sheets; every decision stays with the bozorkom
+  attach_sheet: { uz: 'Varaq biriktirish', ru: 'Привязать лист', en: 'Attach a sheet' },
   view_only: { uz: "Qarorlarni bozorkom qabul qiladi", ru: 'Решения принимает бозорком', en: 'The bozorkom makes the decisions' },
   tabs: {
     uz: ['Umumiy', 'Arizalar', 'Rastalar', 'Xodimlar', 'Buyurtmalar', 'Patta', 'Sozlamalar', 'Xaridorlar', '📊 Tahlil', '📡 Monitoring', '📄 QR varaqlar'],
@@ -175,6 +176,9 @@ export default function AdminPanel({ onBackToMarket }) {
   const [customerQuery, setCustomerQuery] = useState('');
   const [categories, setCategories] = useState({});
   const [pattachiForm, setPattachiForm] = useState({ name: '', phone: '+998 ', pin: '' });
+  // 📄 Which printed sheet each stall has (Shuhrat, 2026-11-28: a sheet is attached from the stall's own card)
+  const [kitsByStore, setKitsByStore] = useState({});
+  const [bindStore, setBindStore] = useState(null);
 
   useEffect(() => {
     api.getCategories().then((list) => setCategories(Object.fromEntries(list.map((c) => [c.slug, c])))).catch(() => {});
@@ -191,6 +195,7 @@ export default function AdminPanel({ onBackToMarket }) {
         api.adminOverview(), api.adminStores(), api.adminStaff(), api.adminOrders(), api.adminPatta().catch(() => null)
       ]);
       setData({ overview, stores, staff, orders, patta });
+      api.adminKits().then((r) => setKitsByStore(Object.fromEntries(r.kits.filter((k) => k.status === 'bound').map((k) => [k.store_id, k.code])))).catch(() => {});
       setSettingsForm((prev) => prev.radius ? prev : {
         radius: String(overview.delivery_radius_km), patta: String(overview.patta_amount), phone: overview.support_phone || '',
         porterFee: String(overview.porter_fee ?? 5000), taxiFee: String(overview.taxi_fee ?? 10000),
@@ -270,6 +275,14 @@ export default function AdminPanel({ onBackToMarket }) {
       </div>
       <div style={{ fontSize: 14 }}>{s[`name_${language}`] || s.name_uz}</div>
       <div style={{ fontSize: 13, color: '#64748b' }}>{s.owner_name} · <a href={`tel:${s.owner_phone.replace(/[^\d+]/g, '')}`} style={{ color: 'inherit' }}>{s.owner_phone}</a> · {categoryName(s.category_slug)}</div>
+      {['approved', 'pending'].includes(s.status) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+          {kitsByStore[s.id]
+            ? <span data-testid="store-kit" style={pill('#047857')}>📄 {kitsByStore[s.id]}</span>
+            : <button type="button" data-testid="store-kit-attach" style={{ ...smallBtn('#fef3c7', '#92400e'), minHeight: 36 }}
+                onClick={() => { triggerHaptic('selection'); setBindStore(s.id); setTab(KITS_TAB); }}>📄 {t('attach_sheet')}</button>}
+        </div>
+      )}
       {s.status === 'approved' && (
         <div data-testid="store-reliability" style={{ fontSize: 13, marginTop: 4, fontWeight: 700, color: s.late_30d > 0 ? '#b45309' : '#047857' }}>
           ⏱ {t('reliability').replace('{orders}', s.orders_30d || 0).replace('{late}', s.late_30d || 0)}
@@ -372,7 +385,7 @@ export default function AdminPanel({ onBackToMarket }) {
 
       {tab === 2 && stores.map(storeCard)}
       {tab === KITS_TAB && (
-        <KitsPanel lang={lang} stores={stores} categories={categories} onChanged={load}
+        <KitsPanel lang={lang} stores={stores} categories={categories} onChanged={load} bindStoreId={bindStore}
           onError={setError} onNotice={(m) => { setNotice(m); setTimeout(() => setNotice(''), 2500); }} />
       )}
       {tab === 3 && overview?.patta_enabled && (

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
 import { api } from '../services/api';
 import { triggerHaptic, scanQr, canScanQr, getTelegramInitData } from '../services/telegram';
+import CameraScanner from './CameraScanner';
 import './kits.css';
 
 // 📄 QR sheets (Shuhrat, 2026-11-26): print blank sheets before going to the bazaar, register a stall on the spot and
@@ -46,6 +47,9 @@ const T = {
   scan_hint: { uz: 'Varaqdagi QR kodni ramkaga keltiring', ru: 'Наведите камеру на QR-код листа', en: "Point the camera at the sheet's QR" },
   code_ph: { uz: 'yoki kod: BZR-0042', ru: 'или код: BZR-0042', en: 'or the code: BZR-0042' },
   code_only: { uz: 'Varaq kodi: BZR-0042', ru: 'Код листа: BZR-0042', en: 'Sheet code: BZR-0042' },
+  // Shuhrat (2026-11-28): a sheet is picked from the list or scanned with the camera, in Telegram and on the website
+  pick_free: { uz: "Ro'yxatdan bo'sh varaqni tanlang", ru: 'Выберите свободный лист из списка', en: 'Pick a blank sheet from the list' },
+  or: { uz: 'yoki', ru: 'или', en: 'or' },
   free: { uz: "bo'sh", ru: 'свободен', en: 'blank' },
   used: { uz: 'band', ru: 'занят', en: 'in use' },
   revoked: { uz: 'bekor qilingan', ru: 'отменён', en: 'cancelled' },
@@ -105,9 +109,10 @@ const card = { background: '#ffffff', border: '1px solid #e2e8f0', borderRadius:
 const btn = (bg, color = '#ffffff') => ({ minHeight: 44, padding: '0 14px', borderRadius: 12, border: 'none', background: bg, color, fontWeight: 800, fontSize: 14, cursor: 'pointer' });
 const phoneDigits = (p) => p.replace(/\D/g, '');
 
-function SheetPicker({ value, onChange, lang, t }) {
+function SheetPicker({ value, onChange, lang, t, freeKits = [] }) {
   const [info, setInfo] = useState(null);
   const [error, setError] = useState('');
+  const [camera, setCamera] = useState(false);
   useEffect(() => {
     if (!value.trim()) { setInfo(null); setError(''); return undefined; }
     const timer = setTimeout(() => {
@@ -115,21 +120,37 @@ function SheetPicker({ value, onChange, lang, t }) {
     }, 300);
     return () => clearTimeout(timer);
   }, [value]);
+  // Inside Telegram its own camera; on the website the browser's camera
   const scan = async () => {
-    const text = await scanQr(t('scan_hint'));
-    if (text) { triggerHaptic('success'); onChange(text); }
+    if (canScanQr()) {
+      const text = await scanQr(t('scan_hint'));
+      if (text) { triggerHaptic('success'); onChange(text); }
+    } else {
+      setCamera(true);
+    }
   };
+  const onCamResult = useCallback((text) => { setCamera(false); triggerHaptic('success'); onChange(text); }, [onChange]);
+  const onCamClose = useCallback(() => setCamera(false), []);
+  const canCamera = canScanQr() || Boolean(navigator.mediaDevices?.getUserMedia);
   const label = info ? `${info.code} · ${info.status === 'unbound' ? t('free') : info.status === 'bound' ? `${t('used')}${info.store ? `: ${info.store}` : ''}` : t('revoked')}` : '';
+  const shown = value.startsWith('http') || value.includes('kit_') ? (info?.code || '…') : value;
   return (
     <div>
       <div className="kit-label">{t('sheet')}</div>
-      {canScanQr() && (
+      {canCamera && (
         <button type="button" data-testid="kit-scan" onClick={scan} style={{ ...btn('var(--naqsh-blue)', 'var(--naqsh-gold)'), width: '100%', marginBottom: 6 }}>{t('scan')}</button>
       )}
-      <input data-testid="kit-code" value={value.startsWith('http') ? (info?.code || '…') : value} placeholder={t(canScanQr() ? 'code_ph' : 'code_only')}
+      {freeKits.length > 0 && (
+        <select data-testid="kit-pick" value={freeKits.some((k) => k.code === shown) ? shown : ''} onChange={(e) => e.target.value && onChange(e.target.value)} style={input}>
+          <option value="">{canCamera ? `${t('or')} ${t('pick_free').toLowerCase()}` : t('pick_free')}</option>
+          {freeKits.map((k) => <option key={k.id} value={k.code}>{k.code}</option>)}
+        </select>
+      )}
+      <input data-testid="kit-code" value={shown} placeholder={t(canCamera ? 'code_ph' : 'code_only')}
         onChange={(e) => onChange(e.target.value)} style={{ ...input, textTransform: value ? 'uppercase' : 'none' }} autoCapitalize="characters" />
       {label && <div data-testid="kit-status" style={{ fontSize: 13, fontWeight: 800, color: info.status === 'unbound' ? '#047857' : '#b45309', marginBottom: 6 }}>📄 {label}</div>}
       {error && value.length > 3 && <div style={{ fontSize: 13, color: '#b91c1c', marginBottom: 6 }}>{error}</div>}
+      {camera && <CameraScanner lang={lang} onResult={onCamResult} onClose={onCamClose} />}
     </div>
   );
 }
@@ -205,7 +226,7 @@ function PrintSheets({ bot, kits, onClose, t }) {
   );
 }
 
-export default function KitsPanel({ lang, stores, categories, onError, onNotice, onChanged }) {
+export default function KitsPanel({ lang, stores, categories, onError, onNotice, onChanged, bindStoreId = null }) {
   const t = (key) => T[key]?.[lang] ?? key;
   const [kits, setKits] = useState([]);
   const [counts, setCounts] = useState({});
@@ -215,7 +236,13 @@ export default function KitsPanel({ lang, stores, categories, onError, onNotice,
   const empty = { name_uz: '', stall_number: '', category_slug: '', owner_name: '', owner_phone: '+998 ', helper_phones: [''], kit: '' };
   const [form, setForm] = useState(empty);
   const [result, setResult] = useState(null);
-  const [bindForm, setBindForm] = useState({ store_id: '', kit: '' });
+  const [bindForm, setBindForm] = useState({ store_id: bindStoreId ? String(bindStoreId) : '', kit: '' });
+  const bindRef = React.useRef(null);
+  useEffect(() => {
+    if (!bindStoreId) return;
+    setBindForm((f) => ({ ...f, store_id: String(bindStoreId) }));
+    setTimeout(() => bindRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  }, [bindStoreId]);
 
   const load = useCallback(() => api.adminKits().then((r) => { setKits(r.kits); setCounts(r.counts || {}); }).catch((e) => onError(e.message)), [onError]);
   useEffect(() => { load(); }, [load]);
@@ -261,7 +288,8 @@ export default function KitsPanel({ lang, stores, categories, onError, onNotice,
   );
 
   const categoryList = Object.values(categories);
-  const freeIds = kits.filter((k) => k.status === 'unbound').map((k) => k.id);
+  const freeKits = kits.filter((k) => k.status === 'unbound').sort((a, b) => a.id - b.id);
+  const freeIds = freeKits.map((k) => k.id);
 
   return (
     <div data-testid="kits-panel">
@@ -274,7 +302,7 @@ export default function KitsPanel({ lang, stores, categories, onError, onNotice,
       <form className="kit-form" style={{ ...card, border: '2px solid var(--naqsh-gold)' }} onSubmit={register}>
         <b style={{ fontSize: 16 }}>{t('register')}</b>
         <div style={{ fontSize: 13, color: '#64748b', margin: '2px 0 10px' }}>{t('register_hint')}</div>
-        <SheetPicker value={form.kit} onChange={(kit) => setForm((f) => ({ ...f, kit }))} lang={lang} t={t} />
+        <SheetPicker value={form.kit} onChange={(kit) => setForm((f) => ({ ...f, kit }))} lang={lang} t={t} freeKits={freeKits} />
         <div className="kit-grid">
           {field('name_uz', 'name')}
           {field('stall_number', 'stall')}
@@ -303,7 +331,7 @@ export default function KitsPanel({ lang, stores, categories, onError, onNotice,
       </form>
 
 
-      <form style={card} onSubmit={(e) => {
+      <form ref={bindRef} data-testid="kit-bind" style={card} onSubmit={(e) => {
         e.preventDefault();
         run(() => api.adminBindKit(bindForm.kit, Number(bindForm.store_id)).then(() => setBindForm({ store_id: '', kit: '' })), t('bound_ok'));
       }}>
@@ -315,7 +343,7 @@ export default function KitsPanel({ lang, stores, categories, onError, onNotice,
             <option key={s.id} value={s.id}>{s.stall_number} · {s.name_uz}</option>
           ))}
         </select>
-        <SheetPicker value={bindForm.kit} onChange={(kit) => setBindForm((f) => ({ ...f, kit }))} lang={lang} t={t} />
+        <SheetPicker value={bindForm.kit} onChange={(kit) => setBindForm((f) => ({ ...f, kit }))} lang={lang} t={t} freeKits={freeKits} />
         <button type="submit" disabled={!bindForm.store_id || !bindForm.kit.trim() || busy} style={{ ...btn('var(--naqsh-blue)', 'var(--naqsh-gold)'), width: '100%' }}>{t('bind')}</button>
       </form>
 
